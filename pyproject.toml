@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lift"
+version = "1.0.0"
+description = "A lift for input-convex neural net training"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Ali Siahkoohi", email = "alisk@ucf.edu" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "h5py",
+    "pillow",
+    "scikit-learn",
+    "matplotlib",
+    "torch>=2.0",
+    "tqdm",
+    "projorg",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Repository = "https://github.com/luqigroup/lift"
+
+[tool.setuptools.packages.find]
+include = ["lift*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

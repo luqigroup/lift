@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the accompanying paper."
+title: "lift: code and machine-checked proofs for: a lift for input-convex neural net training"
+authors:
+  - family-names: Siahkoohi
+    given-names: Ali
+    email: alisk@ucf.edu
+version: 1.0.0
+date-released: 2026-09-22
+license: MIT
+url: "https://github.com/luqigroup/lift"
+preferred-citation:
+  type: article
+  title: "A lift for input-convex neural net training"
+  authors:
+    - family-names: Siahkoohi
+      given-names: Ali
+  year: 2026
+  notes: "Under review."

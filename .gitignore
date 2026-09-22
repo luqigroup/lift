@@ -1,0 +1,17 @@
+# Data, checkpoints and figures are produced by the scripts, never tracked.
+/data/
+/checkpoints/
+/figures/
+/plots/
+/logs/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+
+.DS_Store

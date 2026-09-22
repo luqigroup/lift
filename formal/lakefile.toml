@@ -1,0 +1,160 @@
+name = "IcnnLift"
+
+# Machine-checked formalization of the theoretical results of
+# "A lift for input-convex neural network training" (Siahkoohi, 2026).
+# Mathlib is pinned to a release whose toolchain matches `lean-toolchain`
+# (leanprover/lean4:v4.31.0) so that `lake exe cache get` downloads PREBUILT
+# oleans and mathlib is never compiled from source.
+
+defaultTargets = [
+  "TraceLemmas", "CrossCov", "CrossCovIndep", "CrossCovSLLN",
+  "PullbackHessian", "UpdateDrift", "UpdateCovariance", "CouplingSign",
+  "StationaryDensity", "LogDensityCurvature", "BarrierRescaling",
+  "QuasipotentialMonotone", "DiffusionOrdering", "KramersExitTime",
+  "FreeDiffusion", "ShoulderAttenuation", "PowerOfS", "StructuralZeros",
+  "InversePSDAntitone", "BandOccupancy", "FWReduction", "Assumptions",
+  "TaylorChain", "SoftplusBand", "QuasipotentialFTC", "KramersBridge",
+  "WitnessInstance", "PgdBaseline", "CrossCovProbe", "MinibatchNoise",
+  "CouplingPower", "ShoulderDwell", "ProjectionClamp",
+]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.31.0"
+
+# --- shared vocabulary -------------------------------------------------------
+# PSD trace / quadratic-form toolkit the mechanism modules reuse.
+[[lean_lib]]
+name = "TraceLemmas"
+# The cross-covariance estimator, its slack-channel reading, and the two
+# finite-sample deletions of Theorem 1 (cases (i) and (ii)).
+[[lean_lib]]
+name = "CrossCov"
+
+# --- Theorem 1 (thm:joint-necessity) ----------------------------------------
+# Case (iii): conditional independence zeroes the population cross-covariance.
+[[lean_lib]]
+name = "CrossCovIndep"
+# Case (iii) continued: unbiasedness, the a.s. limit, and the L2 rate.
+[[lean_lib]]
+name = "CrossCovSLLN"
+
+# --- the corrected mechanism (docs/design/lemma1_rederivation.md) ------------
+# The exact pullback Hessian, and the refutation of the shipped decomposition.
+[[lean_lib]]
+name = "PullbackHessian"
+# Section 2 fact (i): the mean update descends the pullback landscape exactly.
+[[lean_lib]]
+name = "UpdateDrift"
+# Section 2 fact (ii): the exact covariance decomposition of the update.
+[[lean_lib]]
+name = "UpdateCovariance"
+# The sign of the coupling channel under (A4)'s forward-KL chain.
+[[lean_lib]]
+name = "CouplingSign"
+# The stationary density of a 1-D Ito diffusion with state-dependent noise.
+[[lean_lib]]
+name = "StationaryDensity"
+# (L1') log-density curvature at the minimum, with the sigma-variation term computed.
+[[lean_lib]]
+name = "LogDensityCurvature"
+# (L2') barrier rescaling and the Kramers-exponent comparison.
+[[lean_lib]]
+name = "BarrierRescaling"
+# (FW-2) quasipotential monotonicity in the diffusion.
+[[lean_lib]]
+name = "QuasipotentialMonotone"
+# (FW-1) diffusion ordering on the shoulder band.
+[[lean_lib]]
+name = "DiffusionOrdering"
+# The 1-D mean-first-passage boundary-value problem and its Arrhenius bound.
+[[lean_lib]]
+name = "KramersExitTime"
+# The driftless free-diffusion exit time and the crossover law.
+[[lean_lib]]
+name = "FreeDiffusion"
+
+# --- the readout shoulder ----------------------------------------------------
+# The chain rule through the readout, and the once-vs-twice attenuation asymmetry.
+[[lean_lib]]
+name = "ShoulderAttenuation"
+# (FW-3b) sigma_Jac^2 is attenuated once, and the ratio still diverges.
+[[lean_lib]]
+name = "PowerOfS"
+# ADMM splitting, deterministic emission, and reverse KL: three structural zeros.
+[[lean_lib]]
+name = "StructuralZeros"
+
+# --- auxiliaries and bookkeeping --------------------------------------------
+# Inverse anti-monotonicity in the positive-semidefinite order.
+[[lean_lib]]
+name = "InversePSDAntitone"
+# (FW-3a) band occupancy: bounded-action paths spend positive time on the band.
+[[lean_lib]]
+name = "BandOccupancy"
+# (FW-4) the multi-dimensional action projects onto the scalar statement.
+[[lean_lib]]
+name = "FWReduction"
+# The regularity assumptions (A1)-(A6) as Lean structures, and the map from each
+# paper hypothesis to the module that carries it.
+[[lean_lib]]
+name = "Assumptions"
+
+# --- hypothesis discharge (2026-09-02) -------------------------------------
+# (A4)'s chain and remainder bound reduced to a Hessian-Lipschitz smoothness
+# condition, and PSD-ness of the expected Hessian proved at a local minimum.
+[[lean_lib]]
+name = "TaylorChain"
+# (A2)'s tolerance made explicit for the softplus readout actually trained,
+# in the relative form that survives deep on the shoulder.
+[[lean_lib]]
+name = "SoftplusBand"
+# hUeff discharged: the quasipotential's defining ODE is the fundamental
+# theorem of calculus, needing only continuity and positivity.
+[[lean_lib]]
+name = "QuasipotentialFTC"
+# hkramers' ordering consequences re-derived from the proved exit-time bounds.
+[[lean_lib]]
+name = "KramersBridge"
+# One explicit model inhabiting every hypothesis stack of the main chain.
+[[lean_lib]]
+name = "WitnessInstance"
+
+# Theorem A: the directional escape comparison, the gate rho_v > s^-2 - 1, and
+# the structural point that PGD cannot carry an aligned component.
+[[lean_lib]]
+name = "PgdBaseline"
+
+# The frozen-iterate minibatch noise omitted by (A4)'s chain: the three-term
+# decomposition Sigma_slack = Xi + V H + R_2, the vanishing condition for the
+# frozen coupling Xi, the projected identity with the xi cross-term explicit,
+# and the regime clause that replaces (A4'-q).
+[[lean_lib]]
+name = "MinibatchNoise"
+
+# Theorem 1 over the fixed-iterate probe (Bessel divisor), and the divisor-indifference theorem.
+[[lean_lib]]
+name = "CrossCovProbe"
+
+# The power of the readout prefactor in the coupling term of eq:sigma-eff: the
+# pre-readout Hessian by the chain rule, the coupling term 2 s^3 a + 2 s^2 (1-s) b
+# (softplus), O(s^2) and never Theta(s), sigma_eff^2 = Theta(s^2), and the
+# exponent Theta(s^-2) for the lift as for direct softplus -- the ratio of the
+# two exponents is bounded, not divergent.
+[[lean_lib]]
+name = "CouplingPower"
+
+# The occupation-time corollary cor:dwell: the mean-exit-time boundary-value
+# problem generalized to a bounded measurable right-hand side, instantiated at
+# the indicator of the band [a, w_s], with the exit-time results of
+# KramersExitTime re-derived as the case f = 1.
+[[lean_lib]]
+name = "ShoulderDwell"
+
+# prop:clamp, in part: the geometric dwell of one projected coordinate at the
+# boundary, with mean 1/Phi(-rho), and the eta*sigma homogeneity of the Lindley
+# recursion. The Spitzer ladder-epoch identity is NOT formalized.
+[[lean_lib]]
+name = "ProjectionClamp"

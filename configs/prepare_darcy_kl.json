@@ -1,0 +1,19 @@
+{
+    "experiment_name": "darcy_kl",
+    "reference_path": "",
+    "N": 40,
+    "K": 10,
+    "alpha": 0.0,
+    "s": 1.1,
+    "sigma": 1.0,
+    "sigma_y": 0.01,
+    "n_sensors": 33,
+    "maxiter": 40,
+    "n_train": 50000,
+    "n_eval": 2000,
+    "map_for_eval": 1,
+    "seed_offset": 100000,
+    "seed": 0,
+    "gpu_id": -1,
+    "phase": "train"
+}

@@ -1,0 +1,42 @@
+name: Lean formal proofs (icnnlift)
+
+# Machine-checks the Lean 4 + mathlib formalization of the theoretical results of
+# "A lift for input-convex neural network training", under `formal/`. A green run =
+# the Lean kernel accepted the proofs. The job downloads the PREBUILT mathlib olean
+# cache (`lake exe cache get`), so it never compiles mathlib from source.
+
+on:
+  push:
+    paths:
+      - 'formal/**'
+      - '.github/workflows/lean.yml'
+  pull_request:
+    paths:
+      - 'formal/**'
+      - '.github/workflows/lean.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and kernel-check the formalization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Guard against silent cheats before we even build.
+      - name: Reject sorry / admit / native_decide / axiom in the sources
+        run: |
+          if grep -RnE '\b(sorry|admit)\b|native_decide|^\s*axiom\b' formal/*.lean; then
+            echo "::error::Found sorry/admit/native_decide/axiom in formal/*.lean"
+            exit 1
+          fi
+          echo "No sorry/admit/native_decide/axiom found."
+
+      # Installs elan (toolchain from formal/lean-toolchain), runs `lake exe cache get`
+      # to fetch prebuilt mathlib oleans, then `lake build`. A successful build is the
+      # machine-check.
+      - name: Build (elan + mathlib cache + lake build)
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal
