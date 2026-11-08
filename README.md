@@ -211,7 +211,7 @@ python scripts/collect_positivity_maps_1d.py --out_dir data/checkpoints/lcmm_1d_
     --backends direct_exp
 ```
 
-**Shoulder share and exit rate at three thresholds**, Table 5. `scripts/measure_occupancy_thresholds.py`
+**Shoulder share and exit rate at three thresholds**, Figure 11. `scripts/measure_occupancy_thresholds.py`
 recomputes the statistics of `scripts/measure_dwell_time.py` from the snapshots stored in the
 thirty-seed one-dimensional archives, at the thresholds 0.02, 0.05 and 0.10 on the derivative of the
 map and on a grid of weight edges, with no training. It checks first that it reproduces
@@ -286,10 +286,14 @@ The 96 runs took about five hours on one 16 GB GPU, and each lift checkpoint tak
 | loss-landscape geometry | `python scripts/render_landscape_composite.py` |
 
 **Captioned figures.** `scripts/render_additional_figures.py` redraws seven captioned figures of these
-results from the records the commands above produce, into `figures/additional/`.
+results from the records the commands above produce, into `figures/additional/`, and checks each drawn
+median against the reported value. With `--paper` it draws the three that are in the appendix without
+their captions, into `figures/additional/paper/`: Figure 11 (`shoulder_thresholds_1d`), Figure 12
+(`shoulder_entry_exit`) and Figure 14 (`exp_map_tuned_1d`).
 
 ```bash
 python scripts/render_additional_figures.py --figure all
+python scripts/render_additional_figures.py --figure all --paper
 ```
 
 **Theory.** The stationary law of the projection and Spitzer's identity are now proved, in five new

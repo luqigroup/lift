@@ -3,13 +3,22 @@
 Nothing is trained or re-evaluated: every figure is drawn from the records the
 experiments write, and every number drawn is printed with the file it was read
 from. The medians drawn are checked against the reported values below, and a
-figure stops on any disagreement beyond rounding. The PDF metadata is empty.
+figure stops on any disagreement beyond rounding. Every figure is drawn at the
+paper's text width of 5.5 in with the font sizes of the paper's figures, and
+cropped in height to its content. The PDF metadata is empty.
 
 Usage::
 
     python scripts/render_additional_figures.py --figure all
+    python scripts/render_additional_figures.py --figure all --paper
 
-Output: ``figures/additional/<name>.pdf``.
+Output: ``figures/additional/<name>.pdf``. With ``--paper`` no caption is
+printed, since the paper sets its own, and the figures of the paper's appendix
+(``shoulder_thresholds_1d``, ``shoulder_entry_exit`` and ``exp_map_tuned_1d``,
+Figures 11, 12 and 14) go to ``figures/additional/paper/<name>.pdf``. The
+others are skipped there: ``cifar10_sivaprasad`` because the paper's figure is
+drawn by ``scripts/render_sivaprasad_cifar.py``, the rest because they are not
+in the paper.
 """
 from __future__ import annotations
 
@@ -35,6 +44,8 @@ sys.path.insert(0, _REPO)
 from lift.utils.paper_style import PALETTE, apply_paper_style
 
 OUT_DIR = os.path.join(_REPO, "figures", "additional")
+PAPER_OUT_DIR = os.path.join(OUT_DIR, "paper")
+PAPER = False
 ANALYSIS = os.path.join(_REPO, "data", "analysis")
 CK = os.path.join(_REPO, "data", "checkpoints")
 SERIES_CACHE = os.path.join(ANALYSIS, "occupancy_series_1d.json")
@@ -52,8 +63,15 @@ DASH = {"lift": (0, ()), "direct": (0, (4, 1.6)), "pgd": (0, (3, 1.2, 1, 1.2)),
         "exppost": (0, (1, 1.1)), "direct_exp": (0, (2, 1.0)), "lift_exp": (0, (2, 1.0))}
 PDF_META = {k: None for k in ("Title", "Author", "Subject", "Keywords", "Creator", "Producer", "CreationDate")}
 GUARD_1D = 200.0
+W_FIG = 5.5
+FS_TICK, FS_LAB, FS_TITLE, FS_LEG = 7.0, 7.5, 8.0, 7.0
 FS = 8.0
 LINESP = 1.3
+MARGIN = 0.05
+PAD = 0.02
+CAP_GAP = 0.06
+MED_S = 14
+MED_MS = float(np.sqrt(MED_S))
 STEP_TEX = {"5e-4": r"$5{\cdot}10^{-4}$", "1e-3": r"$10^{-3}$", "2e-3": r"$2{\cdot}10^{-3}$"}
 
 MEDIAN_TV_BY_METHOD = {"lift": (0.016, 0.027, 0.012, 0.012), "direct": (0.137, 0.140, 0.125, 0.073),
@@ -67,7 +85,7 @@ SHARE_ENTRY_EXIT = {("gumbel", "direct"): (0.36, 0.39, 3.8e-3, 9.8e-6),
 GUMBEL_END_SHARE = {"direct": (0.16, 0.39, 0.71), "lift": (0.75, 0.97, 1.00)}
 CIFAR_TEST_ACCURACY = {"lift": 53.4, "direct": 53.2, "pgd": 52.9, "exppost": 52.5}
 REFERENCE_SET = {"pinned": (0.022, 0.030, 0.033, 0.023), "batch": (0.031, 0.033, 0.035, 0.023),
-                 "direct": (0.145, 0.151, 0.175, 0.113), "darcy_max_mean_shift": 0.0002, "darcy_max_sd": 0.0004}
+                 "direct": (0.145, 0.151, 0.175, 0.113)}
 DIRECT_SHARE = {"1d_start": 0.36, "1d_end": (0.31, 0.40), "power": (3, 0.49, 0.54), "hepmass": (3, 0.65, 0.94),
                 "miniboone": (3, 0.65, 0.96), "ffhq": (28, 1.00, 1.00), "flows": (5, 0.00, 0.00),
                 "darcy": (10, 0.00, 0.00)}
@@ -95,21 +113,21 @@ CAPTIONS = {
         "sits near PGD and the exponential map near direct softplus (one point per seed, medians as bars).",
     "exp_map_tuned_1d":
         "Under the exponential map the lift stays well ahead of direct training on every seed and close to the "
-        "paper's lift except on Gamma: distance at each run's best held-out loss (top), held-out loss (bottom).",
+        "paper's lift except on Gamma: distance at the best held-out loss, tuned step below (top), median loss "
+        "(bottom).",
     "shoulder_thresholds_1d":
-        "The comparison does not depend on the threshold: at each one the lift ends with more weights on the "
-        "shoulder (top) and its visits end far sooner (bottom), except on Beta, where the rates are close. "
-        "Medians over seeds; the paper's threshold in gray.",
+        "At every threshold the lift ends with more weights on the shoulder (top) and its visits end far sooner "
+        "(bottom), except on Beta, where the rates are close; medians, the paper's threshold in gray.",
     "shoulder_entry_exit":
-        "On Gumbel a weight of direct softplus on the shoulder essentially never leaves, while the lift's weights "
-        "enter and leave far more often; on Beta both leave about as often and the lift's weights enter far more "
-        "often (medians; rates after the first interval).",
+        "On Gumbel a direct softplus weight on the shoulder almost never leaves, while lift weights enter and leave "
+        "far more often; on Beta both leave about as often and lift weights enter far more often (after the first "
+        "interval).",
     "reference_set_1d":
-        "The lift reading one batch instead of the fixed sample (each seed's two readings joined) stays far "
-        "below direct softplus; on the transport map the held-out loss moves by under a thousandth of a nat.",
+        "The lift's distance to the target barely moves whether the hypernetwork reads the fixed sample or one "
+        "batch at test time, and stays far below direct softplus; training is unchanged.",
     "direct_share_by_setting":
-        "Direct softplus reaches the shoulder on the one-dimensional targets and the tabular benchmarks and starts "
-        "on it on the image regularizer, but barely reaches it on the flows and not on the transport map.",
+        "Direct softplus starts on the shoulder on the one-dimensional targets, the tabular benchmarks and the "
+        "image regularizer and ends there, but barely reaches it on the flows and not on the transport map.",
     "cifar10_sivaprasad":
         "On the CIFAR-10 task of Sivaprasad et al. (2021) the lift has the highest median test accuracy at the "
         "best validation epoch (bottom); training and validation curves above, seeds thin and medians bold.",
@@ -171,14 +189,15 @@ def _wrap(text: str, width_in: float, fontsize: float = FS) -> list[str]:
     return lines
 
 
-def _caption_block(name: str, width_in: float) -> tuple[list[str], float]:
+def _caption_block(name: str, width_in: float) -> list[str]:
+    """The caption's lines at ``width_in``; none with ``--paper``."""
     text = CAPTIONS[name]
     for cite in CITE_URL:
-        text = text.replace(cite, cite.replace(" ", "\u00a0"))
-    lines = [ln.replace("\u00a0", " ") for ln in _wrap(text, width_in)]
+        text = text.replace(cite, cite.replace(" ", " "))
+    lines = [ln.replace(" ", " ") for ln in _wrap(text, width_in)]
     if len(lines) > 2:
         raise SystemExit(f"[{name}] caption wraps to {len(lines)} lines at {width_in:.2f} in; two at most")
-    return lines, len(lines) * FS * LINESP / 72.0 + 0.12
+    return [] if PAPER else lines
 
 
 def _axes_grid(fig, nrows: int, ncols: int, *, left: float, right: float, top: float, bottom: float,
@@ -203,10 +222,55 @@ def _axes_grid(fig, nrows: int, ncols: int, *, left: float, right: float, top: f
     return out
 
 
-def _despine(ax, fs: float = FS - 0.5) -> None:
+def _despine(ax, fs: float = FS_TICK) -> None:
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     ax.tick_params(labelsize=fs, length=2.5, pad=1.5)
+
+
+def _extent_in(fig, artist):
+    """An artist's drawn extent in inches from the figure's lower left corner."""
+    return artist.get_window_extent(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
+
+
+def _row_top_in(fig, axes) -> float:
+    """Top of a row of panels, titles included, in inches."""
+    H = fig.get_size_inches()[1]
+    return max(max(ax.get_position().y1 * H, _extent_in(fig, ax.title).y1 if ax.get_title() else 0.0)
+               for ax in axes)
+
+
+def _row_bottom_in(fig, axes) -> float:
+    """Bottom of a row of panels, x tick labels and x labels included, in inches."""
+    r = fig.canvas.get_renderer()
+    return min(ax.xaxis.get_tightbbox(r).transformed(fig.dpi_scale_trans.inverted()).y0 for ax in axes)
+
+
+def _legend_above(fig, handles, labels, axes, top_in: float | None = None, gap_in: float = 0.05, **kw):
+    """One line of legend centered over ``axes``, ``gap_in`` above their titles (or above ``top_in``)."""
+    H = fig.get_size_inches()[1]
+    top = _row_top_in(fig, axes) if top_in is None else top_in
+    x_mid = (axes[0].get_position().x0 + axes[-1].get_position().x1) / 2
+    opts = dict(fontsize=FS_LEG, frameon=False, ncol=len(handles), handlelength=2.4, columnspacing=1.6,
+                borderpad=0.0, borderaxespad=0.0, handletextpad=0.6)
+    opts.update(kw)
+    return fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(x_mid, (top + gap_in) / H), **opts)
+
+
+def _align_ylabels(fig, axes) -> None:
+    """The y labels of a column of panels at one x; ``fig.align_ylabels`` skips axes from ``fig.add_axes``."""
+    fig.canvas.draw()
+    x = min(ax.yaxis.label.get_position()[0] for ax in axes) / fig.bbox.width
+    for ax in axes:
+        ax.yaxis.set_label_coords(x, 0.5, transform=matplotlib.transforms.blended_transform_factory(
+            fig.transFigure, ax.transAxes))
+
+
+def _xlabel_below(fig, axes, text: str, gap_in: float = 0.03) -> None:
+    """One x label centered under a row of panels, ``gap_in`` below their tick labels."""
+    H = fig.get_size_inches()[1]
+    x_mid = (axes[0].get_position().x0 + axes[-1].get_position().x1) / 2
+    fig.text(x_mid, (_row_bottom_in(fig, axes) - gap_in) / H, text, ha="center", va="top", fontsize=FS_LAB)
 
 
 def _axis_break(ax, y: float, size_pt: float = 3.0) -> None:
@@ -222,7 +286,7 @@ def _axis_break(ax, y: float, size_pt: float = 3.0) -> None:
 
 
 def _caption_line(fig, line: str, x: float, y: float) -> None:
-    """One caption line, with every citation in ``CITE_URL`` drawn as a link."""
+    """One caption line, its top at ``y``, with every citation in ``CITE_URL`` drawn as a link."""
     renderer = fig.canvas.get_renderer()
     parts, rest = [], line
     while rest:
@@ -239,29 +303,45 @@ def _caption_line(fig, line: str, x: float, y: float) -> None:
     for seg, url in parts:
         if seg.startswith(" "):
             x += space
-        t = fig.text(x, y, seg.strip(" "), ha="left", va="bottom", fontsize=FS,
+        t = fig.text(x, y, seg.strip(" "), ha="left", va="top", fontsize=FS,
                      color=LINK_COLOR if url else "black", url=url)
         x += t.get_window_extent(renderer).width / fig.bbox.width
         if seg.endswith(" "):
             x += space
 
 
-def _finish(fig, name: str, lines: list[str], left_in: float, out_dir: str) -> None:
+def _finish(fig, name: str, lines: list[str], left_in: float, out_dir: str, png_dir: str) -> None:
+    """Caption under the drawn content, then save at the full width, cropped in height to the content."""
+    from matplotlib.transforms import Bbox
     W, H = fig.get_size_inches()
+    renderer = fig.canvas.get_renderer()
+    content = fig.get_tightbbox(renderer)
+    if content.x0 < -1e-3 or content.x1 > W + 1e-3:
+        raise SystemExit(f"[{name}] drawn content spans {content.x0:.3f} to {content.x1:.3f} in, "
+                         f"past the {W:.2f} in width")
     step = FS * LINESP / 72.0
     for k, line in enumerate(lines):
-        _caption_line(fig, line, left_in / W, (0.05 + (len(lines) - 1 - k) * step) / H)
+        _caption_line(fig, line, left_in / W, (content.y0 - CAP_GAP - k * step) / H)
+    y_low = fig.get_tightbbox(renderer).y0 if lines else content.y0
+    crop = Bbox.from_extents(0.0, y_low - PAD, W, content.y1 + PAD)
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, name + ".pdf")
-    fig.savefig(path, metadata=PDF_META)
+    fig.savefig(path, metadata=PDF_META, bbox_inches=crop)
+    if png_dir:
+        os.makedirs(png_dir, exist_ok=True)
+        fig.savefig(os.path.join(png_dir, name + ".png"), dpi=200, bbox_inches=crop)
     plt.close(fig)
-    print(f"[{name}] wrote {_rel(path)}  ({len(lines)} caption lines)")
+    print(f"[{name}] wrote {_rel(path)}  ({len(lines)} caption lines; {W:.2f} x {crop.height:.2f} in, "
+          f"content {content.x0:.3f} in from the left edge and {W - content.x1:.3f} in from the right)")
 
 
 def _strip(ax, x: float, vals, color: str, rng, *, filled: bool = True, ms: float = 3.0,
            jitter: float = 0.14, med_w: float = 0.28, med_lw: float = 1.6, alpha: float = 1.0,
            horizontal: bool = False, z: float = 3.0, points_above: bool = False) -> float:
-    """One strip of seeds at category ``x`` with its median as a bar; returns the median."""
+    """One strip of seeds at category ``x`` with its median as a bar; returns the median.
+
+    ``points_above`` draws the seeds over the bar, so that open markers stay visible on it.
+    """
     v = np.asarray(vals, dtype=float)
     off = rng.uniform(-jitter, jitter, size=v.size) if v.size > 1 else np.zeros(1)
     xs = np.full(v.size, x) + off
@@ -359,7 +439,7 @@ def _rates_after_first(cache: dict, target: str, arm: str) -> list[tuple]:
     return [tuple(v) for v in store[key].values()]
 
 
-def fig_positivity_methods_1d(out_dir: str) -> None:
+def fig_positivity_methods_1d(out_dir: str, png_dir: str) -> None:
     name = "positivity_methods_1d"
     chk, rng = Check(name), np.random.default_rng(0)
     import collect_positivity_maps_1d as CPM
@@ -377,11 +457,10 @@ def fig_positivity_methods_1d(out_dir: str) -> None:
         for t in TARGETS:
             data[t][m] = (np.array(res[t]["best"]), os.path.join(CK, root, t))
 
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    panel_h = 1.55
-    fig = plt.figure(figsize=(W, panel_h + 0.28 + 0.42 + cap_h))
-    axes = _axes_grid(fig, 1, 4, left=1.0, right=0.1, top=0.28, bottom=cap_h + 0.42, wsp=0.22, hsp=0)[0]
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.25 + 1.3 + 0.35))
+    axes = _axes_grid(fig, 1, 4, left=0.80, right=0.05, top=0.25, bottom=0.35, wsp=0.12, hsp=0)[0]
     ys = list(range(len(methods)))[::-1]
     xmax = 0.0
     for ax, t in zip(axes, TARGETS):
@@ -395,29 +474,23 @@ def fig_positivity_methods_1d(out_dir: str) -> None:
             xmax = max(xmax, float(np.max(v)))
             _say(name, f"{t} {LABEL[m]} TV at best held-out loss, {len(v)} seeds", v, src)
             chk(f"{t} {LABEL[m]} median", med, MEDIAN_TV_BY_METHOD[m][TARGETS.index(t)], decimals=3)
-        ax.set_title(TARGET_LABEL[t], fontsize=FS + 1, pad=4)
+        ax.set_title(TARGET_LABEL[t], fontsize=FS_TITLE, pad=3)
         ax.set_yticks(ys)
         ax.set_ylim(-0.6, len(methods) - 0.4)
         _despine(ax)
-        ax.grid(axis="x", alpha=0.25, ls="--", lw=0.5)
     for ax in axes:
-        ax.set_xlim(0, 1.08 * xmax)
+        ax.set_xlim(-0.004, 1.08 * xmax)
         ax.set_xticks([0, 0.05, 0.10, 0.15])
-    Wf, Hf = fig.get_size_inches()
-    fig.text((axes[0].get_position().x0 + axes[-1].get_position().x1) / 2, (cap_h + 0.09) / Hf,
-             "TV distance to the target (lower is better)", ha="center", va="bottom", fontsize=FS)
-    axes[0].set_yticklabels([f"{LABEL[m]} ({SEEDS_BY_METHOD[m]})" for m in methods], fontsize=FS - 0.5)
-    for lab in axes[0].get_yticklabels():
-        if lab.get_text().startswith("Sivaprasad"):
-            lab.set_url(CITE_URL["Sivaprasad et al. (2021)"])
-            lab.set_color(LINK_COLOR)
+        ax.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%g"))
+    axes[0].set_yticklabels([LABEL[m] for m in methods], fontsize=FS_TICK)
     for ax in axes[1:]:
-        ax.set_yticklabels([])
+        ax.tick_params(labelleft=False)
+    _xlabel_below(fig, axes, "TV distance")
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
-def fig_exp_map_tuned_1d(out_dir: str) -> None:
+def fig_exp_map_tuned_1d(out_dir: str, png_dir: str) -> None:
     name = "exp_map_tuned_1d"
     chk, rng = Check(name), np.random.default_rng(1)
     with open(EXP_MAP) as f:
@@ -426,11 +499,11 @@ def fig_exp_map_tuned_1d(out_dir: str) -> None:
     rec_key = {"direct_exp": "direct_exp", "lift_exp": "hypernet_exp", "lift": "hypernet"}
     seeds = [1, 2, 3, 4, 5]
 
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    fig = plt.figure(figsize=(W, 1.55 + 1.45 + 0.52 + 0.74 + 0.55 + cap_h))
-    rows = _axes_grid(fig, 2, 4, left=0.55, right=0.08, top=0.52, bottom=cap_h + 0.4, wsp=0.5, hsp=0.62)
-    short = {"direct_exp": "direct,\nexp. map", "lift_exp": "lift,\nexp. map", "lift": "lift"}
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.34 + 1.0 + 0.24 + 1.0 + 0.32))
+    rows = _axes_grid(fig, 2, 4, left=0.38, right=0.12, top=0.34, bottom=0.32, wsp=(0.32, 0.32, 0.38),
+                      hsp=0.24)
     for j, t in enumerate(TARGETS):
         ax_top, ax_bot = rows[0][j], rows[1][j]
         best_direct = []
@@ -466,14 +539,9 @@ def fig_exp_map_tuned_1d(out_dir: str) -> None:
                      nll[keep], npz_path)
                 if m == "direct_exp":
                     best_direct.append(float(np.min(nll[keep])))
-            stack = np.stack(curves)
-            med_curve = np.median(stack, axis=0)
-            lo_curve, hi_curve = np.percentile(stack, 10, axis=0), np.percentile(stack, 90, axis=0)
-            ax_bot.fill_between(grid, lo_curve, hi_curve, color=COL[m], alpha=0.18, lw=0, zorder=2 - i * 0.1)
+            med_curve = np.median(np.stack(curves), axis=0)
             ax_bot.plot(grid, med_curve, color=COL[m], lw=1.4, ls=DASH[m], zorder=4 - i * 0.1)
             _say(name, f"{t} {LABEL[m]} held-out loss, median over seeds {seeds}", med_curve, npz_path)
-            _say(name, f"{t} {LABEL[m]} held-out loss, 10th percentile", lo_curve, npz_path)
-            _say(name, f"{t} {LABEL[m]} held-out loss, 90th percentile", hi_curve, npz_path)
             med = _strip(ax_top, i, tvs, COL[m], rng, filled=(m == "lift"), med_w=0.24)
             _say(name, f"{t} {LABEL[m]} step {step} TV at best held-out loss, seeds {seeds}", tvs, npz_path)
             chk(f"{t} {LABEL[m]} median", med, MEDIAN_TV_EXP_MAP[m][j], decimals=3)
@@ -491,39 +559,43 @@ def fig_exp_map_tuned_1d(out_dir: str) -> None:
              lift_exp_path)
         if min(crossings) < 0 or max(crossings) > 600:
             chk.bad.append(f"{t}: a lift run is not below the best direct run by iteration 600 ({crossings})")
-        ax_top.set_title(TARGET_LABEL[t], fontsize=FS + 1, pad=4)
+        ax_top.set_title(TARGET_LABEL[t], fontsize=FS_TITLE, pad=3)
         ax_top.set_xticks(range(3))
-        ax_top.set_xticklabels([f"{short[m]}\n{STEP_TEX[STEP_EXP_MAP[m][j]]}" for m in methods], fontsize=FS - 1)
+        ax_top.set_xticklabels([STEP_TEX[STEP_EXP_MAP[m][j]] for m in methods])
         ax_top.set_xlim(-0.3, 2.3)
         ax_top.set_ylim(0, 0.17)
         ax_top.set_yticks([0, 0.05, 0.10, 0.15])
+        ax_top.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%g"))
+        if j:
+            ax_top.tick_params(labelleft=False)
         ax_bot.set_xlim(GUARD_1D, 3000)
-        ax_bot.set_xticks([200, 1000, 2000, 3000])
-        ax_bot.set_xlabel("iteration", fontsize=FS, labelpad=1)
+        ax_bot.set_xticks([1000, 2000, 3000])
+        ax_bot.margins(y=0.12)
+        ax_bot.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(3))
         for ax in (ax_top, ax_bot):
             _despine(ax)
-    rows[0][0].set_ylabel("TV distance\n(lower is better)", fontsize=FS)
-    rows[1][0].set_ylabel("held-out loss\n(lower is better)", fontsize=FS)
-    handles = [Line2D([], [], color=COL[m], lw=1.2, ls=DASH[m], marker="o", ms=3.5, mew=0.8,
+    rows[0][0].set_ylabel("TV distance", fontsize=FS_LAB, labelpad=2)
+    rows[1][0].set_ylabel("held-out loss", fontsize=FS_LAB, labelpad=2)
+    _align_ylabels(fig, [rows[0][0], rows[1][0]])
+    _xlabel_below(fig, rows[1], "iteration")
+    handles = [Line2D([], [], color=COL[m], lw=1.4, ls=DASH[m], marker="o", ms=3.5, mew=0.8,
                       mfc=COL[m] if m == "lift" else "white", mec=COL[m]) for m in methods]
-    fig.legend(handles, [LABEL[m] for m in methods],
-               fontsize=FS - 0.5, frameon=False, loc="upper center", ncol=3, handlelength=2.6,
-               columnspacing=1.6, bbox_to_anchor=(0.53, 1.0))
+    _legend_above(fig, handles, [LABEL[m] for m in methods], rows[0], handlelength=2.6)
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
-def fig_shoulder_thresholds_1d(out_dir: str) -> None:
+def fig_shoulder_thresholds_1d(out_dir: str, png_dir: str) -> None:
     name = "shoulder_thresholds_1d"
     chk = Check(name)
     cache_path = os.path.join(ANALYSIS, "occupancy_thresholds.json")
     cache = _thresholds_cache()
     floor = 1e-7
     brk = np.sqrt(floor * 1e-5)
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    fig = plt.figure(figsize=(W, 1.35 + 1.35 + 0.48 + 0.4 + 0.42 + cap_h))
-    rows = _axes_grid(fig, 2, 4, left=0.55, right=0.08, top=0.48, bottom=cap_h + 0.42, wsp=0.3, hsp=0.4)
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.34 + 0.95 + 0.12 + 0.95 + 0.32))
+    rows = _axes_grid(fig, 2, 4, left=0.40, right=0.05, top=0.34, bottom=0.32, wsp=0.12, hsp=0.12)
     x = np.arange(3)
     for j, t in enumerate(TARGETS):
         for arm in ("direct", "lift"):
@@ -533,22 +605,16 @@ def fig_shoulder_thresholds_1d(out_dir: str) -> None:
             for ax, arr, what, stat in ((rows[0][j], occ, "share of weights on the shoulder at the end",
                                          "occ_last"),
                                         (rows[1][j], ext, "rate at which a visit ends", "exit_rate")):
-                med, lo, hi = np.median(arr, 0), np.percentile(arr, 10, 0), np.percentile(arr, 90, 0)
+                med = np.median(arr, 0)
                 _say(name, f"{t} {LABEL[arm]} {what} at thresholds {PSI_LABEL}, median", med, cache_path)
-                _say(name, f"{t} {LABEL[arm]} {what}, 10th percentile", lo, cache_path)
-                _say(name, f"{t} {LABEL[arm]} {what}, 90th percentile", hi, cache_path)
-                if stat == "exit_rate":
-                    med_d = np.maximum(med, floor)
-                    lo_band, hi_band = np.maximum(lo, brk), np.maximum(hi, brk)
-                else:
-                    med_d, lo_band, hi_band = med, lo, hi
-                ax.scatter(x, med_d, s=14, color=COL[arm], zorder=5, clip_on=False)
+                med_d = np.maximum(med, floor) if stat == "exit_rate" else med
+                ax.scatter(x, med_d, s=MED_S, color=COL[arm], zorder=5, clip_on=False)
+                # A zero median sits on the "0" tick below the axis break and is not joined to the others.
                 above = med_d > floor if stat == "exit_rate" else np.ones(x.size, dtype=bool)
                 runs = np.split(np.arange(x.size), np.flatnonzero(np.diff(above.astype(int))) + 1)
                 for r in runs:
                     if above[r[0]] and r.size > 1:
                         ax.plot(x[r], med_d[r], color=COL[arm], lw=1.4, ls=DASH[arm], zorder=4)
-                ax.fill_between(x, lo_band, hi_band, color=COL[arm], alpha=0.18, lw=0, zorder=2)
                 tab_i = 0 if stat == "occ_last" else 1
                 for k_i, lab in enumerate(PSI_LABEL):
                     theirs = SHARE_EXIT_BY_THRESHOLD[t][arm][tab_i][k_i]
@@ -560,9 +626,10 @@ def fig_shoulder_thresholds_1d(out_dir: str) -> None:
                 for k_i, lab in enumerate(PSI_LABEL):
                     chk(f"Gumbel {LABEL[arm]} end share at {lab}", float(np.median(occ[:, k_i])),
                         GUMBEL_END_SHARE[arm][k_i], decimals=2)
-        rows[0][j].set_title(TARGET_LABEL[t], fontsize=FS + 1, pad=4)
+        rows[0][j].set_title(TARGET_LABEL[t], fontsize=FS_TITLE, pad=3)
         rows[0][j].set_ylim(0, 1.05)
-        rows[0][j].set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+        rows[0][j].set_yticks([0, 0.5, 1.0])
+        rows[0][j].set_yticklabels(["0", "0.5", "1"])
         rows[1][j].set_yscale("log")
         rows[1][j].set_ylim(floor / 1.5, 0.3)
         rows[1][j].set_yticks([1e-7, 1e-5, 1e-3, 1e-1])
@@ -575,30 +642,32 @@ def fig_shoulder_thresholds_1d(out_dir: str) -> None:
             ax.set_xticklabels(PSI_LABEL)
             ax.set_xlim(-0.3, 2.3)
             _despine(ax)
-    Wf, Hf = fig.get_size_inches()
-    fig.text((rows[1][0].get_position().x0 + rows[1][3].get_position().x1) / 2, (cap_h + 0.14) / Hf,
-             "threshold on the softplus derivative", ha="center", va="bottom", fontsize=FS)
-    rows[0][0].set_ylabel("share of weights on the\nshoulder at the end", fontsize=FS)
-    rows[1][0].set_ylabel("rate a visit ends,\nper snapshot interval", fontsize=FS)
-    handles = [Line2D([], [], color=COL[a], lw=1.4, ls=DASH[a], marker="o", ms=3.5) for a in ("direct", "lift")]
-    x_mid = (rows[0][0].get_position().x0 + rows[0][3].get_position().x1) / 2
-    fig.legend(handles, [LABEL["direct"], LABEL["lift"]], fontsize=FS - 0.5, frameon=False, loc="upper center",
-               ncol=2, handlelength=2.4, columnspacing=1.6, bbox_to_anchor=(x_mid, 1.0))
+        rows[0][j].tick_params(labelbottom=False)
+        if j:
+            for ax in (rows[0][j], rows[1][j]):
+                ax.tick_params(labelleft=False)
+    _xlabel_below(fig, rows[1], "shoulder threshold")
+    rows[0][0].set_ylabel("share on shoulder", fontsize=FS_LAB, labelpad=2)
+    rows[1][0].set_ylabel("rate a visit ends", fontsize=FS_LAB, labelpad=2)
+    _align_ylabels(fig, [rows[0][0], rows[1][0]])
+    handles = [Line2D([], [], color=COL[a], lw=1.4, ls=DASH[a], marker="o", ms=MED_MS)
+               for a in ("direct", "lift")]
+    _legend_above(fig, handles, [LABEL["direct"], LABEL["lift"]], rows[0])
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
-def fig_shoulder_entry_exit(out_dir: str) -> None:
+def fig_shoulder_entry_exit(out_dir: str, png_dir: str) -> None:
     name = "shoulder_entry_exit"
     chk = Check(name)
     cache_path = os.path.join(ANALYSIS, "occupancy_thresholds.json")
     cache = _thresholds_cache()
     targets = ("gumbel", "beta")
     series = _occupancy_series(cache, targets)
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    fig = plt.figure(figsize=(W, 1.6 + 0.56 + 0.45 + cap_h))
-    axes = _axes_grid(fig, 1, 4, left=0.5, right=0.08, top=0.56, bottom=cap_h + 0.45, wsp=(0.55, 0.5, 0.55),
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.4 + 1.2 + 0.32))
+    axes = _axes_grid(fig, 1, 4, left=0.33, right=0.05, top=0.4, bottom=0.32, wsp=(0.47, 0.35, 0.40),
                       hsp=0, widths=[1.4, 1.0, 1.4, 1.0])[0]
     floor = 1e-6
     rates_drawn: dict[tuple, tuple] = {}
@@ -627,7 +696,7 @@ def fig_shoulder_entry_exit(out_dir: str) -> None:
                        f"{len(after)} seeds (drawn)", [entry, leave], RATES_CACHE)
             rates_drawn[(t, arm)] = (entry, leave)
             off = -0.19 if arm == "direct" else 0.19
-            ax_r.scatter(np.arange(2) + off, [max(entry, floor), max(leave, floor)], s=24, color=COL[arm],
+            ax_r.scatter(np.arange(2) + off, [max(entry, floor), max(leave, floor)], s=MED_S, color=COL[arm],
                          zorder=4, clip_on=False)
             g = SHARE_ENTRY_EXIT[(t, arm)]
             chk(f"{t} {LABEL[arm]} share at the start", float(med[0]), g[0], decimals=2)
@@ -637,8 +706,9 @@ def fig_shoulder_entry_exit(out_dir: str) -> None:
         ax_s.set_xlim(0, 3000)
         ax_s.set_xticks([0, 1000, 2000, 3000])
         ax_s.set_ylim(0, 1.03)
-        ax_s.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
-        ax_s.set_xlabel("iteration", fontsize=FS, labelpad=1)
+        ax_s.set_yticks([0, 0.5, 1.0])
+        ax_s.set_yticklabels(["0", "0.5", "1"])
+        ax_s.set_xlabel("iteration", fontsize=FS_LAB, labelpad=1)
         ax_r.set_yscale("log")
         ax_r.set_ylim(floor, 2.0)
         ax_r.set_yticks([1e-6, 1e-4, 1e-2, 1e0])
@@ -646,7 +716,6 @@ def fig_shoulder_entry_exit(out_dir: str) -> None:
         ax_r.set_xticks([0, 1])
         ax_r.set_xticklabels(["entering", "leaving"])
         ax_r.set_xlim(-0.5, 1.5)
-        ax_r.grid(axis="y", alpha=0.25, ls="--", lw=0.5)
         for ax in (ax_s, ax_r):
             _despine(ax)
     for t in targets:
@@ -655,61 +724,35 @@ def fig_shoulder_entry_exit(out_dir: str) -> None:
               f"softplus and leaves {ll / ld:.2f} times as often")
         if not el > ed:
             chk.bad.append(f"{t}: the entering order flips after the first interval")
-    axes[0].set_ylabel("share of weights\non the shoulder", fontsize=FS)
-    axes[1].set_ylabel("rate per snapshot interval", fontsize=FS)
-    axes[3].set_ylabel("rate per snapshot interval", fontsize=FS)
+    axes[0].set_ylabel("share on shoulder", fontsize=FS_LAB, labelpad=2)
+    axes[1].set_ylabel("rate per interval", fontsize=FS_LAB, labelpad=2)
     Wf, Hf = fig.get_size_inches()
+    names = []
     for j, t in enumerate(targets):
         x0, x1 = axes[2 * j].get_position().x0, axes[2 * j + 1].get_position().x1
-        y_rule = axes[0].get_position().y1 + 0.1 / Hf
+        y_rule = axes[0].get_position().y1 + 0.07 / Hf
         fig.add_artist(Line2D([x0, x1], [y_rule, y_rule], transform=fig.transFigure, lw=0.6, color="0.3"))
-        fig.text((x0 + x1) / 2, y_rule + 0.03 / Hf, TARGET_LABEL[t], ha="center", va="bottom", fontsize=FS + 1)
-    handles = [Line2D([], [], color=COL[a], lw=1.4, ls=DASH[a], marker="o", ms=4) for a in ("direct", "lift")]
-    x_mid = (axes[0].get_position().x0 + axes[3].get_position().x1) / 2
-    fig.legend(handles, [LABEL["direct"], LABEL["lift"]], fontsize=FS - 0.5, frameon=False, loc="upper center",
-               ncol=2, handlelength=2.4, columnspacing=1.6, bbox_to_anchor=(x_mid, 1.0))
+        names.append(fig.text((x0 + x1) / 2, y_rule + 0.03 / Hf, TARGET_LABEL[t], ha="center", va="bottom",
+                              fontsize=FS_TITLE))
+    handles = [Line2D([], [], color=COL[a], lw=1.4, ls=DASH[a], marker="o", ms=MED_MS)
+               for a in ("direct", "lift")]
+    _legend_above(fig, handles, [LABEL["direct"], LABEL["lift"]], axes,
+                  top_in=max(_extent_in(fig, n).y1 for n in names))
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
-def _darcy_anchor_spread() -> tuple[list[int], np.ndarray, np.ndarray, list[str]]:
-    """Per seed: the shift of the held-out NLL under resampled batches, and its spread."""
-    dirs = []
-    for tag in ("6641e617", "770fbc2a"):
-        hits = sorted(glob.glob(os.path.join(CK, f"darcy_improve_*{tag}*", "results.json")))
-        if len(hits) != 1:
-            raise FileNotFoundError(f"darcy_improve_*{tag}*/results.json: {len(hits)} matches")
-        dirs.append(hits[0])
-    seeds, shift, sd = [], [], []
-    for p in dirs:
-        with open(p) as f:
-            recs = json.load(f)
-        for r in sorted((r for r in recs if r["backend"] == "hypernet"), key=lambda r: r["seed"]):
-            a = r["anchor_spread"]
-            seeds.append(int(r["seed"]))
-            shift.append(a["resampled_mean"] - a["full_split"])
-            sd.append(a["resampled_std"])
-    if sorted(seeds) != list(range(10)):
-        raise RuntimeError(f"Darcy lift seeds {seeds}, expected 0 to 9")
-    return seeds, np.array(shift), np.array(sd), dirs
-
-
-def fig_reference_set_1d(out_dir: str) -> None:
+def fig_reference_set_1d(out_dir: str, png_dir: str) -> None:
     name = "reference_set_1d"
     chk, rng = Check(name), np.random.default_rng(5)
     zpath = os.path.join(ANALYSIS, "convergence_1d_pinned.npz")
     z = np.load(zpath, allow_pickle=True)
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    ph, gap, left, bottom = 1.25, 0.18, 0.62, cap_h + 0.55
-    fig = plt.figure(figsize=(W, ph + 0.62 + bottom))
-    H = fig.get_size_inches()[1]
-    pw = 1.05
-    axes = [fig.add_axes([(left + j * (pw + gap)) / W, bottom / H, pw / W, ph / H]) for j in range(4)]
-    x_last = left + 4 * (pw + gap) + 0.72
-    axes.append(fig.add_axes([x_last / W, bottom / H, (W - x_last - 0.08) / W, ph / H]))
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.3 + 1.5 + 0.25))
+    ax = _axes_grid(fig, 1, 1, left=0.33, right=0.05, top=0.3, bottom=0.25, wsp=0, hsp=0)[0][0]
+    light = "#fdd0a2"
     for j, t in enumerate(TARGETS):
-        ax = axes[j]
         jpath = os.path.join(ANALYSIS, "pinned", f"lcmm_1d_poolnorm_{t}.json")
         with open(jpath) as f:
             seeds = json.load(f)["seeds"]
@@ -724,55 +767,34 @@ def fig_reference_set_1d(out_dir: str) -> None:
         _say(name, f"{t} lift final TV reading one batch of 256, same seeds", bat, jpath)
         _say(name, f"{t} direct softplus TV at the final evaluation (iteration {it_last:.0f}), 30 seeds",
              direct_final, zpath)
-        for a, b in zip(pin, bat):
-            ax.plot([0.12, 0.88], [a, b], color=COL["lift"], lw=0.4, alpha=0.35, zorder=2)
-        m_pin = _strip(ax, 0, pin, COL["lift"], rng, filled=True, jitter=0.1, med_w=0.24)
-        m_bat = _strip(ax, 1, bat, COL["lift"], rng, filled=False, jitter=0.1, med_w=0.24)
-        dm = _strip(ax, 2, direct_final, COL["direct"], rng, filled=True, jitter=0.1, med_w=0.24)
-        chk(f"{t} lift, fixed sample, median", m_pin, REFERENCE_SET["pinned"][j], decimals=3)
-        chk(f"{t} lift, one batch, median", m_bat, REFERENCE_SET["batch"][j], decimals=3)
-        chk(f"{t} direct softplus, median", dm, REFERENCE_SET["direct"][j], decimals=3)
-        ax.set_xticks([0, 1, 2])
-        ax.set_xticklabels(["lift,\nfixed\nsample", "lift,\none\nbatch", "direct\nsoftplus"], fontsize=FS - 1)
-        ax.set_xlim(-0.5, 2.5)
-        ax.set_ylim(0, 0.32)
-        ax.set_yticks([0, 0.1, 0.2, 0.3])
-        if float(np.max(direct_final)) > 0.32 or float(np.max(np.r_[pin, bat])) > 0.32:
+        meds = [float(np.median(v)) for v in (pin, bat, direct_final)]
+        for k, (v, m, fc, ec) in enumerate(zip((pin, bat, direct_final), meds,
+                                               (COL["lift"], light, COL["direct"]),
+                                               (COL["lift"], COL["lift"], COL["direct"]))):
+            xk = j + (k - 1) * 0.27
+            ax.bar(xk, m, width=0.25, color=fc, edgecolor=ec, lw=0.8, zorder=2)
+            ax.scatter(xk + rng.uniform(-0.07, 0.07, size=v.size), v, s=5, color="black", alpha=0.3, lw=0,
+                       zorder=3)
+        chk(f"{t} lift, fixed sample, median", meds[0], REFERENCE_SET["pinned"][j], decimals=3)
+        chk(f"{t} lift, one batch, median", meds[1], REFERENCE_SET["batch"][j], decimals=3)
+        chk(f"{t} direct softplus, median", meds[2], REFERENCE_SET["direct"][j], decimals=3)
+        if max(float(np.max(v)) for v in (pin, bat, direct_final)) > 0.3:
             chk.bad.append(f"{t}: a seed falls above the axis")
-        ax.set_title(TARGET_LABEL[t], fontsize=FS + 1, pad=4)
-        _despine(ax)
-        if j:
-            ax.set_yticklabels([])
-    axes[0].set_ylabel("TV distance to the target\nat the final iterate", fontsize=FS)
-
-    ax = axes[4]
-    seeds, shift, sd, dirs = _darcy_anchor_spread()
-    for p in dirs:
-        _say(name, "transport map, held-out NLL shift (batch mean minus whole split) per seed", shift, p)
-        _say(name, "transport map, standard deviation across the resampled batches per seed", sd, p)
-    ax.axhline(0, color="0.55", lw=0.8, zorder=1)
-    ax.errorbar(seeds, shift, yerr=sd, fmt="o", ms=3.2, color=COL["lift"], ecolor=COL["lift"], elinewidth=0.8,
-                capsize=1.5, zorder=4)
-    worst_shift, worst_sd = float(np.max(np.abs(shift))), float(np.max(sd))
-    ok1 = worst_shift <= REFERENCE_SET["darcy_max_mean_shift"]
-    ok2 = worst_sd <= REFERENCE_SET["darcy_max_sd"]
-    print(f"  [check {name}] {'transport map, largest |mean shift| over seeds':52s} "
-          f"{worst_shift:.5f} <= {REFERENCE_SET['darcy_max_mean_shift']}  {'ok' if ok1 else 'DISAGREES'}")
-    print(f"  [check {name}] {'transport map, largest sd over seeds':52s} "
-          f"{worst_sd:.5f} <= {REFERENCE_SET['darcy_max_sd']}  {'ok' if ok2 else 'DISAGREES'}")
-    if not (ok1 and ok2):
-        chk.bad.append("transport map")
-    ax.set_xticks([0, 3, 6, 9])
-    ax.set_xlim(-0.7, 9.7)
-    ax.set_ylim(-1.2e-3, 1.2e-3)
-    ax.set_yticks([-1e-3, -5e-4, 0, 5e-4, 1e-3])
-    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v * 1e3:g}"))
-    ax.set_title("transport map", fontsize=FS + 1, pad=4)
-    ax.set_xlabel("seed\n(mean and spread\nof seven batches)", fontsize=FS - 1, labelpad=1)
-    ax.set_ylabel("held-out loss, one batch\nminus full training set\n(thousandths of a nat)", fontsize=FS - 1)
+    ax.set_xticks(range(len(TARGETS)))
+    ax.set_xticklabels([TARGET_LABEL[t] for t in TARGETS])
+    ax.set_xlim(-0.55, len(TARGETS) - 0.45)
+    ax.set_ylim(0, 0.3)
+    ax.set_yticks([0, 0.1, 0.2, 0.3])
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%g"))
+    ax.set_ylabel("TV distance", fontsize=FS_LAB, labelpad=2)
     _despine(ax)
+    from matplotlib.patches import Patch
+    _legend_above(fig, [Patch(facecolor=COL["lift"], edgecolor=COL["lift"]),
+                        Patch(facecolor=light, edgecolor=COL["lift"]), Patch(facecolor=COL["direct"])],
+                  ["lift, fixed sample", "lift, one batch", "direct softplus"], [ax], handlelength=1.4)
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
+
 
 def _toy_flow_shares(target: str) -> tuple[list[int], np.ndarray, np.ndarray, list[str]]:
     """Direct softplus on one toy target, seeds 0 to 4, preferring the archive with more seeds."""
@@ -795,7 +817,7 @@ def _toy_flow_shares(target: str) -> tuple[list[int], np.ndarray, np.ndarray, li
     return seeds, start, end, sorted({os.path.join(picked[s][0], "metrics.json") for s in seeds})
 
 
-def fig_direct_share_by_setting(out_dir: str) -> None:
+def fig_direct_share_by_setting(out_dir: str, png_dir: str) -> None:
     name = "direct_share_by_setting"
     chk, rng = Check(name), np.random.default_rng(2)
     cache_path = os.path.join(ANALYSIS, "occupancy_thresholds.json")
@@ -840,41 +862,13 @@ def fig_direct_share_by_setting(out_dir: str) -> None:
                         end=np.array([float(r["shoulder_occupancy"]) for r in recs]), src=hits[0],
                         check=("darcy",)))
 
-    W, margin = 7.0, 0.1
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    fig = plt.figure(figsize=(W, 2.0 + 0.66 + 0.62 + cap_h))
-    ax = _axes_grid(fig, 1, 1, left=0.55, right=0.08, top=0.66, bottom=cap_h + 0.62, wsp=0, hsp=0)[0][0]
-    xs, group_span, group_n = [], {}, {}
-    x = 0.0
-    prev_group = None
     for e in entries:
-        slot = 1.35 if e["group"] == "tabular energy-based models" else 1.0
-        if prev_group is not None and e["group"] != prev_group:
-            x += 0.5
-        x += (slot - 1.0) / 2
-        xs.append(x)
-        group_span.setdefault(e["group"], [x, x])[1] = x
-        group_n[e["group"]] = group_n.get(e["group"], 0) + 1
-        prev_group = e["group"]
-        x += 1.0 + (slot - 1.0) / 2
-    for x, e in zip(xs, entries):
         n = len(e["start"])
-        _say(name, f"{e['label'].replace(chr(10), ' ')} direct softplus share on the shoulder at the start, {n} seeds",
-             e["start"], e["src"])
-        _say(name, f"{e['label'].replace(chr(10), ' ')} direct softplus share on the shoulder at the end, {n} seeds",
-             e["end"], e["src"])
-        ms = _strip(ax, x - 0.2, e["start"], COL["direct"], rng, filled=False, jitter=0.1, med_w=0.17)
-        crossed = e.get("crossed", [])
-        keep = np.array([k not in crossed for k in range(len(e["end"]))])
-        me = float(np.median(e["end"]))
-        _strip(ax, x + 0.2, e["end"][keep], COL["direct"], rng, filled=True, jitter=0.1, med_w=0.0)
-        ax.plot([x + 0.2 - 0.17, x + 0.2 + 0.17], [me, me], color=COL["direct"], lw=1.6, zorder=4,
-                solid_capstyle="butt")
-        if crossed:
-            ax.scatter(np.full(len(crossed), x + 0.2), e["end"][~keep], marker="x", s=16, color=COL["direct"],
-                       linewidths=0.9, zorder=5)
-        c = e["check"]
         lab = e["label"].replace(chr(10), " ")
+        _say(name, f"{lab} direct softplus share on the shoulder at the start, {n} seeds", e["start"], e["src"])
+        _say(name, f"{lab} direct softplus share on the shoulder at the end, {n} seeds", e["end"], e["src"])
+        ms, me = float(np.median(e["start"])), float(np.median(e["end"]))
+        c = e["check"]
         if c[0] == "1d":
             chk(f"{lab} start", ms, DIRECT_SHARE["1d_start"], decimals=2)
             lo_end, hi_end = DIRECT_SHARE["1d_end"]
@@ -897,34 +891,58 @@ def fig_direct_share_by_setting(out_dir: str) -> None:
             if n != n_rep:
                 print(f"  [check {name}] {lab + ' seed count':52s} {n} vs {n_rep}  DISAGREES")
                 chk.bad.append(f"{lab} seeds")
-    ax.set_xticks(xs)
-    ax.set_xticklabels([f"{e['label']}\n({len(e['start'])})" for e in entries], fontsize=FS - 1)
-    ax.set_xlim(xs[0] - 0.6, xs[-1] + 0.6)
-    ax.set_ylim(-0.03, 1.06)
-    ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
-    ax.set_ylabel("share of weights on the shoulder", fontsize=FS)
-    ax.set_title("direct softplus", fontsize=FS + 1, pad=30)
-    for g, (a, b) in group_span.items():
-        if group_n[g] < 2:
-            continue
-        ax.annotate("", xy=(a - 0.35, 1.1), xytext=(b + 0.35, 1.1), xycoords=("data", "axes fraction"),
-                    textcoords=("data", "axes fraction"),
-                    arrowprops=dict(arrowstyle="-", lw=0.6, color="0.3", shrinkA=0, shrinkB=0),
-                    annotation_clip=False)
-        ax.text((a + b) / 2, 1.12, g, transform=ax.get_xaxis_transform(), ha="center", va="bottom",
-                fontsize=FS - 0.5, color="0.2")
-    ax.legend([Line2D([], [], marker="o", ls="", mfc="white", mec=COL["direct"], ms=3.5),
-               Line2D([], [], marker="o", ls="", color=COL["direct"], ms=3.5),
-               Line2D([], [], marker="x", ls="", color=COL["direct"], ms=4.0, mew=0.9)],
-              ["start of training", "end of training", "likelihood turns non-physical"], fontsize=FS - 1,
-              frameon=False, loc="center right", bbox_to_anchor=(1.0, 0.55), handlelength=1.2)
+
+    groups = [("one-dimensional\ntargets", [e for e in entries if e["group"] == "one-dimensional targets"]),
+              ("POWER", [e for e in entries if e["label"] == "POWER"]),
+              ("HEPMASS", [e for e in entries if e["label"] == "HEPMASS"]),
+              ("MiniBooNE", [e for e in entries if e["label"] == "MiniBooNE"]),
+              ("image\nregularizer", [e for e in entries if e["group"] == "image"]),
+              ("convex\npotential flows", [e for e in entries if e["group"] == "convex potential flows"]),
+              ("transport\nmap", [e for e in entries if e["group"] == "transport map"])]
+    W = W_FIG
+    lines = _caption_block(name, W - 2 * MARGIN)
+    fig = plt.figure(figsize=(W, 0.3 + 1.7 + 0.4))
+    ax = _axes_grid(fig, 1, 1, left=0.33, right=0.05, top=0.3, bottom=0.4, wsp=0, hsp=0)[0][0]
+    light = "#f4b6b6"
+    for x, (glab, es) in enumerate(groups):
+        start = np.concatenate([e["start"] for e in es])
+        end = np.concatenate([e["end"] for e in es])
+        bad = np.zeros(len(end), dtype=bool)
+        off = 0
+        for e in es:
+            for k in e.get("crossed", []):
+                bad[off + k] = True
+            off += len(e["end"])
+        ms, me = float(np.median(start)), float(np.median(end))
+        ax.bar(x - 0.19, ms, width=0.36, color=light, edgecolor=COL["direct"], lw=0.8, zorder=2)
+        ax.bar(x + 0.19, me, width=0.36, color=COL["direct"], zorder=2)
+        good = end[~bad]
+        jit = rng.uniform(-0.09, 0.09, size=good.size)
+        ax.scatter(np.full(good.size, x + 0.19) + jit, good, s=7, color="black", alpha=0.35, lw=0, zorder=3)
+        if bad.any():
+            ax.scatter(np.full(int(bad.sum()), x + 0.19), end[bad], marker="^", s=22, facecolors="white",
+                       edgecolors="black", lw=1.0, zorder=4)
+        _say(name, f"{glab.replace(chr(10), ' ')} pooled start and end medians, {len(start)} seed runs",
+             [ms, me], "entries above")
+    ax.set_xticks(range(len(groups)))
+    ax.set_xticklabels([g for g, _ in groups])
+    ax.set_xlim(-0.6, len(groups) - 0.4)
+    ax.set_ylim(0, 1.05)
+    ax.set_yticks([0, 0.5, 1.0])
+    ax.set_yticklabels(["0", "0.5", "1"])
+    ax.set_ylabel("share on shoulder", fontsize=FS_LAB, labelpad=2)
     _despine(ax)
+    from matplotlib.patches import Patch
+    handles = [Patch(facecolor=light, edgecolor=COL["direct"], lw=0.8), Patch(facecolor=COL["direct"]),
+               Line2D([], [], marker="^", ls="", mfc="white", mec="black", ms=4.5, mew=1.0)]
+    _legend_above(fig, handles, ["start of training", "end of training", "non-physical likelihood"], [ax],
+                  handlelength=1.4)
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
-def fig_cifar10_sivaprasad(out_dir: str) -> None:
-    """The figure of ``render_sivaprasad_cifar``, kept open instead of saved, with the caption added."""
+def fig_cifar10_sivaprasad(out_dir: str, png_dir: str) -> None:
+    """The figure of ``render_sivaprasad_cifar``, kept open instead of saved, restyled and captioned."""
     name = "cifar10_sivaprasad"
     chk = Check(name)
     import render_sivaprasad_cifar as RS
@@ -950,30 +968,33 @@ def fig_cifar10_sivaprasad(out_dir: str) -> None:
     if len(nums) != 1:
         raise RuntimeError(f"expected one open figure from the CIFAR renderer, found {len(nums)}")
     fig = plt.figure(nums[0])
+    W = fig.get_size_inches()[0]
     by_title = {ax.get_title(): ax for ax in fig.axes}
     per_epoch_test, summary = by_title["test accuracy (%)"], by_title["test accuracy at the best validation epoch (%)"]
+    by_title["validation accuracy (%)"].set_title("validation accuracy", fontsize=FS_TITLE, pad=4)
+    summary.set_title("test accuracy", fontsize=FS_TITLE, pad=4)
+    for ax in fig.axes:
+        ax.tick_params(labelsize=FS_TICK)
+        ax.xaxis.label.set_size(FS_LAB)
+        ax.title.set_size(FS_TITLE)
+    for leg in list(fig.legends):
+        leg.remove()
+    # The grid moves left until the leftmost drawn text is as far from the edge as in the other figures.
+    gs = summary.get_subplotspec().get_gridspec()
+    fig.canvas.draw()
+    blank = fig.get_tightbbox(fig.canvas.get_renderer()).x0
+    gs.update(left=gs.left - (blank - 0.025) / W)
     x0 = per_epoch_test.get_position().x0
     fig.delaxes(per_epoch_test)
     p = summary.get_position()
     summary.set_position([x0, p.y0, p.x1 - x0, p.height])
-    W, H0 = fig.get_size_inches()
-    margin = 0.05
-    lines, cap_h = _caption_block(name, W - 2 * margin)
-    H = H0 + cap_h + 0.1
-    fig.set_size_inches(W, H, forward=True)
-    for ax in fig.axes:
-        p = ax.get_position()
-        ax.set_position([p.x0, (p.y0 * H0 + cap_h + 0.1) / H, p.width, p.height * H0 / H])
-    for lg in fig.legends:
-        bb = lg.get_bbox_to_anchor().transformed(fig.transFigure.inverted())
-        lg.set_bbox_to_anchor((bb.x0, (bb.y0 * H0 + cap_h + 0.1) / H), transform=fig.transFigure)
-    for lg in list(fig.legends) + [a.get_legend() for a in fig.axes if a.get_legend()]:
-        for txt in lg.get_texts():
-            if txt.get_text().startswith("Sivaprasad"):
-                txt.set_url(CITE_URL["Sivaprasad et al. (2021)"])
-                txt.set_color(LINK_COLOR)
+    top_row = sorted((ax for ax in fig.axes if ax.get_subplotspec().rowspan.start == 0),
+                     key=lambda ax: ax.get_position().x0)
+    handles = [Line2D([], [], color=RS.COL[m], lw=1.5, ls=RS.DASH[m]) for m in RS.METHODS]
+    _legend_above(fig, handles, [RS.LABEL[m] for m in RS.METHODS], top_row, handlelength=2.6)
+    lines = _caption_block(name, W - 2 * MARGIN)
     chk.stop_if_bad()
-    _finish(fig, name, lines, margin, out_dir)
+    _finish(fig, name, lines, MARGIN, out_dir, png_dir)
 
 
 FIGURES = {
@@ -986,12 +1007,24 @@ FIGURES = {
     "cifar10_sivaprasad": fig_cifar10_sivaprasad,
 }
 
+PAPER_SKIP = {"cifar10_sivaprasad": "the paper's figure is drawn by scripts/render_sivaprasad_cifar.py",
+              "positivity_methods_1d": "not in the paper",
+              "reference_set_1d": "not in the paper",
+              "direct_share_by_setting": "not in the paper"}
+
 
 def main(argv=None) -> int:
+    global PAPER
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--figure", default="all", help="one of %s, or all" % ", ".join(FIGURES))
-    p.add_argument("--out_dir", default=OUT_DIR)
+    p.add_argument("--out_dir", default="", help=f"default {_rel(OUT_DIR)}, or {_rel(PAPER_OUT_DIR)} with --paper")
+    p.add_argument("--png_dir", default="", help="also write a PNG of each figure here")
+    p.add_argument("--captions_out", default="", help="write the captions, one paragraph each, to this file")
+    p.add_argument("--paper", action="store_true",
+                   help=f"no printed caption, for the paper's appendix; written to {_rel(PAPER_OUT_DIR)}")
     a = p.parse_args(argv)
+    PAPER = a.paper
+    out_dir = a.out_dir or (PAPER_OUT_DIR if PAPER else OUT_DIR)
     apply_paper_style()
     matplotlib.rcParams["axes.grid"] = False
     matplotlib.rcParams["text.usetex"] = False
@@ -999,8 +1032,18 @@ def main(argv=None) -> int:
     for n in names:
         if n not in FIGURES:
             raise SystemExit(f"unknown figure {n}; choose from {', '.join(FIGURES)}")
-        print(f"\n=== {n}")
-        FIGURES[n](a.out_dir)
+        if PAPER and n in PAPER_SKIP:
+            if a.figure != "all":
+                raise SystemExit(f"{n} has no paper version: {PAPER_SKIP[n]}")
+            print(f"\n=== {n}: skipped with --paper; {PAPER_SKIP[n]}")
+            continue
+        print(f"\n=== {n}{' (paper)' if PAPER else ''}")
+        FIGURES[n](out_dir, a.png_dir)
+    if a.captions_out:
+        with open(a.captions_out, "w") as f:
+            for n in names:
+                f.write(f"{n}\n\n{CAPTIONS[n]}\n\n")
+        print(f"captions written to {a.captions_out}")
     return 0
 
 
