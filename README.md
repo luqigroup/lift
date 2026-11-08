@@ -285,6 +285,13 @@ The 96 runs took about five hours on one 16 GB GPU, and each lift checkpoint tak
 | CIFAR-10 classification | `python scripts/render_sivaprasad_cifar.py` |
 | loss-landscape geometry | `python scripts/render_landscape_composite.py` |
 
+**Captioned figures.** `scripts/render_additional_figures.py` redraws seven captioned figures of these
+results from the records the commands above produce, into `figures/additional/`.
+
+```bash
+python scripts/render_additional_figures.py --figure all
+```
+
 **Theory.** The stationary law of the projection and Spitzer's identity are now proved, in five new
 modules of `formal/` (`SpitzerCyclic`, `SpitzerIdentity`, `SpitzerGaussian`, `LindleyStationary`,
 `LindleyClamped`); `formal/README.md` maps each to the statement it backs.
