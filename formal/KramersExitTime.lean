@@ -3,11 +3,15 @@ import Mathlib
 /-!
 # The one-dimensional mean-first-passage boundary-value problem behind Corollary 1 (`cor:fpt`)
 
-Corollary 1 of the paper compares the mean first-passage time of the bias-channel projection
-`dw = -L̃'(w) dt + σ_eff dB` across the softplus shoulder for two effective diffusions, and it
-does so by citing Kramers' law as a black box: `E[τ] ≍ exp(2α/σ_eff²)` with `α` the barrier
-action. This file supplies the analytic content of that citation, as far as it can honestly be
-supplied inside this mathlib.
+Corollary 1 of the paper (`cor:fpt`, Appendix A.4) compares the mean
+first-passage time of the projected diffusion `dw = -L̃'(w) dt + √η σ_eff dB` across a barrier
+for two effective diffusions, `T(x) ≍ exp(2α/(ησ²_eff))` with `α` the barrier height. Step 2 of
+its proof takes Dynkin's formula as the hypothesis that the mean exit time solves a
+boundary-value problem, gives the closed-form solution and its uniqueness, and brackets it
+between two exponentials. This file is the machine-checked counterpart of that step, as far as
+it can be stated inside this mathlib. (History: an earlier draft cited Kramers' law as a black
+box, and this file was written to supply the analytic content of that citation; the current
+proof states the same content itself.)
 
 **What is unavailable, and what is done instead.** This mathlib (v4.31.0) contains no Itô
 integral, no stochastic differential equation, no diffusion generator, no Fokker--Planck
@@ -24,10 +28,10 @@ at `b`, the mean exit time `T(x)` from the start point `x` solves
 equation to this ordinary differential equation is **Dynkin's formula** applied to the
 generator `A = (σ²/2) ∂² - U' ∂`, and it is exactly the step this mathlib cannot express.
 Everything in this file is therefore a theorem about the boundary-value problem, not about a
-stochastic process. That is the honest reading, and it is also precisely the analytic input
-that the paper's Corollary 1 needs and currently leaves implicit: the corollary's proof cites
-"the Kramers (Eyring--Arrhenius) escape law" without producing the boundary-value problem, its
-solution, or the estimate that turns the solution into an exponential.
+stochastic process. The paper draws the same line: Step 2 of the proof of `cor:fpt` calls
+Dynkin's formula "the modeling step of the corollary; everything downstream of it is proved",
+and this file proves that downstream part (`eq:pf-bvp`, `eq:pf-closed`, the uniqueness argument,
+`eq:pf-lower` and `eq:pf-upper`).
 
 **What is proved.** The classical closed form
 
@@ -40,7 +44,7 @@ solves the problem. From the closed form the Arrhenius estimates are then proved
 elementary means: a lower bound `c(δ) · exp(2(α - δ)/σ²) ≤ T(x)` for every `δ > 0`, obtained by
 restricting the outer integral to a window around the barrier top and the inner integral to a
 window around the basin bottom; and, when the barrier top and the basin bottom are the extreme
-values of `U` on the interval — the single-barrier structure of the paper's assumption (A5) — a
+values of `U` on the interval — the extremality clause of the paper's Assumption A2(b) — a
 matching upper bound `T(x) ≤ C · exp(2α/σ²)`. The upper constant `C` is explicit throughout; the
 lower constant `c(δ)` is explicit once the two windows are named
 (`meanExitTime_window_lower_bound`), and is existentially quantified when the windows are
@@ -48,24 +52,27 @@ instead manufactured from continuity of `U` alone
 (`meanExitTime_arrhenius_lower_bound_uniform`), since continuity supplies no modulus. Together
 these pin `T(x)` to `exp(2α/σ²)` at the level of the leading exponential, and the
 small-noise limit closes them at that level into a genuine limit, `σ² · log T(x) → 2α` as
-`σ² → 0⁺` (`tendsto_mul_log_meanExitTime`) — which is the paper's `≍` in the sense the paper
-itself declares for it, equality of the leading exponential factor up to a sub-exponential
-prefactor. The bounds then yield Corollary 1's ordering in four forms: for a prescribed pair of
+`σ² → 0⁺` (`tendsto_mul_log_meanExitTime`) — which is the paper's
+`ησ²_eff log T(x) → 2α`, and the sense in which its `≍` abbreviates the pair of bounds. The
+bounds then yield orderings of two exit times in four forms: for a prescribed pair of
 diffusions with the two Laplace windows named, under a gap inequality every term of which is
 data supplied by the caller (`meanExitTime_lift_lt_direct_of_window`); for a prescribed pair
 with the windows left to continuity, under the same gap inequality but now with an
 existentially quantified lower constant (`meanExitTime_lift_lt_direct`); for every sufficiently
 small direct diffusion against a fixed lifted one, with no gap hypothesis at all; and for the
-paper's own additively coupled pair `σ²` versus `σ² + σ_Jac²`, again with no gap hypothesis —
-the regime (A5) postulates. A concrete cubic-potential instance discharges the hypothesis stack
-(`paper_facing_hypotheses_satisfiable`) and then carries the two paper-facing conclusions
+additively coupled pair `σ²` versus `σ² + σ_Jac²`, again with no gap hypothesis. None of the
+four is the paper's own comparison, which is the multiplicatively coupled pair `η·σ²_dir`
+versus `η·σ²_lift` at one shared step size `η → 0⁺` (Step 3 of the proof of `cor:fpt`); that is
+`KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`, built from the bounds
+here. The additive results are companions. A concrete cubic-potential instance discharges the
+hypothesis stack (`paper_facing_hypotheses_satisfiable`) and then carries two conclusions
 through on it, the Kramers exponent `σ² · log T(x) → 8/3` (`cubicBarrier_kramers_exponent`) and
 the additively coupled ordering (`cubicBarrier_additive_lift_lt_direct`), so none of this is
-vacuous. Throughout, the diffusion coefficient is a constant `σ²`: that is the reduction the
-paper's own proof performs before invoking Kramers, when it treats the effective variance as
-constant across the barrier band under (A2). It is an idealization of the paper's own
-state-dependent `σ_eff(w̃)`, it is built into the definitions here rather than carried as a
-hypothesis, and it is listed as such in the `## Honesty` section.
+vacuous. Throughout, the diffusion coefficient is a constant `σ²`: that is the paper's reading
+of `σ²_eff` as constant across the barrier, in `thm:main`(iii) and `cor:fpt`, whose error
+`lem:diffusion`(v) brackets at the level of the effective action (formalized in
+`BarrierRescaling` and `QuasipotentialFTC`). It is built into the definitions here rather than
+carried as a hypothesis, and it is listed as such in the `## Honesty` section.
 
 **What is not proved.** Three things, named again in the `## Honesty` section. First, Dynkin's
 formula, the bridge from the stochastic differential equation to the boundary-value problem;
@@ -77,18 +84,21 @@ degenerate as `δ → 0` for `c(δ)` — exactly as a Laplace estimate carried o
 second-order expansion at the two extrema must be. The
 consequence for the comparison is a loss of sharpness, not of content: the ordering of the two
 exit times is proved outright for every sufficiently small direct diffusion — decoupled
-(`eventually_meanExitTime_lift_lt_direct`) and for the paper's own coupled family
+(`eventually_meanExitTime_lift_lt_direct`) and for the additively coupled companion family
 (`eventually_meanExitTime_additive_lift_lt_direct`), neither carrying a gap hypothesis — and
+at one shared step size for the paper's multiplicative pair (in `KramersBridge`), and
 for a *prescribed* pair of diffusions it is proved under a gap inequality between the two
 bounds, checkable term by term in `meanExitTime_lift_lt_direct_of_window`. What is not proved is
 that `σ_direct² < σ_lift²` alone suffices at a fixed pair, nor an explicit threshold for
 "sufficiently small"; both are statements about the sub-exponential prefactors, and the sharp
-Kramers prefactor is what would supply them. Third, the state-dependence of the diffusion
-coefficient: the paper's bias-channel SDE carries `σ_eff(w̃)`, and its proof replaces this by a
-constant across the barrier band "to leading order" before invoking Kramers. This file makes
-that replacement exactly rather than approximately — `σ²` is a constant in every definition and
-every theorem — so the leading-order step of the paper is inherited, not closed. Closing it
-would mean rerunning the scale-and-speed construction with `σ²(x)` in place of `σ²`, which
+Kramers prefactor is what would supply them. (The paper does not claim the sharp prefactor
+either: "the sharp Kramers prefactor is not addressed", Step 2 of the proof of `cor:fpt`.)
+Third, the state-dependence of the diffusion coefficient: the projected diffusion of
+`lem:diffusion`(iv) carries `σ_eff(w)`, and `thm:main`(iii) and `cor:fpt` read it as constant
+across the barrier, an approximation whose error `lem:diffusion`(v) brackets at the level of the
+effective action. This file makes that reading exactly — `σ²` is a constant in every definition
+and every theorem — so the paper's constant-diffusion reading is inherited, not closed. Closing
+it would mean rerunning the scale-and-speed construction with `σ²(x)` in place of `σ²`, which
 changes the closed form and is not attempted here.
 
 ## Results
@@ -115,8 +125,9 @@ changes the closed form and is not attempted here.
 * `eventually_lower_bound_gt` — the gap condition holds for all small enough diffusion.
 * `eventually_meanExitTime_lift_lt_direct` — hence the ordering holds outright for all
   sufficiently small direct diffusion, with no gap hypothesis.
-* `eventually_meanExitTime_additive_lift_lt_direct` — the same, for the paper's own coupled
-  pair `σ²` vs `σ² + σ_Jac²`.
+* `eventually_meanExitTime_additive_lift_lt_direct` — the same, for the additively coupled
+  companion pair `σ²` vs `σ² + σ_Jac²` (the paper's own pair is the multiplicative one at a
+  shared step size, `KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`).
 * `mean_first_passage_arrhenius_of_dynkin`, `mean_first_passage_ordering_of_dynkin`,
   `eventually_mean_first_passage_lift_lt_direct`,
   `eventually_mean_first_passage_additive_lift_lt_direct`,
@@ -131,6 +142,9 @@ changes the closed form and is not attempted here.
   `σ_Jac² > 0`, the additively coupled ordering for all sufficiently small shared variance.
   Together with the previous item this is what makes the non-vacuity claim machine-checked at
   the conclusions rather than asserted about the hypotheses.
+* `meanExitTimeBVP_precond`, `meanExitTimeBVP_precond_div`, `eq_meanExitTime_div_of_precond`
+  — `prop:precond-full`(ii): the preconditioned diffusion is this problem at
+  slope `p U'` and diffusion coefficient `p² s`, and its solution is `T^{(ηp)}/p`.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -146,16 +160,19 @@ them:
   it is stated as a hypothesis rather than an axiom so that the gap is visible at every use
   site.
 * `hU : ContinuousOn U (Set.Icc a b)` and `hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y`.
-  These are the paper's (A5) regularity, weakened: (A5) asks for a `C²` single-barrier
-  potential, and only `C¹` on the closed interval is used here.
+  These are the regularity of the paper's Assumption A2(b) exactly: `L̃` continuous on `[a, b]`
+  and differentiable in its interior. (History: the v4 draft's (A5) asked for a `C²`
+  single-barrier potential, of which these binders were a weakening.)
 * `hmax`, `hmin` in the upper bound: the barrier top `w_s` maximizes and the basin bottom `w_b`
-  minimizes `U` on `[a, b]`. This is the single-barrier structure of (A5) written out; without
+  minimizes `U` on `[a, b]`. This is A2(b)'s extremality clause written out; without
   it the upper bound still holds with `α` replaced by the true oscillation of `U`, which is
   larger, and the two-sided pinning is lost.
 * `hgap` in `meanExitTime_lt_of_gap`, `meanExitTime_lift_lt_direct`,
   `meanExitTime_lift_lt_direct_of_window` and `mean_first_passage_ordering_of_dynkin`: the
   proved upper bound at the lifted diffusion falls below the proved lower bound at the direct
-  one. This is the small-noise clause of (A5) made quantitative. It is a genuine regime
+  one. This is the "explicit gap inequality between the two middle terms" under which the paper
+  orders a prescribed pair of diffusions (end of the proof of `thm:directional`); at small step
+  size Step 3 of the proof of `cor:fpt` needs none. It is a genuine regime
   condition and not a disguised assumption of the conclusion: `eventually_lower_bound_gt` proves
   it is satisfied for all sufficiently small `σ²` whatever the positive lower constant, and the
   two `eventually` theorems remove it entirely in that regime. Read the two prescribed-pair
@@ -165,23 +182,24 @@ them:
   transitivity of the two bounds. `meanExitTime_lift_lt_direct_of_window` is the form in which
   every term is data, and it is the one to instantiate when a number is wanted.
 * Constant diffusion coefficient. `σ²` is a real number, not a function, in every definition and
-  theorem of this file. The paper's own bias-channel SDE has `σ_eff(w̃)` and its proof of
-  Corollary 1 replaces that by a constant across the barrier band, "to leading order", under
-  (A2); this file inherits that replacement rather than closing it. It is not carried as a
+  theorem of this file. The projected diffusion of `lem:diffusion`(iv) has `σ_eff(w)`, and
+  `cor:fpt` reads it as constant across the barrier, "the constant reading that
+  `lem:diffusion`(v) brackets"; this file inherits that reading rather than closing it. It is not carried as a
   hypothesis because it is built into the definitions `scaleDensity`, `speedDensity` and
   `meanExitTime`, so it cannot be seen at a use site the way `hDynkin` can. Discharging it means
   redoing the scale-and-speed construction with a state-dependent `σ²(x)`, which changes the
   closed form; it is not attempted here.
 
 The relation between what is proved and the paper's `≍` should be read plainly. The paper
-writes `E[τ] ≍ exp(2α/σ_eff²)` and declares `≍` to mean equality of the leading exponential
-factor up to a sub-exponential prefactor. At a *fixed* diffusion what is proved is the
+writes `T(x) ≍ exp(2α/(ησ²_eff))` as an abbreviation of the pair `eq:pf-lower`–`eq:pf-upper`,
+and says that at fixed diffusion the pair does not close while at the level of exponents it
+does. At a *fixed* diffusion what is proved here is the same
 two-sided bound `c(δ) exp(2(α - δ)/σ²) ≤ T(x) ≤ C exp(2α/σ²)`, with `C` explicit and `c(δ)`
 explicit once the two Laplace windows are named; `c(δ) → 0` as `δ → 0`, so at fixed `σ²` the two
 bounds do not close up. In the small-noise
 limit they do close at the level of exponents: `σ² · log T(x) → 2α`
 (`tendsto_mul_log_meanExitTime`; `mean_first_passage_kramers_exponent_of_dynkin` for the
-abstract mean first-passage time), which is the paper's `≍` in its declared sense. What
+abstract mean first-passage time), which is the paper's `ησ²_eff log T(x) → 2α`. What
 remains unproved is any control of the sub-exponential prefactor itself — the sharp Kramers
 constant `2π/√(U''(w_b)|U''(w_s)|)` — and with it two sharper statements: the ordering of the
 two exit times from `σ_direct² < σ_lift²` alone at a fixed pair, and an explicit threshold in
@@ -405,7 +423,7 @@ theorem continuousOn_meanExitTimeDeriv {U : ℝ → ℝ} {a b : ℝ} (sigma2 : �
     ContinuousOn (meanExitTimeDeriv sigma2 U a) (Set.Icc a b) :=
   continuousOn_const.mul (continuousOn_exitIntegrand sigma2 hab hU)
 
-/-- Membership of the closed interval in the right-hand neighbourhood filter at `a`, the small
+/-- Membership of the closed interval in the right-hand neighborhood filter at `a`, the small
 fact both boundary arguments need. -/
 theorem Icc_mem_nhdsGT_left {a b : ℝ} (hab : a < b) : Set.Icc a b ∈ 𝓝[>] a := by
   have h1 : Set.Ioi a ∈ 𝓝[>] a := self_mem_nhdsWithin
@@ -586,6 +604,57 @@ theorem eq_meanExitTime_of_bvp {U U' : ℝ → ℝ} {a b : ℝ} {sigma2 : ℝ} {
     · rw [hxb, hT.absorbing, meanExitTime_right]
     · exact hIoo x ⟨hxa, hxb⟩
 
+/-! ### A preconditioned step (`prop:precond-full`(ii))
+
+A step multiplied by a constant `p > 0` along `e_b` projects to
+`dw = -p L̃'(w) dt + √η p σ_eff dB`, which is the diffusion of `MeanExitTimeBVP` with slope
+`p L̃'` and diffusion coefficient `p² s`, `s = η σ_eff²`. No new boundary-value problem is
+needed: the Dynkin hypothesis of the preconditioned process is `MeanExitTimeBVP` at those two
+arguments. The constancy of `p` across the band is built in, as the constancy of `σ_eff²` is. -/
+
+/-- **The generator identity.** `(p² s/2) ∂² - p U' ∂ = p ((p s/2) ∂² - U' ∂)`, so `p T` solves
+the problem at diffusion coefficient `p s` whenever `T` solves the preconditioned one. -/
+theorem meanExitTimeBVP_precond {p s : ℝ} {U' : ℝ → ℝ} {a b : ℝ} {T DT DDT : ℝ → ℝ}
+    (h : MeanExitTimeBVP (p ^ 2 * s) (fun y => p * U' y) a b T DT DDT) :
+    MeanExitTimeBVP (p * s) U' a b (fun x => p * T x) (fun x => p * DT x)
+      (fun x => p * DDT x) where
+  hasDerivAt_fst x hx := (h.hasDerivAt_fst x hx).const_mul p
+  hasDerivAt_snd x hx := (h.hasDerivAt_snd x hx).const_mul p
+  generator x hx := by
+    have e := h.generator x hx
+    beta_reduce at e ⊢
+    linear_combination e
+  absorbing := by simp [h.absorbing]
+  reflecting := by simpa using h.reflecting.const_mul p
+
+/-- The converse, which makes the preconditioned Dynkin hypothesis satisfiable: `T/p` solves the
+preconditioned problem whenever `T` solves the one at `p s`, the closed form included. -/
+theorem meanExitTimeBVP_precond_div {p s : ℝ} {U' : ℝ → ℝ} {a b : ℝ} {T DT DDT : ℝ → ℝ}
+    (hp : p ≠ 0) (h : MeanExitTimeBVP (p * s) U' a b T DT DDT) :
+    MeanExitTimeBVP (p ^ 2 * s) (fun y => p * U' y) a b (fun x => T x / p) (fun x => DT x / p)
+      (fun x => DDT x / p) where
+  hasDerivAt_fst x hx := (h.hasDerivAt_fst x hx).div_const p
+  hasDerivAt_snd x hx := (h.hasDerivAt_snd x hx).div_const p
+  generator x hx := by
+    have e := h.generator x hx
+    rw [← e]
+    field_simp
+  absorbing := by simp [h.absorbing]
+  reflecting := by simpa using h.reflecting.div_const p
+
+/-- **`T_p = T^{(ηp)}/p`.** The mean exit time of the preconditioned diffusion is the closed form
+at diffusion coefficient `p s` (the exit time of `cor:fpt` at step `ηp`) divided by `p`, by the
+uniqueness of `eq_meanExitTime_of_bvp`. -/
+theorem eq_meanExitTime_div_of_precond {U U' : ℝ → ℝ} {a b p s : ℝ} {T DT DDT : ℝ → ℝ}
+    (hp : 0 < p) (hs : 0 < s) (hab : a < b) (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hTcont : ContinuousOn T (Set.Icc a b))
+    (hT : MeanExitTimeBVP (p ^ 2 * s) (fun y => p * U' y) a b T DT DDT) :
+    ∀ x ∈ Set.Icc a b, T x = meanExitTime (p * s) U a b x / p := by
+  intro x hx
+  rw [eq_div_iff hp.ne', mul_comm]
+  exact eq_meanExitTime_of_bvp (mul_pos hp hs) hab hU hU' (continuousOn_const.mul hTcont)
+    (meanExitTimeBVP_precond hT) x hx
+
 /-! ### Elementary interval-integral estimates -/
 
 /-- Restricting a non-negative integrand to a subinterval only decreases the integral. -/
@@ -664,8 +733,8 @@ theorem speedIntegral_window_lower_bound {U : ℝ → ℝ} {a b t₁ t₂ y cb :
     (fun z _ => (speedDensity_pos sigma2 U z).le)
 
 /-- **The Arrhenius lower bound, with explicit windows.** Restrict the outer integral to a
-window `[s₁, s₂]` on which `U ≥ cs` (a neighbourhood of the barrier top) and the inner integral
-to a window `[t₁, t₂]` on which `U ≤ cb` (a neighbourhood of the basin bottom); the double
+window `[s₁, s₂]` on which `U ≥ cs` (a neighborhood of the barrier top) and the inner integral
+to a window `[t₁, t₂]` on which `U ≤ cb` (a neighborhood of the basin bottom); the double
 integral is then at least the product of the two restricted pieces, and the exponentials
 combine into `exp(2(cs - cb)/σ²)`. -/
 theorem meanExitTime_window_lower_bound {U : ℝ → ℝ} {a b x s₁ s₂ t₁ t₂ cs cb : ℝ} {sigma2 : ℝ}
@@ -825,7 +894,7 @@ theorem speedIntegral_le {U : ℝ → ℝ} {a b y m : ℝ} {sigma2 : ℝ} (hs : 
   linarith
 
 /-- **The matching Arrhenius upper bound.** If `M` dominates and `m` is dominated by `U` on the
-whole interval — for the single-barrier potential of the paper's (A5) these are the barrier top
+whole interval — for the barrier of the paper's Assumption A2(b) these are the barrier top
 and the basin bottom, so that `M - m` is exactly the barrier action `α` — then the closed form
 is at most an explicit constant times `exp(2(M - m)/σ²)`. Together with
 `meanExitTime_arrhenius_lower_bound` this pins the exit time to `exp(2α/σ²)` at the level of the
@@ -892,15 +961,15 @@ theorem tendsto_mul_log_const_div {C : ℝ} (hC : 0 < C) :
   rw [Real.log_div hC.ne' hspos.ne']
   ring
 
-/-- **The Kramers exponent, as a genuine limit.** Under the single-barrier structure of (A5),
+/-- **The Kramers exponent, as a genuine limit.** Under the extremality clause of A2(b),
 
     `σ² · log T(x)  →  2α = 2 (U(w_s) - U(w_b))`   as `σ² → 0⁺`.
 
 This is the two-sided Arrhenius bound closed at the level of exponents: the lower bound is
 applied with tolerance `δ` chosen from the target accuracy, the upper bound as it stands, and
 the two crude prefactors disappear because they are sub-exponential
-(`tendsto_mul_log_const_div`). It is the paper's `E[τ] ≍ exp(2α/σ_eff²)` in the precise sense
-of equality of leading exponential factors — `log`-scale equivalence — which is all that the
+(`tendsto_mul_log_const_div`). It is the paper's `ησ²_eff log T(x) → 2α` of `cor:fpt` —
+`log`-scale equivalence, the level at which the paper's `≍` closes — which is all that the
 comparison of Corollary 1 consumes; the sub-exponential prefactor itself is *not* controlled,
 and the sharp Kramers constant would be needed to control it. -/
 theorem tendsto_mul_log_meanExitTime {U : ℝ → ℝ} {a b x wb ws : ℝ}
@@ -999,7 +1068,7 @@ theorem meanExitTime_lt_of_gap {T₁ T₂ c C E₁ E₂ : ℝ} (hlow : c * Real.
 same potential and barrier, the exit time at the diffusion `sl` is strictly below the exit time
 at `sd` *provided* the proved upper bound at `sl` falls below the proved lower bound at `sd`.
 The constant `c` is the one produced by `meanExitTime_arrhenius_lower_bound`; the upper bound is
-`meanExitTime_upper_bound`, and it needs the single-barrier structure `hmax`/`hmin` of (A5),
+`meanExitTime_upper_bound`, and it needs the extremality clause `hmax`/`hmin` of A2(b),
 which is what makes `U w_s - U w_b` the true oscillation of `U` on the interval and hence makes
 the two exponents comparable.
 
@@ -1011,8 +1080,8 @@ supply — so the gap condition here is not an inequality a reader can evaluate 
 `meanExitTime_lift_lt_direct_of_window` is the same comparison with the existential removed.
 
 The gap hypothesis is not vacuous: `eventually_lower_bound_gt` shows that, whatever the positive
-constant, it holds for every sufficiently small `sd`, which is precisely the small-noise clause
-of (A5). What is *not* proved, and what a sharp Kramers law would supply, is that the gap holds
+constant, it holds for every sufficiently small `sd`, the small-step regime in which the paper's
+Step 3 of `cor:fpt` needs no gap hypothesis. What is *not* proved, and what a sharp Kramers law would supply, is that the gap holds
 under the sole hypothesis `sd < sl`; the prefactors here are crude, and closing that would
 require the second-order Laplace expansion at the barrier top and the basin bottom. -/
 theorem meanExitTime_lift_lt_direct {U : ℝ → ℝ} {a b x wb ws delta : ℝ} {sd sl : ℝ}
@@ -1092,7 +1161,7 @@ theorem eventually_lower_bound_gt {beta L kappa : ℝ} (hbeta : 0 < beta) (hL : 
 /-- **Corollary 1's ordering in the small-noise regime, with no gap hypothesis at all.** Fix the
 potential, the barrier, the interval and the lifted diffusion `sl > 0`. Then for every
 sufficiently small direct diffusion `sd`, the lifted exit time is strictly below the direct one.
-The only barrier hypothesis is the paper's own: a non-vanishing barrier, `U(w_b) < U(w_s)`; the
+The only barrier hypothesis is the paper's `α > 0`: a non-vanishing barrier, `U(w_b) < U(w_s)`; the
 Laplace tolerance is chosen inside the proof (`δ = α/2`) and does not appear in the statement.
 
 This is unconditional in the sense that matters: nothing is assumed about the relative sizes of
@@ -1100,8 +1169,10 @@ the two Arrhenius prefactors. It works because `meanExitTime_arrhenius_lower_bou
 supplies one window constant `L` valid for every diffusion at once, so the lower bound
 `(2/sd)·L·exp(2(α - δ)/sd)` diverges as `sd → 0` while the upper bound for the fixed `sl`
 stays put. Note the quantifier structure: `sl` is *fixed* while `sd` shrinks, so the two
-diffusions here are decoupled; the paper's own pair is the additively coupled `σ²` vs
-`σ² + σ_Jac²`, treated in `eventually_meanExitTime_additive_lift_lt_direct` below.
+diffusions here are decoupled. The additively coupled companion `σ²` vs `σ² + σ_Jac²` is
+`eventually_meanExitTime_additive_lift_lt_direct` below; the paper's own pair is the
+multiplicative one at a shared step size,
+`KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`.
 
 What is still not obtained is a threshold: "sufficiently small" is a filter statement, and
 turning it into an explicit inequality between `sd` and `sl` would need the sharp Kramers
@@ -1129,11 +1200,14 @@ theorem eventually_meanExitTime_lift_lt_direct {U : ℝ → ℝ} {a b x wb ws : 
   have hlow := hbound sd hsdpos
   linarith
 
-/-- **Corollary 1's ordering for the paper's own coupled pair of diffusions.** Equation (5) of
-the paper compares `E[τ_direct] ≍ exp(2α/(σ_s²σ_obj²))` with
-`E[τ_hyper] ≍ exp(2α/(σ_s²σ_obj² + σ_Jac²))`: the two effective variances are not free-floating
-but *additively coupled* — the lift's variance is the direct one plus the slack-channel
-cross-covariance `σ_Jac² > 0`. This theorem states the ordering for exactly that family: with
+/-- **The ordering for the additively coupled pair of diffusions: a companion to Corollary 1.**
+An earlier draft compared `E[τ_direct] ≍ exp(2α/(σ_s²σ_obj²))` with
+`E[τ_hyper] ≍ exp(2α/(σ_s²σ_obj² + σ_Jac²))`, the lift's variance being the direct one plus the
+slack-channel cross-covariance `σ_Jac² > 0`. The current paper's comparison is instead the
+multiplicative pair `η·σ²_dir` versus `η·σ²_lift` at one shared step size `η → 0⁺`
+(`KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`); this additive
+statement is kept as a companion, and neither implies the other. It states the ordering for the
+additive family: with
 `jac2 = σ_Jac²` held fixed, for every sufficiently small direct diffusion `sd` the exit time at
 the lifted diffusion `sd + jac2` is strictly below the exit time at `sd`. The proof combines
 the diffusion-uniform lower bound at `sd` with the upper bound at `sd + jac2`, which is itself
@@ -1196,7 +1270,7 @@ generator with which to prove it, so it is carried as a hypothesis and never as 
 
 Note what `hDynkin` does *not* smuggle in. It does not assert the closed form; the passage from
 the boundary-value problem to the closed form is `eq_meanExitTime_of_bvp`, proved above. It does
-not assert any exponential behaviour; that is `meanExitTime_arrhenius_lower_bound` and
+not assert any exponential behavior; that is `meanExitTime_arrhenius_lower_bound` and
 `meanExitTime_upper_bound`, also proved above. Everything after `hDynkin` is proved outright. -/
 
 /-- **Corollary 1's Arrhenius lower bound for the mean first-passage time.** Given Dynkin's
@@ -1218,7 +1292,7 @@ theorem mean_first_passage_arrhenius_of_dynkin {U U' : ℝ → ℝ} {a b x wb ws
 
 /-- **Corollary 1's ordering of the two mean first-passage times.** With the barrier held fixed
 across the comparison, as the paper requires, the process at diffusion `sl` (in the paper's
-reading the lift, with the larger effective variance `σ_s²σ_obj² + σ_Jac²`) escapes strictly
+reading the lift, with the larger effective variance of `eq:sigma-eff`) escapes strictly
 faster than the process at `sd` (the direct softplus, `σ_s²σ_obj²`), once the proved upper bound
 at `sl` falls below the proved lower bound at `sd`. As in `meanExitTime_lift_lt_direct`, which
 this specializes, `sd < sl` is not a hypothesis and the lower constant `c` is existentially
@@ -1247,8 +1321,10 @@ direct process at effective diffusion `sd`, assumed (Dynkin) to solve the bounda
 for every `sd > 0`, and the conclusion is that for every sufficiently small `sd` the lift's mean
 first-passage time is strictly smaller. No relation between the two Arrhenius prefactors is
 assumed, and the only barrier hypothesis is the paper's `α > 0`. The lifted diffusion `sl` is
-held fixed while `sd` shrinks; the paper's own coupled pair `σ²` vs `σ² + σ_Jac²` is
-`eventually_mean_first_passage_additive_lift_lt_direct` below. -/
+held fixed while `sd` shrinks; the additively coupled companion pair `σ²` vs `σ² + σ_Jac²` is
+`eventually_mean_first_passage_additive_lift_lt_direct` below, and the paper's own pair, the
+multiplicative one at a shared step size, is
+`KramersBridge.eventually_mean_first_passage_lift_lt_direct_smallLearningRate`. -/
 theorem eventually_mean_first_passage_lift_lt_direct {U U' : ℝ → ℝ} {a b x wb ws : ℝ}
     {sl : ℝ} (taud Dtaud DDtaud : ℝ → ℝ → ℝ) (taul Dtaul DDtaul : ℝ → ℝ)
     (hDynkinD : ∀ sd : ℝ, 0 < sd → MeanExitTimeBVP sd U' a b (taud sd) (Dtaud sd) (DDtaud sd))
@@ -1270,15 +1346,15 @@ theorem eventually_mean_first_passage_lift_lt_direct {U U' : ℝ → ℝ} {a b x
     eq_meanExitTime_of_bvp hsdpos hab hU hU' (htaud sd hsdpos) (hDynkinD sd hsdpos) x ⟨hax, hxb⟩]
   exact h1
 
-/-- **Corollary 1's ordering for the paper's own coupled pair, mean-first-passage form.**
-Equation (5) of the paper compares the direct process at effective variance `σ_s²σ_obj²` with
-the lifted process at `σ_s²σ_obj² + σ_Jac²`: one family, indexed by the shared attenuated
-variance, with the lift offset by the fixed slack-channel cross-covariance `jac2 = σ_Jac² > 0`.
-Given Dynkin's formula for both members at every index, the lift's mean first-passage time is
-strictly below the direct one for every sufficiently small shared variance `sd`. This is the
-faithful quantifier structure of the paper's comparison — the two diffusions are never varied
-independently — and it is the machine-checked content of "the lift escapes the shoulder
-strictly faster than the direct softplus" in the small-noise regime (A5) postulates. -/
+/-- **The ordering for the additively coupled pair, mean-first-passage form: a companion to
+Corollary 1.** The direct process at effective variance `sd` and the lifted process at
+`sd + σ_Jac²`: one family, indexed by the shared variance, with the lift offset by a fixed
+`jac2 = σ_Jac² > 0`. Given Dynkin's formula for both members at every index, the lift's mean
+first-passage time is strictly below the direct one for every sufficiently small shared variance
+`sd`. (History: an earlier draft compared exactly this family, and this theorem was written as
+its counterpart.) The current paper's comparison is the multiplicative pair at one shared step
+size `η → 0⁺`, `KramersBridge.eventually_mean_first_passage_lift_lt_direct_smallLearningRate`;
+neither statement implies the other. -/
 theorem eventually_mean_first_passage_additive_lift_lt_direct {U U' : ℝ → ℝ}
     {a b x wb ws jac2 : ℝ}
     (taud Dtaud DDtaud taul Dtaul DDtaul : ℝ → ℝ → ℝ)
@@ -1340,15 +1416,17 @@ says there is no other choice.
 
 Three statements are recorded, not one. `paper_facing_hypotheses_satisfiable` exhibits the
 hypothesis stack; `cubicBarrier_kramers_exponent` and `cubicBarrier_additive_lift_lt_direct`
-then run the two paper-facing conclusions on that instance, so that the non-vacuity claim is
+then run two conclusions on that instance, so that the non-vacuity claim is
 machine-checked at the conclusions rather than asserted about the hypotheses. The second of the
-two exercises the shifted family `s ↦ τ(s + σ_Jac²)` that the paper's own additively coupled
-comparison needs, and which the hypothesis stack alone does not exhibit. -/
+two exercises the shifted family `s ↦ τ(s + σ_Jac²)` that the additively coupled companion
+comparison needs, and which the hypothesis stack alone does not exhibit. The paper's own
+shared-step-size ordering is run on an instance in `KramersBridge`
+(`smallLearningRate_ordering_nonvacuous`). -/
 
 /-- The **cubic barrier potential** `U(y) = y - y³/3`, the non-vacuity witness. On `[-3/2, 3/2]`
 its basin bottom is `w_b = -1` with `U(w_b) = -2/3`, its barrier top is `w_s = 1` with
 `U(w_s) = 2/3`, and the barrier action is `α = U(w_s) - U(w_b) = 4/3 > 0`. This is the
-metastable single-barrier shape of the paper's (A5) in the smallest example that has one: the
+metastable single-barrier shape of the paper's A2(b) in the smallest example that has one: the
 potential falls from the reflecting wall into the basin, rises across the barrier, and falls
 again to the absorbing wall. -/
 noncomputable def cubicBarrier (y : ℝ) : ℝ := y - y ^ 3 / 3
@@ -1376,7 +1454,7 @@ theorem hasDerivAt_cubicBarrier :
   ring
 
 /-- The barrier top of the witness is the maximum of `U` on the interval: this is the `hmax`
-half of the single-barrier structure of (A5). -/
+half of the extremality clause of A2(b). -/
 theorem cubicBarrier_le_top :
     ∀ y ∈ Set.Icc (-(3 / 2) : ℝ) (3 / 2), cubicBarrier y ≤ cubicBarrier 1 := by
   intro y hy
@@ -1385,7 +1463,7 @@ theorem cubicBarrier_le_top :
   nlinarith [mul_nonneg (sq_nonneg (y - 1)) (show (0 : ℝ) ≤ y + 2 by linarith)]
 
 /-- The basin bottom of the witness is the minimum of `U` on the interval: this is the `hmin`
-half of the single-barrier structure of (A5). -/
+half of the extremality clause of A2(b). -/
 theorem cubicBarrier_bottom_le :
     ∀ z ∈ Set.Icc (-(3 / 2) : ℝ) (3 / 2), cubicBarrier (-1) ≤ cubicBarrier z := by
   intro z hz
@@ -1460,13 +1538,13 @@ theorem cubicBarrier_kramers_exponent :
   rw [hval] at h
   exact h
 
-/-- **Corollary 1's additively coupled ordering, evaluated on the witness.** For every fixed
+/-- **The additively coupled companion ordering, evaluated on the witness.** For every fixed
 slack-channel excess `σ_Jac² > 0`, running `eventually_mean_first_passage_additive_lift_lt_direct`
 on the cubic barrier with the direct family `s ↦ T(s)` and the lifted family `s ↦ T(s + σ_Jac²)`
 gives: for every sufficiently small shared variance `sd`, the lift's mean first-passage time is
-strictly below the direct one. This is the paper's own comparison — one family, the lift offset
-by a fixed `σ_Jac²` — carried out end to end on a concrete potential, and it is what makes the
-shifted-family instantiation a proved statement rather than a remark. -/
+strictly below the direct one. This is the additive companion comparison — one family, the
+lift offset by a fixed `σ_Jac²` — carried out end to end on a concrete potential, and it is what
+makes the shifted-family instantiation a proved statement rather than a remark. -/
 theorem cubicBarrier_additive_lift_lt_direct {jac2 : ℝ} (hjac : 0 < jac2) :
     ∀ᶠ sd in 𝓝[>] (0 : ℝ),
       meanExitTime (sd + jac2) cubicBarrier (-(3 / 2)) (3 / 2) (-1)

@@ -1,4 +1,4 @@
-name: Lean formal proofs (icnnlift)
+name: Lean formal proofs (lift)
 
 # Machine-checks the Lean 4 + mathlib formalization of the theoretical results of
 # "A lift for input-convex neural network training", under `formal/`. A green run =

@@ -3,9 +3,21 @@ import Mathlib
 /-!
 # (FW-2) Quasipotential monotonicity in the diffusion, in one dimension
 
-This file machine-checks FW-2 of `docs/design/lemma1_rederivation.md` in the one-dimensional
-reduction that the paper's Corollary actually uses.  Three versions of the statement appear in
-that note and they are not equivalent.  The sketch of section 7 (line 202) is superseded by the
+**Against the current paper.** FW-2, FW-3, the section numbers, (A1), (A2), (A4'-q) and (A6)
+below are the design note's and the v4 draft's vocabulary, and the module records that history.
+The current paper names no Lean module and does not state this
+module's main results: its `cor:fpt` compares exponents at a diffusion read as constant across
+the barrier, with Lemma 1(v) (`lem:diffusion`) bracketing the varying case, and it makes no
+Freidlin–Wentzell quasipotential comparison beyond the scalar reduction of Step 1 of that
+proof. The one point of contact is the clause of Step 3 of that proof that a pointwise ordering
+of the two diffusions on the interval needs no bracket, which is
+`quasipotentialIncrement_antitone_in_diffusion` and its strict form. The coupling sign
+this file carries as (A6) appears there as the stated condition `c > 0`; the band is A2(a),
+`|ψ'(w) - σ_s| ≤ ε` on an interval.
+
+This file machine-checks FW-2 of the design note in the one-dimensional
+reduction that the design note's corollary uses.  Three versions of the statement appear in
+that note and they are not equivalent.  The sketch of section 7 is superseded by the
 full draft of section 8 ("FW-2 — quasipotential monotonicity in the diffusion"), which is in turn
 amended by FW-2' of section 11.3, where the strictness hypothesis is moved off the magnitude
 channel `H V H` and onto the coupling channel `C = H Σ_slack + Σ_slackᵀ H` alone, because
@@ -127,7 +139,7 @@ the one-dimensional quasipotential.
 * `quasipotentialIncrement_le_sub_gap` — its FW-2' specialization, with the derived gap
   `(d-c)·m ε/(Λ(Λ+ε))`.
 * `quasipotentialIncrement_strictAnti_in_diffusion` — FW-2, strict form, under continuity.
-* `liftQuasipotentialIncrement_lt_direct` — the paper's corollary, with (A6) explicit.
+* `liftQuasipotentialIncrement_lt_direct` — the design note's corollary, with (A6) explicit.
 * `liftQuasipotentialIncrement_le_sub_gap` — the same with the modulus of (A6) quantified.
 * `kramersFactor_lt_of_quasipotential_lt` — the Arrhenius exponent comparison.
 * `quasipotential_le_of_action_le`, `quasipotential_le_sub_of_action_le_sub`,
@@ -256,7 +268,7 @@ namespace IcnnLift
 
 /-! ## The one-dimensional effective quasipotential -/
 
-/-- The increment of the effective quasipotential `U_eff` of `docs/design/lemma1_rederivation.md`
+/-- The increment of the effective quasipotential `U_eff` of the design note,
 section 3, equation (*): for the bias-channel Itô diffusion
 `dw = -L̃'(w) dt + √η σ_eff(w) dB` with state-dependent diffusion `σ_eff²`, the stationary
 density is `π(w) ∝ σ_eff⁻²(w) exp(-(2/η) U_eff(w))` with
@@ -514,9 +526,9 @@ theorem quasipotentialIncrement_strictAnti_in_diffusion
   rw [hFint] at hkey
   linarith
 
-/-! ## The corollary the paper uses, with (A6) explicit -/
+/-! ## The design note's corollary, with (A6) explicit -/
 
-/-- **The paper's corollary, strict form.**  Write the lift's effective diffusion on the band as
+/-- **The design note's corollary, strict form.**  Write the lift's effective diffusion on the band as
 the direct baseline's plus the excess `exc` that FW-1 computes,
 `σ_lift² = σ_dir² + s²(C + H V H) + T₃`.  If the excess is non-negative across the band (FW-1
 with the remainder controlled by (A4'-q)) and **strictly positive somewhere on it** — which is
@@ -546,7 +558,7 @@ theorem liftQuasipotentialIncrement_lt_direct
   · have := hexc u hu; linarith
   · have := hA6 u hu; linarith
 
-/-- **The paper's corollary, quantitative form.**  With (A6) quantified by a modulus `κ` on the
+/-- **The design note's corollary, quantitative form.**  With (A6) quantified by a modulus `κ` on the
 subinterval `[c,d]`, a climb of at least `m` there, and the baseline diffusion bounded by `Λ`
 there (FW-3b's ellipticity), the lift's effective action across the barrier is smaller by at
 least `(d - c) · m κ / (Λ (Λ + κ))`.  This is FW-2''s `δ` in the scalar reduction: in the paper's

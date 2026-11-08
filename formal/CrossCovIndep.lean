@@ -1,22 +1,34 @@
 import Mathlib
 
 /-!
-# Case (iii) of Theorem 1 (`thm:joint-necessity`): conditional independence zeroes the population
-cross-covariance
+# Theorem 2 (`thm:joint-necessity`): conditional independence zeroes the population coupling
 
-Theorem 1 of the paper (stated in `docs/paper/v4/04_mechanism.tex` and restated with its proof in
-`docs/paper/v4/A1_proofs.tex`, `app:proof-joint-necessity`) lists three deletions, each of which
-zeroes the slack-channel cross-covariance reading. Cases (i) and (ii) are finite-sample identities
-and are machine-checked in `CrossCov.lean`. Case (iii) is different in kind: it is a statement
-about the *population* object that the estimator targets,
-`Σ_slack ≡ E[δθ̃ (δg)ᵀ | φ]`, and it is what this file proves.
+Theorem 2 of the paper (Section 3.4, proved in Appendix A.2,
+`app:proof-joint-necessity`) states that if the latent weight `θ̃` and the gradient `g₀` at the
+mean latent weight are conditionally independent given the parameters, then the coupling
+`Σ_ξ = E[δθ̃ ξᵀ | 𝒢]` vanishes for almost every value of the parameters, with `ξ = g₀ − E[g₀ | 𝒢]`
+and `𝒢 = σ(φ, b)`; the two substitutions printed after it are finite-sample identities and are
+machine-checked in `CrossCov.lean`. This file keeps the case labels of the earlier appendix
+statement, in which the two substitutions were cases (i) and (ii) and Theorem 2's clause was case
+(iii). Case (iii) is different in kind: it is a statement about the *population* object that the
+estimator targets, and it is what this file proves.
 
-The paper's argument is a chain of two equalities. If the produced latent iterate `θ̃` and the
-loss gradient `g` are independent conditional on the body parameters `φ`, then their centred
-fluctuations `δθ̃ = θ̃ - E[θ̃ | φ]` and `δg = g - E[g | φ]` are conditionally independent as well,
-being fixed measurable functions of `θ̃` and of `g` respectively; the conditional expectation of
-their outer product therefore factorizes as `E[δθ̃ (δg)ᵀ | φ] = E[δθ̃ | φ] (E[δg | φ])ᵀ`; and both
-factors vanish because the fluctuations are centred by construction. Every link of that chain is
+**Reading the variables.** The theorems below are stated for an arbitrary pair `(X, Y)`. Theorem 2
+is the reading `X = θ̃`, `Y = g₀`; the docstrings write `φ` for the conditioning `𝒢` and `δg` for
+the gradient fluctuation, which under this reading is the paper's `ξ`, so a conclusion written
+`E[δθ̃ (δg)ᵀ | φ] = 0` is the paper's `Σ_ξ = 0`, and `sigmaJacSq` at this reading is `tr Σ_ξ`, which
+the paper's `eq:pf-popzero` sets to zero with it. It is **not** the slack cross-covariance
+`Σ_slack = E[δθ̃ δgᵀ]` with `g` the gradient at the lift's own latent weight, whose trace is the
+paper's `σ²_Jac` (`lem:diffusion`): under Theorem 2's hypothesis `θ̃ ⫫ g₀`, `Σ_slack` need not
+vanish, since `MinibatchNoise.covMat_slack_refined_of_indepFun` reduces it to `V H + Cov[δθ̃, r₂]`.
+Reading `Y = g` instead would need `θ̃ ⫫ g`, which is not the paper's hypothesis.
+
+The paper's argument (`eq:pf-popzero`) is a chain of two equalities. If `θ̃` and `g₀` are
+independent conditional on the parameters, then their centered fluctuations `δθ̃ = θ̃ - E[θ̃ | 𝒢]`
+and `ξ = g₀ - E[g₀ | 𝒢]` are conditionally independent as well, each being a `𝒢`-measurable shift
+of one factor; the conditional expectation of their outer product therefore factorizes through
+the disintegration kernel as `E[δθ̃ ξᵀ | 𝒢] = E[δθ̃ | 𝒢] (E[ξ | 𝒢])ᵀ`; and both factors vanish
+because the fluctuations are centered by construction. Every link of that chain is
 proved here, and proved at both levels: unconditionally, by `indepFun_centered`,
 `popMean_centered`, `popCrossCov_centered_of_indepFun` and
 `popCrossCov_centered_eq_zero_of_indepFun`; and conditionally, by
@@ -26,7 +38,7 @@ order", so no remainder term arises and none is assumed away: the results below 
 identities, and the only hypotheses carried are independence, integrability, and — where a constant
 has to be integrated — that the measure is a probability measure.
 
-Two modelling choices deserve comment, because they are what make the Lean statements the paper's
+Two modeling choices deserve comment, because they are what make the Lean statements the paper's
 statements rather than weaker cousins. First, the cross-covariance is defined entrywise as
 `Σ i j = ∫ X ω i * Y ω j ∂μ`, which needs no norm on the space of matrices; `popCrossCov_of_indepFun`
 nevertheless routes through the genuinely vector-valued Bochner integral of the outer product,
@@ -34,7 +46,7 @@ because `popCrossCov_eq_integral_outerProd` identifies the entrywise definition 
 `∫ ω, X ω (Y ω)ᵀ ∂μ` whenever that integral exists, and the factorization is then
 `ProbabilityTheory.IndepFun.integral_bilin` applied to the outer product `outerProd`, exhibited
 here as a genuine continuous bilinear map. So the conclusion is a matrix identity, not a family of
-scalar identities. Second, the conditioning on `φ` is not modelled by fixing `φ`: it is modelled by
+scalar identities. Second, the conditioning on `φ` is not modeled by fixing `φ`: it is modeled by
 mathlib's `ProbabilityTheory.CondIndepFun` and the disintegration kernel
 `ProbabilityTheory.condExpKernel μ m'`, whose fibre means `popMean_condExpKernel_ae_eq_condExp`
 identifies almost everywhere with the conditional expectations `μ[· | m']` that the paper writes
@@ -50,9 +62,10 @@ literally `μ` and the unconditional means — the two halves of the file are on
 two, at the level of the statements and not only of the hypotheses. The final section then
 exhibits explicit instances, because
 an implication proves nothing if its hypotheses are unsatisfiable or its conclusion automatic.
-`exists_centered_popCrossCov_ne_zero` produces a probability space on which the centred population
-cross-covariance and `σ_Jac²` are *not* zero, which is what shows that independence, and not the
-shape of the definitions or the centring alone, is what produces the zero; and
+`exists_centered_popCrossCov_ne_zero` produces a probability space on which the centered population
+cross-covariance and its trace `sigmaJacSq` are *not* zero, which is what shows, as the paper
+notes after `eq:pf-popzero`, that independence, and not the
+shape of the definitions or the centering alone, is what produces the zero; and
 `condPopCrossCov_coinPair_ae_eq_zero` instantiates the headline conditional theorem at a witness
 that satisfies its entire hypothesis stack with both random vectors non-constant.
 
@@ -66,23 +79,24 @@ product is `Matrix.vecMulVec`, so that `popCrossCov` is the population limit of 
   estimator in `CrossCov.lean`.
 * `popMean` — the population mean `E[X]` of an `ℝ^d`-valued random vector.
 * `popCrossCov` — the population cross-covariance `Σ = E[X Yᵀ]`, entrywise.
-* `sigmaJacSq` — the paper's `σ_Jac² ≡ tr Σ_slack` (`04_mechanism.tex`, `eq:cross-cov`), and
-  `sigmaJacSq_eq_sum`, which writes it as the sum of the diagonal second moments.
+* `sigmaJacSq` — the trace of the population cross-covariance of its two arguments: the paper's
+  `σ²_Jac = tr Σ_slack` (`lem:diffusion`) at `Y = g`, and `tr Σ_ξ` at Theorem 2's reading
+  `Y = g₀`; `sigmaJacSq_eq_sum` writes it as the sum of the diagonal second moments.
 * `popCrossCov_eq_integral_outerProd` — the entrywise definition is the Bochner integral of the
   outer product whenever the latter is integrable.
 * `popCrossCov_of_indepFun` — the paper's first equality: independence factorizes the population
   cross-covariance, `E[X Yᵀ] = E[X] (E[Y])ᵀ`.
 * `popCrossCov_eq_zero_of_indepFun_of_centered` — the unconditional zero-mean statement:
-  independent, integrable, centred `X` and `Y` have `E[X Yᵀ] = 0` as a matrix.
-* `indepFun_centered` — centring preserves independence, which is the paper's step from
-  independence of `(θ̃, g)` to independence of the fluctuations `(δθ̃, δg)`.
-* `popMean_centered` — the centred fluctuation has zero mean.
-* `popCrossCov_centered_of_indepFun` — the factorization with the centred fluctuations in place,
+  independent, integrable, centered `X` and `Y` have `E[X Yᵀ] = 0` as a matrix.
+* `indepFun_centered` — centering preserves independence, which is the paper's step from
+  independence of `(θ̃, g₀)` to independence of the fluctuations `(δθ̃, ξ)`.
+* `popMean_centered` — the centered fluctuation has zero mean.
+* `popCrossCov_centered_of_indepFun` — the factorization with the centered fluctuations in place,
   `E[δX (δY)ᵀ] = E[δX] (E[δY])ᵀ`.
-* `popCrossCov_centered_eq_zero_of_indepFun` — the centring version the paper actually uses: for
+* `popCrossCov_centered_eq_zero_of_indepFun` — the centering version the paper actually uses: for
   arbitrary integrable independent `X` and `Y`, `E[(X - E X)(Y - E Y)ᵀ] = 0`.
 * `sigmaJacSq_eq_zero_of_indepFun_of_centered`, `sigmaJacSq_centered_eq_zero_of_indepFun` —
-  the corollary in the paper's own terms: `σ_Jac² = tr Σ_slack = 0`.
+  the trace corollary: `tr Σ_ξ = 0` at Theorem 2's reading.
 * `ae_indepFun_of_condIndepFun` — conditional independence gives ordinary independence under the
   disintegration kernel, for almost every realization of the conditioning σ-algebra.
 * `popMean_condExpKernel_ae_eq_condExp` — the fibre mean is the conditional expectation.
@@ -90,11 +104,11 @@ product is `Matrix.vecMulVec`, so that `popCrossCov` is the population limit of 
   `E[δθ̃ | φ] = 0` almost surely.
 * `condPopCrossCov_centered_ae_factorizes` — the paper's first link, conditionally:
   `E[δθ̃ (δg)ᵀ | φ] = E[δθ̃ | φ] (E[δg | φ])ᵀ` almost surely.
-* `condPopCrossCov_centered_ae_eq_zero` — case (iii) with the centring written as fibre means of
-  the disintegration kernel: `Σ_slack = 0` almost surely.
-* `condSigmaJacSq_centered_ae_eq_zero` — hence `σ_Jac² = 0` almost surely.
+* `condPopCrossCov_centered_ae_eq_zero` — case (iii) with the centering written as fibre means of
+  the disintegration kernel: `Σ_ξ = 0` almost surely.
+* `condSigmaJacSq_centered_ae_eq_zero` — hence `tr Σ_ξ = 0` almost surely.
 * `condPopCrossCov_condExp_centered_ae_eq_zero` — case (iii) as the paper writes it, with the
-  centring by the conditional expectations `μ[· | m']` themselves, and
+  centering by the conditional expectations `μ[· | m']` themselves, and
   `condSigmaJacSq_condExp_centered_ae_eq_zero` for the trace.
 * `condIndepFun_bot_of_indepFun` — independence is conditional independence given `⊥`, so the
   unconditional results above are the trivial-conditioning case of the conditional ones.
@@ -102,9 +116,9 @@ product is `Matrix.vecMulVec`, so that `popCrossCov` is the population limit of 
   specialization is an identity of statements and not only of hypotheses.
 * `fairCoin`, `signVec`, `integral_fairCoin`, `popMean_fairCoin_signVec`,
   `popCrossCov_fairCoin_signVec`, `sigmaJacSq_fairCoin_signVec` — an explicit probability space and
-  an explicit centred random vector whose cross-covariance is the all-ones matrix and whose
-  `σ_Jac²` is `d`.
-* `exists_centered_popCrossCov_ne_zero` — hence the centred population cross-covariance is not
+  an explicit centered random vector whose cross-covariance is the all-ones matrix and whose
+  trace `sigmaJacSq` is `d`.
+* `exists_centered_popCrossCov_ne_zero` — hence the centered population cross-covariance is not
   identically zero: the independence hypothesis of the theorems above is load-bearing.
 * `coinPair`, `indepFun_coinPair`, `condIndepFun_coinPair`, `condPopCrossCov_coinPair_ae_eq_zero` —
   the conditional hypothesis stack instantiated with both random vectors non-constant.
@@ -119,11 +133,11 @@ The hypotheses carried, and why each is a hypothesis rather than a theorem:
 * `Integrable X μ` and `Integrable Y μ`. These are needed for the means and the cross-covariance to
   exist at all, and are exactly the hypotheses of `ProbabilityTheory.IndepFun.integral_bilin`. They
   are not a weakening: without them the paper's `E[δθ̃ | φ]` is undefined.
-* `[IsProbabilityMeasure μ]`, in the centring statements only. It is used once, to evaluate
+* `[IsProbabilityMeasure μ]`, in the centering statements only. It is used once, to evaluate
   `∫ ω, c ∂μ = c` for the constant `c = E[X]`, and it holds for the paper's conditional law by
   construction — the disintegration kernel `condExpKernel μ m'` is a Markov kernel, so each of its
   fibres is a probability measure. The zero-mean statements, which take vanishing means as a
-  hypothesis instead of producing them by centring, need no such assumption; the bare factorization
+  hypothesis instead of producing them by centering, need no such assumption; the bare factorization
   `popCrossCov_centered_of_indepFun` needs only `[IsFiniteMeasure μ]`, so that the constant being
   subtracted is integrable.
 * `Measurable X`, `Measurable Y`, `[StandardBorelSpace Ω]`, `[IsFiniteMeasure μ]` and `m' ≤ mΩ`, in
@@ -135,19 +149,19 @@ The hypotheses carried, and why each is a hypothesis rather than a theorem:
 
 What this file does **not** prove, and where it belongs instead:
 
-* The rest of case (iii) — that the finite-window estimator is unbiased for this population zero
-  and converges to it almost surely, with `O(T^{-1/2})` finite-window fluctuations — is a
+* The rest of case (iii) — that the finite-sample estimator is unbiased for this population zero
+  and converges to it almost surely, with an entrywise mean-square error of order `1/T` — is a
   statement about the estimator and not about the population cross-covariance. It is assigned to
   `CrossCovSLLN.lean` and is not attempted here.
-* The paper's remark that, under (A1), conditional independence at a fixed step together with
-  cross-iteration independence of the i.i.d. batches makes the *whole window collections*
-  `{θ̃⁽ˢ⁾}` and `{g⁽ˢ⁾}` conditionally independent is a statement about a family of random
-  variables across the window. This file proves the population identity for a single pair, which
+* The step of the paper's proof that, under (A1), the joint law of the `2T` probe vectors is the
+  product of the per-probe laws, each factorizing by the conditional independence, so that the
+  *whole collections* `{δθ̃_k}` and `{ξ_k}` are independent, is a statement about a family of
+  random variables across the probes. This file proves the population identity for a single pair, which
   is the level at which case (iii) states its conclusion; the window-level independence transfer
-  is not formalized here.
+  is proved in `CrossCovSLLN.lean`, as `indepFun_collections_of_iIndepFun`.
 * No claim is made here that the paper's `δθ̃` and `δg` are the specific random vectors arising
   from the SGD model of (A1). The results are proved for arbitrary `ℝ^d`-valued random vectors, so
-  they apply to those in particular, but the identification is a modelling step outside this file.
+  they apply to those in particular, but the identification is a modeling step outside this file.
 * The two witnesses of the final section are not claimed to be exhaustive. The non-degenerate
   conditional witness `condIndepFun_coinPair` conditions on the trivial σ-algebra, and the
   non-trivially conditioned witness `condIndepFun_coinPair_snd` obtains its conditional
@@ -171,7 +185,8 @@ variable {d : ℕ}
 /-! ### The outer product as a continuous bilinear map -/
 
 /-- The outer product `(v, w) ↦ v wᵀ` of two vectors in `ℝ^d`, as a bilinear map into the space of
-`d × d` arrays. Its expectation is what the paper calls the cross-covariance; the continuous
+`d × d` arrays. Its expectation is what the paper calls the cross-covariance (the coupling `Σ_ξ`
+at Theorem 2's reading); the continuous
 version, which is the one the integration lemmas need, is `outerProd` below. -/
 noncomputable def outerProdₗ (d : ℕ) :
     (Fin d → ℝ) →ₗ[ℝ] (Fin d → ℝ) →ₗ[ℝ] (Fin d → Fin d → ℝ) :=
@@ -218,22 +233,25 @@ section Population
 variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
 /-- The population mean `E[X]` of an `ℝ^d`-valued random vector, as a Bochner integral. Under the
-conditional law of the paper this is `E[θ̃ | φ]`, respectively `E[g | φ]`. -/
+conditional law of the paper this is `E[θ̃ | 𝒢]`, respectively `E[g₀ | 𝒢]`. -/
 noncomputable def popMean (μ : Measure Ω) (X : Ω → Fin d → ℝ) : Fin d → ℝ := ∫ ω, X ω ∂μ
 
 /-- The population cross-covariance `Σ = E[X Yᵀ]` of a pair of `ℝ^d`-valued random vectors, defined
-entrywise. This is the paper's `Σ_slack` of `eq:cross-cov` once `X` is the iterate fluctuation
-`δθ̃` and `Y` is the gradient fluctuation `δg`. -/
+entrywise. This is the paper's coupling `Σ_ξ` once `X` is the latent-weight fluctuation `δθ̃` and
+`Y` is the fluctuation `ξ` of `g₀`, and the population target `Σ_slack` of `eq:cross-cov`
+(`lem:diffusion`) once `Y` is the fluctuation `δg` of the gradient at the lift's own latent
+weight. -/
 noncomputable def popCrossCov (μ : Measure Ω) (X Y : Ω → Fin d → ℝ) :
     Matrix (Fin d) (Fin d) ℝ :=
   Matrix.of fun i j => ∫ ω, X ω i * Y ω j ∂μ
 
-/-- The paper's slack-channel diffusion coefficient `σ_Jac² ≡ tr E[δθ̃ (δg)ᵀ]`
-(`04_mechanism.tex`, `eq:cross-cov`), the trace of the population cross-covariance. -/
+/-- The trace of the population cross-covariance. At `Y = δg` it is the paper's
+`σ²_Jac = tr Σ_slack` (`lem:diffusion`); at Theorem 2's reading `Y = ξ` it is `tr Σ_ξ`. The name is
+historical. -/
 noncomputable def sigmaJacSq (μ : Measure Ω) (X Y : Ω → Fin d → ℝ) : ℝ :=
   (popCrossCov μ X Y).trace
 
-/-- `σ_Jac²` is the sum of the diagonal second moments, as the paper's trace notation says. -/
+/-- `sigmaJacSq` is the sum of the diagonal second moments, as the trace notation says. -/
 theorem sigmaJacSq_eq_sum (μ : Measure Ω) (X Y : Ω → Fin d → ℝ) :
     sigmaJacSq μ X Y = ∑ i, ∫ ω, X ω i * Y ω i ∂μ := rfl
 
@@ -269,33 +287,34 @@ theorem popCrossCov_of_indepFun {X Y : Ω → Fin d → ℝ}
   simp [popMean, Matrix.vecMulVec_apply]
 
 /-- **The unconditional zero-mean statement.** If `X` and `Y` are independent and integrable and
-`X` has zero mean, then `E[X Yᵀ] = 0` as a matrix. This is the paper's chain
-`E[δθ̃ (δg)ᵀ] = E[δθ̃] (E[δg])ᵀ = 0` with the second equality supplied by the centring. -/
+`X` has zero mean, then `E[X Yᵀ] = 0` as a matrix. This is the paper's chain `eq:pf-popzero` at
+fixed parameters, `E[δθ̃ ξᵀ] = E[δθ̃] (E[ξ])ᵀ = 0`, with the second equality supplied by the
+centering. -/
 theorem popCrossCov_eq_zero_of_indepFun_of_centered {X Y : Ω → Fin d → ℝ}
     (hindep : IndepFun X Y μ) (hX : Integrable X μ) (hY : Integrable Y μ)
     (hX0 : popMean μ X = 0) : popCrossCov μ X Y = 0 := by
   rw [popCrossCov_of_indepFun hindep hX hY, hX0, Matrix.zero_vecMulVec]
 
-/-- The corollary in the paper's own terms: under the hypotheses of case (iii) the slack-channel
-diffusion coefficient `σ_Jac² = tr Σ_slack` vanishes. -/
+/-- The trace corollary: under the hypotheses of case (iii), read at `X = δθ̃` and `Y = ξ`, the trace
+`tr Σ_ξ` vanishes, as `eq:pf-popzero` says. -/
 theorem sigmaJacSq_eq_zero_of_indepFun_of_centered {X Y : Ω → Fin d → ℝ}
     (hindep : IndepFun X Y μ) (hX : Integrable X μ) (hY : Integrable Y μ)
     (hX0 : popMean μ X = 0) : sigmaJacSq μ X Y = 0 := by
   rw [sigmaJacSq, popCrossCov_eq_zero_of_indepFun_of_centered hindep hX hY hX0,
     Matrix.trace_zero]
 
-/-! ### The centring version the paper uses -/
+/-! ### The centering version the paper uses -/
 
-/-- **Centring preserves independence.** This is the paper's step from "`θ̃` and `g` are independent
-conditional on `φ`" to "the centred fluctuations `δθ̃` and `δg` are conditionally independent":
-each fluctuation is a fixed measurable function — translation by a constant — of one of the two
-original variables. -/
+/-- **Centering preserves independence.** This is the paper's step from "`θ̃` and `g₀` are
+conditionally independent given `𝒢`" to "the centered fluctuations `δθ̃` and `ξ` are conditionally
+independent": each fluctuation is a fixed measurable function — translation by a constant — of one
+of the two original variables. -/
 theorem indepFun_centered {X Y : Ω → Fin d → ℝ} (hindep : IndepFun X Y μ) (a b : Fin d → ℝ) :
     IndepFun (fun ω => X ω - a) (fun ω => Y ω - b) μ :=
   hindep.comp (φ := fun v => v - a) (ψ := fun v => v - b) (by fun_prop) (by fun_prop)
 
-/-- The centred fluctuation has zero mean: `E[X - E X] = 0`. This is the paper's "both factors are
-centred by construction", derived rather than assumed. -/
+/-- The centered fluctuation has zero mean: `E[X - E X] = 0`. This is the paper's "both factors
+vanishing by the centering", derived rather than assumed. -/
 theorem popMean_centered [IsProbabilityMeasure μ] {X : Ω → Fin d → ℝ} (hX : Integrable X μ) :
     popMean μ (fun ω => X ω - popMean μ X) = 0 := by
   have h : ∫ ω, (X ω - popMean μ X) ∂μ = (∫ ω, X ω ∂μ) - popMean μ X := by
@@ -303,11 +322,13 @@ theorem popMean_centered [IsProbabilityMeasure μ] {X : Ω → Fin d → ℝ} (h
     simp
   simpa [popMean] using h
 
-/-- **Case (iii) of Theorem 1, unconditional form.** For arbitrary integrable independent `X` and
-`Y` on a probability space, the population cross-covariance of the centred fluctuations vanishes:
+/-- **Case (iii), Theorem 2's clause, unconditional form.** For arbitrary integrable independent
+`X` and
+`Y` on a probability space, the population cross-covariance of the centered fluctuations vanishes:
 `E[(X - E X)(Y - E Y)ᵀ] = 0`.
 
-This is the statement the paper actually uses, since `δθ̃` and `δg` are defined by centring. Both
+This is the statement the paper uses at fixed parameters, since `δθ̃` and `ξ` are defined by
+centering. Both
 of its ingredients are theorems above: `indepFun_centered` carries independence to the
 fluctuations, and `popMean_centered` supplies the vanishing factor. -/
 theorem popCrossCov_centered_eq_zero_of_indepFun [IsProbabilityMeasure μ] {X Y : Ω → Fin d → ℝ}
@@ -316,8 +337,8 @@ theorem popCrossCov_centered_eq_zero_of_indepFun [IsProbabilityMeasure μ] {X Y 
   popCrossCov_eq_zero_of_indepFun_of_centered (indepFun_centered hindep _ _)
     (hX.sub (integrable_const _)) (hY.sub (integrable_const _)) (popMean_centered hX)
 
-/-- The centred factorization written out, `E[δX (δY)ᵀ] = E[δX] (E[δY])ᵀ`: the paper's first
-equality with the centred fluctuations in place. -/
+/-- The centered factorization written out, `E[δX (δY)ᵀ] = E[δX] (E[δY])ᵀ`: the paper's first
+equality with the centered fluctuations in place. -/
 theorem popCrossCov_centered_of_indepFun [IsFiniteMeasure μ] {X Y : Ω → Fin d → ℝ}
     (hindep : IndepFun X Y μ) (hX : Integrable X μ) (hY : Integrable Y μ) :
     popCrossCov μ (fun ω => X ω - popMean μ X) (fun ω => Y ω - popMean μ Y) =
@@ -326,7 +347,7 @@ theorem popCrossCov_centered_of_indepFun [IsFiniteMeasure μ] {X Y : Ω → Fin 
   popCrossCov_of_indepFun (indepFun_centered hindep _ _)
     (hX.sub (integrable_const _)) (hY.sub (integrable_const _))
 
-/-- The corollary in the paper's own terms, centring version: `σ_Jac² = tr Σ_slack = 0`. -/
+/-- The trace corollary, centering version: `tr Σ_ξ = 0` at Theorem 2's reading. -/
 theorem sigmaJacSq_centered_eq_zero_of_indepFun [IsProbabilityMeasure μ] {X Y : Ω → Fin d → ℝ}
     (hindep : IndepFun X Y μ) (hX : Integrable X μ) (hY : Integrable Y μ) :
     sigmaJacSq μ (fun ω => X ω - popMean μ X) (fun ω => Y ω - popMean μ Y) = 0 := by
@@ -336,7 +357,7 @@ end Population
 
 /-! ### The conditional statement
 
-Here the conditioning on the body parameters `φ` is modelled by a sub-σ-algebra `m'` of the ambient
+Here the conditioning on the body parameters `φ` is modeled by a sub-σ-algebra `m'` of the ambient
 σ-algebra, and the conditional law by mathlib's disintegration kernel `condExpKernel μ m'`. The
 first lemma turns mathlib's `CondIndepFun` — which is a kernel-level statement, an almost-sure
 identity of measures of intersections — into ordinary independence under the fibre measure, for
@@ -365,16 +386,16 @@ theorem ae_indepFun_of_condIndepFun (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → �
 
 /-- The fibre mean under the disintegration kernel is the conditional expectation: almost surely,
 `popMean (condExpKernel μ m' ω) X = (μ[X | m']) ω`. This is the lemma that entitles the results
-below to be read as statements about the paper's `E[· | φ]`. -/
+below to be read as statements about the paper's `E[· | 𝒢]`. -/
 theorem popMean_condExpKernel_ae_eq_condExp (hm' : m' ≤ mΩ) {X : Ω → Fin d → ℝ}
     (hX : Integrable X μ) :
     (fun ω => popMean (condExpKernel μ m' ω) X) =ᵐ[μ] μ[X | m'] :=
   (condExp_ae_eq_integral_condExpKernel hm' hX).symm
 
 /-- **The second link of the paper's chain, conditionally and in the paper's own notation.** The
-conditional fluctuation is centred: almost surely the fibre mean of `X - E[X | φ]` vanishes. This
-is the paper's "the last equality because both factors are centred by construction", derived rather
-than assumed, with `E[· | φ]` read as mathlib's conditional expectation `μ[· | m']`. -/
+conditional fluctuation is centered: almost surely the fibre mean of `X - E[X | 𝒢]` vanishes. This
+is the last equality of `eq:pf-popzero`, "both factors vanishing by the centering", derived rather
+than assumed, with `E[· | 𝒢]` read as mathlib's conditional expectation `μ[· | m']`. -/
 theorem condPopMean_condExp_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X : Ω → Fin d → ℝ}
     (hX : Integrable X μ) :
     ∀ᵐ ω ∂μ, popMean (condExpKernel μ m' ω) (fun x => X x - (μ[X | m']) ω) = 0 := by
@@ -384,10 +405,11 @@ theorem condPopMean_condExp_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X : Ω → F
   exact popMean_centered hxi
 
 /-- **The first link of the paper's chain, conditionally.** Conditional independence factorizes the
-conditional cross-covariance of the centred fluctuations,
-`E[δθ̃ (δg)ᵀ | φ] = E[δθ̃ | φ] (E[δg | φ])ᵀ`, for almost every realization of the conditioning
-σ-algebra. Together with `condPopMean_condExp_centered_ae_eq_zero` this is the paper's displayed
-two-equality chain proved link by link at the conditional level, and not only at its endpoint. -/
+conditional cross-covariance of the centered fluctuations,
+`E[δθ̃ ξᵀ | 𝒢] = E[δθ̃ | 𝒢] (E[ξ | 𝒢])ᵀ`, for almost every realization of the conditioning
+σ-algebra, through the disintegration kernel as the paper says. Together with
+`condPopMean_condExp_centered_ae_eq_zero` this is the paper's displayed two-equality chain
+`eq:pf-popzero` proved link by link at the conditional level, and not only at its endpoint. -/
 theorem condPopCrossCov_centered_ae_factorizes (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → ℝ}
     (hX : Measurable X) (hY : Measurable Y) (hXi : Integrable X μ) (hYi : Integrable Y μ)
     (h : CondIndepFun m' hm' X Y μ) :
@@ -401,14 +423,15 @@ theorem condPopCrossCov_centered_ae_factorizes (hm' : m' ≤ mΩ) {X Y : Ω → 
     hXi.condExpKernel_ae (m := m'), hYi.condExpKernel_ae (m := m')] with ω hindep hxi hyi
   exact popCrossCov_centered_of_indepFun hindep hxi hyi
 
-/-- **Case (iii) of Theorem 1, as the paper states it.** If the produced iterate `X` and the loss
-gradient `Y` are independent conditional on the body parameters, then the population
-cross-covariance of their centred fluctuations vanishes almost surely:
-`Σ_slack = E[δθ̃ (δg)ᵀ | φ] = 0`.
+/-- **Case (iii), Theorem 2's clause, as the paper states it.** If the latent weight `X` and the
+gradient `Y = g₀` at the mean latent weight are independent conditional on the parameters, then
+the population cross-covariance of their centered fluctuations vanishes almost surely:
+`Σ_ξ = E[δθ̃ ξᵀ | 𝒢] = 0`, the paper's `eq:pf-popzero`. (It is not `Σ_slack = 0`; see the module
+header.)
 
 The conditional means subtracted here are the fibre means `popMean (condExpKernel μ m' ω) ·`, which
 `popMean_condExpKernel_ae_eq_condExp` identifies almost everywhere with `μ[· | m']`, so the
-fluctuations really are the paper's `δθ̃ = θ̃ - E[θ̃ | φ]` and `δg = g - E[g | φ]`. -/
+fluctuations really are the paper's `δθ̃ = θ̃ - E[θ̃ | 𝒢]` and `ξ = g₀ - E[g₀ | 𝒢]`. -/
 theorem condPopCrossCov_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → ℝ}
     (hX : Measurable X) (hY : Measurable Y) (hXi : Integrable X μ) (hYi : Integrable Y μ)
     (h : CondIndepFun m' hm' X Y μ) :
@@ -419,8 +442,8 @@ theorem condPopCrossCov_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin
     hXi.condExpKernel_ae (m := m'), hYi.condExpKernel_ae (m := m')] with ω hindep hxi hyi
   exact popCrossCov_centered_eq_zero_of_indepFun hindep hxi hyi
 
-/-- The corollary in the paper's own terms, conditional version: almost surely
-`σ_Jac² = tr Σ_slack = 0` under the conditional-independence deletion. -/
+/-- The trace corollary, conditional version: almost surely `tr Σ_ξ = 0` under Theorem 2's
+conditional independence. -/
 theorem condSigmaJacSq_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → ℝ}
     (hX : Measurable X) (hY : Measurable Y) (hXi : Integrable X μ) (hYi : Integrable Y μ)
     (h : CondIndepFun m' hm' X Y μ) :
@@ -430,11 +453,11 @@ theorem condSigmaJacSq_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin 
   filter_upwards [condPopCrossCov_centered_ae_eq_zero hm' hX hY hXi hYi h] with ω hω
   rw [sigmaJacSq, hω, Matrix.trace_zero]
 
-/-- **Case (iii) of Theorem 1, in the paper's own notation.** The same conclusion as
+/-- **Case (iii), Theorem 2's clause, in the paper's own notation.** The same conclusion as
 `condPopCrossCov_centered_ae_eq_zero`, but with the subtracted conditional means written as
 mathlib's conditional expectations `μ[X | m']` and `μ[Y | m']` rather than as fibre means of the
-disintegration kernel. This is the form the paper writes,
-`Σ_slack ≡ E[δθ̃ (δg)ᵀ | φ] = 0` with `δθ̃ = θ̃ - E[θ̃ | φ]` and `δg = g - E[g | φ]`. The two forms
+disintegration kernel. This is the form the paper writes in `eq:pf-popzero`,
+`Σ_ξ = E[δθ̃ ξᵀ | 𝒢] = 0` with `δθ̃ = θ̃ - E[θ̃ | 𝒢]` and `ξ = g₀ - E[g₀ | 𝒢]`. The two forms
 are the same statement — `popMean_condExpKernel_ae_eq_condExp` is what identifies them — but only
 this one can be compared with the paper without performing that identification by hand. -/
 theorem condPopCrossCov_condExp_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → ℝ}
@@ -447,9 +470,9 @@ theorem condPopCrossCov_condExp_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω
     popMean_condExpKernel_ae_eq_condExp hm' hYi] with ω h0 hx hy
   rwa [← hx, ← hy]
 
-/-- The corollary in the paper's own terms and the paper's own notation: almost surely
-`σ_Jac² = tr Σ_slack = 0`, with the fluctuations centred by the conditional expectations
-`μ[· | m']` that the paper writes `E[· | φ]`. -/
+/-- The trace corollary in the paper's own notation: almost surely `tr Σ_ξ = 0`, with the
+fluctuations centered by the conditional expectations `μ[· | m']` that the paper writes
+`E[· | 𝒢]`. -/
 theorem condSigmaJacSq_condExp_centered_ae_eq_zero (hm' : m' ≤ mΩ) {X Y : Ω → Fin d → ℝ}
     (hX : Measurable X) (hY : Measurable Y) (hXi : Integrable X μ) (hYi : Integrable Y μ)
     (h : CondIndepFun m' hm' X Y μ) :
@@ -540,8 +563,8 @@ its hypotheses, or if its conclusion holds regardless of them. This section sett
 by exhibiting instances rather than by argument.
 
 The first witness shows that `popCrossCov` and `sigmaJacSq` are not identically zero, even after
-centring and even on a probability space: for the `±1` sign vector on a fair coin the centred
-population cross-covariance is the all-ones matrix and `σ_Jac² = d`. So the independence hypothesis
+centering and even on a probability space: for the `±1` sign vector on a fair coin the centered
+population cross-covariance is the all-ones matrix and `sigmaJacSq = d`. So the independence hypothesis
 of `popCrossCov_centered_eq_zero_of_indepFun` is load-bearing, and the vanishing it concludes comes
 from that hypothesis and not from the way `popCrossCov` and `sigmaJacSq` are defined.
 
@@ -574,7 +597,7 @@ def signVec (d : ℕ) (b : Bool) : Fin d → ℝ := fun _ => if b then 1 else -1
 
 theorem measurable_signVec : Measurable (signVec d) := Measurable.of_discrete
 
-/-- The sign vector is already centred, so centring leaves it unchanged. -/
+/-- The sign vector is already centered, so centering leaves it unchanged. -/
 theorem popMean_fairCoin_signVec : popMean fairCoin (signVec d) = 0 := by
   rw [popMean, integral_fairCoin]
   ext i
@@ -591,7 +614,7 @@ theorem popCrossCov_fairCoin_signVec :
   rw [popCrossCov, Matrix.of_apply, integral_fairCoin]
   norm_num [signVec]
 
-/-- Hence `σ_Jac² = d` for this pair, and in particular `σ_Jac²` is not identically zero. -/
+/-- Hence `sigmaJacSq = d` for this pair, and in particular the trace is not identically zero. -/
 theorem sigmaJacSq_fairCoin_signVec : sigmaJacSq fairCoin (signVec d) (signVec d) = d := by
   rw [sigmaJacSq, popCrossCov_fairCoin_signVec, Matrix.trace]
   simp
@@ -611,10 +634,10 @@ theorem sigmaJacSq_centered_fairCoin_signVec_ne_zero (hd : 0 < d) :
   exact_mod_cast hd.ne'
 
 /-- **The independence hypothesis of the unconditional theorems cannot be dropped.** There is a
-probability space and a pair of integrable `ℝ^d`-valued random vectors, `d ≥ 1`, whose centred
-fluctuations have non-vanishing population cross-covariance and non-vanishing `σ_Jac²`. So
+probability space and a pair of integrable `ℝ^d`-valued random vectors, `d ≥ 1`, whose centered
+fluctuations have non-vanishing population cross-covariance and non-vanishing trace `sigmaJacSq`. So
 `popCrossCov_centered_eq_zero_of_indepFun` and `sigmaJacSq_centered_eq_zero_of_indepFun` are not
-consequences of the definitions or of centring alone: independence is what produces the zero. -/
+consequences of the definitions or of centering alone: independence is what produces the zero. -/
 theorem exists_centered_popCrossCov_ne_zero (d : ℕ) (hd : 0 < d) :
     ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (X Y : Ω → Fin d → ℝ),
       IsProbabilityMeasure μ ∧ Integrable X μ ∧ Integrable Y μ ∧

@@ -8,6 +8,21 @@ import StationaryDensity
 /-!
 # One instance on which the whole hypothesis stack holds at once
 
+**History and labels.** This module was written against the v4 draft and the design note,
+and its labels are theirs; none of them occurs in the
+current paper. The map onto the current paper: v4 (A1) is Assumption A1 and the
+regularity rows of `tab:hyp`; v4 (A2), the positivity-map slope nearly constant on a band, is
+A2(a); v4 (A3), `∂θ̃/∂b = I`, is now an identity of `eq:lift` (Appendix A.1); "(A4)'s chain
+`δg = H̄ δθ + r`" is the identity `g = g₀ + H δθ̃ + r₂` of §3.1, which defines the remainder;
+v4 (A5), the single-barrier landscape with its small-noise "metastable window" `σ² < 2α`, is
+A2(b), which has no small-noise clause (the smallness lives in the limit `ησ²_eff → 0⁺` of
+`cor:fpt`); the design note's (A4'-q) and (A6), remainder control and positive alignment, have no
+counterpart, the current paper stating the sign its orderings need as the condition `c > 0` on
+the coupling term plus the remainder. "§2" and "(L2')" are the design note's; "Equation (5)" is
+an earlier draft's escape-time display. The paper's own escape comparison is the multiplicative pair at one
+shared step size (`KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`); the
+additively coupled orderings below are companions.
+
 Every conditional theorem of this development carries named hypotheses: positive
 semidefiniteness of the jitter covariance `V` and symmetry of the mean Hessian `H̄` together with
 assumption (A4)'s chain `δg = H̄ δθ + r`; the positive alignment (A6) of the coupling term on the
@@ -77,7 +92,7 @@ Every declaration of the instance carries the prefix `wi`.
 ## Results
 * `wi_softplus_slope` — the positivity-map slope `s = 1/2` is `ψ'(0)` for `ψ = softplus`, proved.
 * `wi_jitter_mean_zero`, `wi_V_eq`, `wi_cov_posDef`, `wi_V_posDef` — the latent-weight fluctuation is
-  centred and its covariance `V = I` is positive definite.
+  centered and its covariance `V = I` is positive definite.
 * `wi_H_isHermitian`, `wi_H_posDef` — the mean Hessian is symmetric and positive definite.
 * `wi_chain`, `wi_remainder_ne_zero`, `wi_R_eq`, `wi_S_eq`, `wi_S_eq_chain` — (A4)'s chain holds
   pointwise with a nonzero remainder, the slack-channel cross-covariance is computed, and it
@@ -121,7 +136,8 @@ Every declaration of the instance carries the prefix `wi`.
   `10 exp(16/9)`, an explicit number.
 * `wi_exit_time_lower_bound` — the matching Arrhenius lower bound at the direct diffusion.
 * `wi_eventually_exit_ordering`, `wi_eventually_exit_ordering_additive` — the exit-time ordering,
-  the second for the paper's own additively coupled pair `σ²` versus `σ² + σ_Jac²`.
+  the second for the additively coupled companion pair `σ²` versus `σ² + σ_Jac²` (the paper's
+  own pair is the multiplicative one at a shared step size, in `KramersBridge`).
 * `wi_mean_first_passage_ordering` — **heavyweight (v)**: the paper-facing Dynkin form.
 * `wi_stationary_density`, `wi_stationary_density_pos` — **heavyweight (vi)**: the density `(*)`
   is zero-flux stationary for the instance's lift diffusion, and is everywhere positive.
@@ -154,7 +170,7 @@ finite-sample form of the i.i.d. resampling of `eq:fluct`. -/
 noncomputable def wiWeight : Fin 4 → ℝ := fun _ => (1 : ℝ) / 4
 
 /-- The latent-weight fluctuation `δθ` of the latent iterate: the four Rademacher values
-`±(1,1)` and `±(1,-1)`. It is centred (`wi_jitter_mean_zero`) and its covariance is the identity
+`±(1,1)` and `±(1,-1)`. It is centered (`wi_jitter_mean_zero`) and its covariance is the identity
 (`wi_V_eq`). -/
 def wiJitter : Fin 4 → Fin 2 → ℝ := ![![1, 1], ![-1, -1], ![1, -1], ![-1, 1]]
 
@@ -249,7 +265,7 @@ theorem exists_ne_zero_fin_two {x : Fin 2 → ℝ} (hx : x ≠ 0) : x 0 ≠ 0 �
 
 /-! ## The linear-algebra layer: (A2), (A4) and (A6) -/
 
-/-- The latent-weight fluctuation is centred: `E[δθ] = 0`. This is what makes `E[δθ δθᵀ]` a
+/-- The latent-weight fluctuation is centered: `E[δθ] = 0`. This is what makes `E[δθ δθᵀ]` a
 covariance rather than a bare second moment. -/
 theorem wi_jitter_mean_zero (i : Fin 2) : ∑ ω, wiWeight ω * wiJitter ω i = 0 := by
   fin_cases i <;> simp [wiWeight, wiJitter, Fin.sum_univ_four]
@@ -268,7 +284,7 @@ theorem wi_H_isHermitian : wiHessian.IsHermitian := by
   ext i j
   fin_cases i <;> fin_cases j <;> simp [wiHessian, Matrix.conjTranspose_apply]
 
-/-- The mean Hessian is positive **definite**, so nothing below is an artefact of a degenerate
+/-- The mean Hessian is positive **definite**, so nothing below is an artifact of a degenerate
 curvature. -/
 theorem wi_H_posDef : wiHessian.PosDef := by
   refine Matrix.PosDef.of_dotProduct_mulVec_pos wi_H_isHermitian ?_
@@ -434,7 +450,7 @@ theorem wi_direction_ne_zero : wiDirection ≠ 0 := by
   have h0 := congrFun h 0
   norm_num [wiDirection] at h0
 
-/-- The objective-noise scale of (A3) read off the matrix: `e_bᵀ Σ_obj e_b = σ_obj² = 4`. -/
+/-- The objective-noise scale `σ²_obj` of §3.1 read off the matrix: `e_bᵀ Σ_obj e_b = σ_obj² = 4`. -/
 theorem wi_objNoise_scalar :
     wiDirection ⬝ᵥ (wiObjNoise *ᵥ wiDirection) = wiSigmaObj ^ 2 := by
   rw [wiObjNoise, wiDirection, quadForm_fin_two]
@@ -595,8 +611,9 @@ noncomputable def wiSdeDir : ℝ := wiEta * wiSigma2Dir 0
 /-- The Itô diffusion coefficient of the lift's escape problem: `η σ²_lift = 3/2`. -/
 noncomputable def wiSdeLift : ℝ := wiEta * wiSigma2Lift 0
 
-/-- The excess the lift injects, in the same units: `η σ_Jac² = 7/5`. This is the paper's own
-additively coupled pair, `σ²` against `σ² + σ_Jac²`. -/
+/-- The excess the lift injects, in the same units: `η σ_Jac² = 7/5`. This is the additively
+coupled companion pair, `σ²` against `σ² + σ_Jac²` (the comparison of an earlier draft; the
+current paper's is the multiplicative pair at a shared step size). -/
 noncomputable def wiSdeJac : ℝ := wiEta * (wiSigma2Lift 0 - wiSigma2Dir 0)
 
 /-- The direct baseline's Itô diffusion coefficient is `1/10`. -/
@@ -824,8 +841,10 @@ theorem wi_eventually_exit_ordering :
     (by norm_num [wiSaddle, wiRight]) (by norm_num [wiStart, wiSaddle])
     (by norm_num [wiLandscape, wiBasin, wiSaddle]) wi_max wi_min
 
-/-- **The exit-time ordering for the paper's own additively coupled pair.** Equation (5) compares
-`σ²` with `σ² + σ_Jac²`, not two free-floating diffusions; here `σ_Jac²` enters at the instance's
+/-- **The exit-time ordering for the additively coupled companion pair.** An earlier draft's
+Equation (5) compared `σ²` with `σ² + σ_Jac²`, not two free-floating diffusions; the current
+paper compares `η·σ²_dir` with `η·σ²_lift` at one shared step size instead, and this statement
+is kept as a companion. Here `σ_Jac²` enters at the instance's
 own value `η σ_Jac² = 7/5`, and for every sufficiently small direct diffusion the lifted exit
 time is strictly the smaller. -/
 theorem wi_eventually_exit_ordering_additive :
@@ -911,7 +930,7 @@ positive definite mean Hessian, an explicit nonzero remainder, an explicit softp
 positivity-map slope, an explicit cubic single-barrier landscape and an explicit small learning rate —
 that simultaneously satisfies
 
-* the latent weight model of (A2)–(A4): non-negative weights, a centred latent-weight fluctuation, a
+* the latent weight model of (A2)–(A4): non-negative weights, a centered latent-weight fluctuation, a
   positive definite jitter covariance, a symmetric positive definite mean Hessian, and the chain
   `δg = H̄ δθ + r` holding pointwise with `r ≠ 0`;
 * assumption (A6), uniformly in the direction, with `κ = 7/3`, **and** the remainder control at

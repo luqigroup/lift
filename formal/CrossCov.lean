@@ -1,45 +1,55 @@
 import Mathlib
 
 /-!
-# The slack-channel cross-covariance estimator, and the two finite-sample deletions
+# The slack-channel cross-covariance estimator, and the two finite-sample substitutions
 
 This file fixes the vocabulary the rest of the development shares, and machine-checks the two
-deletions of Theorem 1 (`thm:joint-necessity`) that hold **identically, for every iteration `t`
-and every window length `T`** — cases (i) and (ii) of the appendix statement. Case (iii) is a
-statement about the population cross-covariance and its estimator, and lives in
-`CrossCovIndep.lean` and `CrossCovSLLN.lean`.
+substitutions printed after Theorem 2 (`thm:joint-necessity`) of the paper, the ones that
+hold **identically, for every iteration `t` and every window length `T`**: a latent weight with no
+learnable slack, and a hypernetwork constant in the batch. In this file they are called deletions
+(i) and (ii). Theorem 2 itself, the conditional-independence clause, is a statement about the
+population coupling and its estimator, and lives in `CrossCovIndep.lean` and `CrossCovSLLN.lean`.
 
-The estimator of `eq:cross-cov` is the trailing-window empirical second moment of the pair
-`(δθ̃, δg)`,
+The estimator here is the **trailing-window** form of `eq:cross-cov`, the empirical second moment
+of the pair `(δθ̃, δg)` over the last `T` training steps,
 `Σ̂⁽ᵗ⁾ = (1/T) Σ_{s = t-T}^{t-1} δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ`,
 and its **slack-channel reading** is the contraction `J_bᵀ Σ̂⁽ᵗ⁾` with the slack Jacobian
-`J_b = ∂θ̃/∂b`. Both are modelled here exactly: a window of `T` samples indexed from `t - T`,
-an outer product per sample, and a `1/T` average.
+`J_b = ∂θ̃/∂b`. The paper's `eq:cross-cov` itself is the `T`-probe estimator at one iterate with
+Bessel's divisor `1/(T − 1)`, and it is formalized in `CrossCovProbe.lean`. The opening of the
+paper's appendix records that on the same data the trailing-window form with divisor `1/T`
+differs from it by the factor `T/(T − 1)`, so every statement about one transports to the other;
+the two substitutions below are summand-by-summand zeros and hold for both. The estimator and its
+reading are modeled here exactly: a window of `T` samples indexed from `t - T`, an outer product per sample, and a `1/T`
+average.
 
-Two modelling choices are worth naming, because they are what make the Lean statements the
+Two modeling choices are worth naming, because they are what make the Lean statements the
 paper's statements rather than weaker cousins.
 
-* The window is indexed by `Finset.range T` offset by `t - T`, so the "for every `t` and every
-  window length `T`" quantifier of the paper is a genuine `∀ t T` in the Lean statement.
-* Case (ii)'s hypothesis is the paper's, not a restatement of its conclusion: the body
+* The window is indexed by `Finset.range T` offset by `t - T`, so the "at every iterate and for
+  every `T`" quantifier of the paper is a genuine `∀ t T` in the Lean statement.
+* Deletion (ii)'s hypothesis is the paper's, not a restatement of its conclusion: the body
   `h` is **constant as a function of the batch**, and the vanishing of the fluctuation is
-  derived from that, not assumed. `bodyFluct` is the window-centred fluctuation
+  derived from that, not assumed. `bodyFluct` is the window-centered fluctuation
   `h (X s) - (1/T) Σ h (X s')` of `eq:fluct`.
 
 ## Results
-* `crossCovEstimator` — the estimator of `eq:cross-cov`.
+* `crossCovEstimator` — the trailing-window form of the estimator of `eq:cross-cov`.
 * `slackReading` — its contraction with the slack Jacobian.
-* `slackReading_eq_zero_of_jacobian_eq_zero` — deletion (i): no slack channel, reading zero.
+* `slackReading_eq_zero_of_jacobian_eq_zero` — deletion (i), the paper's first substitution: no
+  learnable slack, reading zero.
 * `crossCovEstimator_eq_zero_of_fluct_eq_zero` — deletion (ii), abstract form.
 * `bodyFluct_eq_zero_of_const` — a batch-independent body has zero resampling fluctuation.
-* `crossCovEstimator_eq_zero_of_body_const` — deletion (ii) from the paper's own hypothesis.
-* `joint_necessity_finite` — the contrapositive both deletions share: a nonzero reading forces
-  a nonzero slack Jacobian **and** a batch-dependent body.
+* `crossCovEstimator_eq_zero_of_body_const` — deletion (ii), the paper's second substitution, from
+  the paper's own hypothesis.
+* `joint_necessity_finite` — the contrapositive both substitutions share, displayed in the
+  appendix proof of Theorem 2: a nonzero reading forces a nonzero slack Jacobian **and** a
+  batch-dependent body.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`; `#print axioms` on each result lists only `propext`,
-`Classical.choice`, `Quot.sound`. Case (iii), the conditional-independence deletion, is not in
-this file: it is not a finite-sample identity and is proved in `CrossCovIndep.lean`.
+`Classical.choice`, `Quot.sound`. Theorem 2's own clause, conditional independence, is not in
+this file: it is not a finite-sample identity and is proved in `CrossCovIndep.lean` and
+`CrossCovSLLN.lean`.
 -/
 
 open Matrix Finset
@@ -48,19 +58,21 @@ namespace IcnnLift
 
 variable {d : ℕ} {Ω : Type*}
 
-/-- The trailing-window slack-channel cross-covariance estimator `Σ̂⁽ᵗ⁾` of `eq:cross-cov`:
-the `1/T`-average of the outer products `δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ` over the window `s = t-T, …, t-1`. -/
+/-- The trailing-window form of the slack-channel cross-covariance estimator `Σ̂⁽ᵗ⁾` of
+`eq:cross-cov` (the paper's display is the `T`-probe form with divisor `1/(T − 1)`, in
+`CrossCovProbe.lean`): the `1/T`-average of the outer products `δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ` over the window `s = t-T, …, t-1`. -/
 noncomputable def crossCovEstimator (T t : ℕ) (dθ dg : ℕ → Fin d → ℝ) :
     Matrix (Fin d) (Fin d) ℝ :=
   (T : ℝ)⁻¹ • ∑ s ∈ range T, Matrix.vecMulVec (dθ (t - T + s)) (dg (t - T + s))
 
 /-- The **slack-channel reading** of the estimator: its contraction with the slack Jacobian
-`J_b = ∂θ̃/∂b`. This, not the estimator itself, is what Theorem 1 is about. -/
+`J_b = ∂θ̃/∂b`. This is the object of the first substitution after Theorem 2: the paper's
+conclusion concerns the coupling in the update of the slack, `(∂θ̃/∂b)ᵀ Σ_ξ`. -/
 noncomputable def slackReading (Jb : Matrix (Fin d) (Fin d) ℝ) (T t : ℕ)
     (dθ dg : ℕ → Fin d → ℝ) : Matrix (Fin d) (Fin d) ℝ :=
   Jbᵀ * crossCovEstimator T t dθ dg
 
-/-- Deletion (i) — **the slack channel is absent.** If the slack Jacobian vanishes then the
+/-- Deletion (i), the paper's first substitution — **no learnable slack.** If the slack Jacobian vanishes then the
 slack-channel reading vanishes identically, for every iteration and every window length: each
 summand is pre-multiplied by the zero Jacobian. -/
 theorem slackReading_eq_zero_of_jacobian_eq_zero {Jb : Matrix (Fin d) (Fin d) ℝ}
@@ -80,7 +92,7 @@ theorem crossCovEstimator_eq_zero_of_fluct_eq_zero {dθ dg : ℕ → Fin d → �
     simp [Matrix.vecMulVec_apply, hθ]
   simp [crossCovEstimator, Finset.sum_congr rfl this]
 
-/-- The window-centred resampling fluctuation of the latent iterate, `eq:fluct`: the body's
+/-- The window-centered resampling fluctuation of the latent iterate, `eq:fluct`: the body's
 value on the batch drawn at step `s`, minus the window mean of those values. The slack `b` is
 common to every step of the window and cancels, which is exactly the paper's statement that the
 body carries the entire batch-induced fluctuation. -/
@@ -88,7 +100,8 @@ noncomputable def bodyFluct (h : Ω → Fin d → ℝ) (X : ℕ → Ω) (T t : �
   h (X s) - (T : ℝ)⁻¹ • ∑ s' ∈ range T, h (X (t - T + s'))
 
 /-- A body that does not depend on the conditioning batch has zero resampling fluctuation.
-This is deletion (ii)'s hypothesis as the paper states it — `h_φ(X)` constant in `X` — and the
+This is the second substitution's hypothesis as the paper states it — a hypernetwork constant in
+the batch — and the
 vanishing of `δθ̃` is derived from it rather than assumed. -/
 theorem bodyFluct_eq_zero_of_const {h : Ω → Fin d → ℝ} (hconst : ∀ x y, h x = h y)
     (X : ℕ → Ω) (T t s : ℕ) (hT : T ≠ 0) : bodyFluct h X T t s = 0 := by
@@ -107,8 +120,8 @@ theorem crossCovEstimator_eq_zero_of_body_const {h : Ω → Fin d → ℝ}
   crossCovEstimator_eq_zero_of_fluct_eq_zero
     (fun s => bodyFluct_eq_zero_of_const hconst X T t s hT) T t
 
-/-- The contrapositive the two finite-sample deletions share, and the form Theorem 1 states in
-the main text: a **nonzero** slack-channel reading forces both a nonzero slack Jacobian and a
+/-- The contrapositive the two finite-sample substitutions share, the display the appendix proof
+of Theorem 2 calls the sentence printed after the theorem: a **nonzero** slack-channel reading forces both a nonzero slack Jacobian and a
 batch-dependent body. -/
 theorem joint_necessity_finite {Jb : Matrix (Fin d) (Fin d) ℝ} {dθ dg : ℕ → Fin d → ℝ} {T t : ℕ}
     (hne : slackReading Jb T t dθ dg ≠ 0) :

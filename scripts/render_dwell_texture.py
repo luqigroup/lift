@@ -189,12 +189,12 @@ def draw_panel_a(ax, plot, lab_fs, tick_fs, ax_fs, tag_fs, tag="(a)", *,
         for frac, s_txt, ha in ((0.0, hint[0], "left"), (1.0, hint[1], "right")):
             ax.annotate(s_txt, xy=(frac, 0.0), xycoords="axes fraction",
                         xytext=(0, -12.5), textcoords="offset points",
-                        ha=ha, va="top", fontsize=ax_fs - 1.0, color="0.45",
+                        ha=ha, va="top", fontsize=ax_fs - 1.0, color="0.15",
                         annotation_clip=False)
     for s_ in ("top", "right", "left"):
         ax.spines[s_].set_visible(False)
     ax.text(0.0, 1.008, tag, transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=tag_fs, color="0.35")
+            fontsize=tag_fs, color="0.1")
 
 
 def _masks(args) -> dict:

@@ -258,7 +258,7 @@ def main() -> None:
     p.add_argument("--base_lw", type=float, default=1.1)
     p.add_argument("--band", type=float, default=10.0)
     p.add_argument("--band_alpha", type=float, default=0.15)
-    p.add_argument("--out_dir", default=os.path.join(_REPO, "figures", "figures"))
+    p.add_argument("--out_dir", default=os.path.join(_REPO, "figures"))
     p.add_argument("--stem", default=None, help="default: logconcave_1d_panel (--curve tv) or logconcave_1d_panel_train")
     p.add_argument("--mirror_to",
                    default="", help="optional second directory to copy the figure into")

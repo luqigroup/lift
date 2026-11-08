@@ -3,7 +3,19 @@ import Mathlib
 /-!
 # (A4) is first-order Taylor of the gradient map, not an assumption about it
 
-Assumption (A4) of the paper is carried in this development as a hypothesis. It is stated in
+**Status against the current paper.** "(A4)" is the v4 draft's label, and this module records
+that history. The current paper has no assumption (A4). Its
+§3.1 writes the chain `g = g₀ + H δθ̃ + r₂` as an identity that *defines* the remainder `r₂`,
+which is the reading `gradFluct_eq_mulVec_add_remainder` below proves; it asks only that `g₀`,
+`δθ̃` and `r₂` be square integrable and that `H` be symmetric. It assumes neither a quadratic
+bound on `r₂` nor a positive semidefinite `H`: the remainder enters as the term `ϱ` of
+`eq:sigma-eff`, and the sign of the coupling term plus that remainder is the stated condition
+`c > 0`, not an assumption label. The current paper does not cite this module. The results
+stand as a discharge of the v4 clauses from smoothness, and as a sufficient condition for the
+remainder to be small. Below, "the paper's hypothesis" and "the paper's operative region" mean
+the v4 draft's wherever an (A4) clause is attached.
+
+History. Assumption (A4) of the v4 draft is carried in this development as a hypothesis. It is stated in
 `Assumptions.lean` as the structure `ForwardKLChain`, and it is consumed in `CouplingSign.lean`
 (`hchain` of `outerMoment_chain` and of `crossTerm_ge_leading_sub_of_remainder_bound`), in
 `UpdateCovariance.lean` (the sign of the cross term), in `DiffusionOrdering.lean` and in
@@ -57,8 +69,8 @@ loss — the second-order necessary condition — and this is proved here in one
 mathlib's `second_derivative_symmetric` for the Hermitian clause. What is not proved, and is not
 provable, is that the mean iterate of a stochastic-gradient trajectory *is* such a minimum: during
 training `θ̄` is where the iterate happens to be, and at a saddle or on a plateau of the lifted
-landscape `H` has negative directions. The honest reading of (A4)'s PSD clause is therefore that it
-restricts the paper's claims to the neighbourhood of a minimum of the pullback landscape, or to a
+landscape `H` has negative directions. The honest reading of (A4)'s PSD clause was therefore that it
+restricted the v4 draft's claims to the neighbourhood of a minimum of the pullback landscape, or to a
 loss convex on the operative region; it is not a consequence of the smoothness that discharges
 (A4-rem). This file separates the two so that the distinction is visible.
 

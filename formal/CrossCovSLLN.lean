@@ -2,25 +2,31 @@ import Mathlib
 import CrossCov
 
 /-!
-# Theorem 1, case (iii): the estimator inherits the population zero
+# Theorem 2: the estimator inherits the population zero
 
-Case (iii) of `thm:joint-necessity` (`docs/paper/v4/A1_proofs.tex`, subsection
-`app:proof-joint-necessity`) is the only one of the three deletions that does not make the
-finite-window estimator identically zero. Once conditional independence has zeroed the population
-cross-covariance `Σ_slack = E[δθ̃ δgᵀ | φ]`, the paper asserts four further things about the
-trailing-window estimator `Σ̂⁽ᵗ⁾ = (1/T) Σ_{s=t-T}^{t-1} δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ` of `eq:cross-cov`: an
-algebraic rewriting of the window-mean-centred estimator as an independent average minus a
-mean-product term, unbiasedness, almost-sure convergence to zero as the window grows, and
-finite-window fluctuations of order `O(T^{-1/2})`. `CrossCov.lean` proves the two
-identically-zero deletions (i) and (ii); `CrossCovIndep.lean` proves the population zero itself.
-This file proves those four assertions, and it proves them about the same object: the estimator
-of this file is `IcnnLift.crossCovEstimator` from `CrossCov.lean`, carried through the bridge
-`matOfEuclid_crossCovEstimatorE` when the probabilistic statements need a normed carrier.
+This file keeps the case labels of the earlier appendix statement: case (iii) is Theorem 2
+(`thm:joint-necessity`) of the paper itself, the conditional-independence clause, and cases
+(i) and (ii) are the two substitutions the paper prints after it. Theorem 2 is the only one of the
+three that does not make the finite-sample estimator identically zero. Once conditional
+independence has zeroed the population coupling `Σ_ξ = E[δθ̃ ξᵀ | φ]`, with `ξ` the fluctuation of
+the gradient `g₀` at the mean latent weight, Theorem 2 and its proof in Appendix A.2
+(`app:proof-joint-necessity`) assert four further things about the estimate formed with `g₀(X_k)`
+in place of `g_k`: an algebraic rewriting of the sample-mean-centered estimator as an independent
+average minus a mean-product term (`eq:pf-sample-identity`), mean zero, almost-sure convergence
+to zero as `T` grows, and an entrywise mean-square error of order `1/T`. The paper states these on
+the `T`-probe form of `eq:cross-cov` with either divisor, and the end of its proof says they hold
+on the trailing window as well. This file proves them on the trailing-window form
+`Σ̂⁽ᵗ⁾ = (1/T) Σ_{s=t-T}^{t-1} δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ`, with `δg` read as the fluctuation of `g₀`, and
+`CrossCovProbe.lean` transports them to the probe. `CrossCov.lean` proves the two
+identically-zero substitutions; `CrossCovIndep.lean` proves the population zero itself. The
+estimator of this file is `IcnnLift.crossCovEstimator` from `CrossCov.lean`, carried through the
+bridge `matOfEuclid_crossCovEstimatorE` when the probabilistic statements need a normed carrier.
 
-Four modelling decisions are worth naming, because they are what makes the Lean statements the
+Four modeling decisions are worth naming, because they are what makes the Lean statements the
 paper's statements.
 
-*The conditioning.* The paper conditions on the readout parameters `φ`. Rather than routing every
+*The conditioning.* The paper conditions on the parameters, `𝒢 = σ(φ, b)`, written `φ` below for
+short. Rather than routing every
 statement through `MeasureTheory.condExp` and `ProbabilityTheory.CondIndepFun` — which in this
 mathlib would additionally require a standard Borel hypothesis on the sample space — the measure
 `μ` here **is** the conditional law given `φ`. Every expectation below is therefore the paper's
@@ -36,20 +42,20 @@ therefore literally the limit of prefix averages, which is what the strong law s
 and `IsSquareCentredIID.shift` transports the hypotheses along that shift, so they hold for
 **every** `t` and every `T`.
 
-*Raw iterates versus population-centred ones.* The paper's `Σ̂⁽ᵗ⁾` is built from the raw
-latent iterates and raw gradients, centred at their *window* means; the identity it invokes
-rewrites that in terms of the *population*-centred fluctuations `θ̃⁽ˢ⁾ - E[θ̃ | φ]` and
-`g⁽ˢ⁾ - E[g | φ]`, whose independence and centring are the probabilistic hypotheses. The two
-descriptions coincide exactly, not merely asymptotically: window-mean centring annihilates a
+*Raw iterates versus population-centered ones.* The paper's `Σ̂⁽ᵗ⁾` is built from the raw
+latent iterates and raw gradients, centered at their *window* means; the identity it invokes
+rewrites that in terms of the *population*-centered fluctuations `θ̃⁽ˢ⁾ - E[θ̃ | φ]` and
+`g⁽ˢ⁾ - E[g | φ]`, whose independence and centering are the probabilistic hypotheses. The two
+descriptions coincide exactly, not merely asymptotically: window-mean centering annihilates a
 constant shift (`windowCentre_sub_const`), so for every nonempty window the estimator built from
-the raw families equals the one built from the population-centred families
+the raw families equals the one built from the population-centered families
 (`crossCovEstimator_windowCentred_sub_const`). Every headline conclusion is therefore also stated
 for the raw families — `crossCovEstimator_raw_windowCentred_unbiased_of_indepFun`,
 `crossCovEstimator_raw_tendsto_zero_ae`, `crossCovEstimator_raw_windowCentred_l2_bound`.
 
 *The carrier for the strong law.* `Matrix (Fin d) (Fin d) ℝ` carries no global norm, measurable
 space, or Borel structure in mathlib, so `ProbabilityTheory.strong_law_ae` does not typecheck at
-that type. Following the verified capability audit, the almost-sure statements are proved on
+that type. The almost-sure statements are therefore proved on
 `EuclideanSpace ℝ (Fin d × Fin d)` — with `outerE` the outer product and `matOfEuclid` the matrix
 reading — and `matOfEuclid_crossCovEstimatorE` identifies the transported object with
 `crossCovEstimator` entry by entry. Mathlib *does* put the product topology on `Matrix`, however,
@@ -61,33 +67,35 @@ own formulation, with the entrywise statement as the intermediate step
 **What is proved outright.** The sample-cross-covariance identity is exact finite algebra and is
 derived, not assumed (`sample_crossCov_identity`). Unbiasedness is the linearity of the Bochner
 integral together with the population zero of each summand, and the population zero of a summand
-is itself derived from independence and centring (`integral_outerE_eq_zero_of_indepFun`). The
-almost-sure limit is Etemadi's strong law, so it needs only pairwise independence — strictly
-weaker than the paper's i.i.d. hypothesis. The variance of the window average is exactly the
+is itself derived from independence and centering (`integral_outerE_eq_zero_of_indepFun`). The
+almost-sure limit is Etemadi's strong law, so it needs only pairwise independence, as in the
+paper's proof, which also appeals to Etemadi's strong law. The variance of the window average is exactly the
 summand variance divided by `T`.
 
-**What is not proved, and why.** The paper's `O(T^{-1/2})` is delivered here in its `L²` form:
+**What is not proved, and why.** Theorem 2's rate is the `L²` one, an entrywise mean-square error
+of order `1/T` (Chebyshev's inequality then makes the entries `O_P(T^{-1/2})`), and the paper
+states that an almost-sure rate is neither claimed nor proved. That rate is delivered here:
 `variance_average_of_iid` gives the exact identity `Var[T⁻¹ Σ Z] = Var[Z] / T`, which
 `integral_sq_crossCovEstimator_entry` specializes to `E[(Σ̂ᵢⱼ)²] = σᵢⱼ² / T` and
 `crossCovEstimator_entry_l2_rate` reads as `‖Σ̂ᵢⱼ‖_{L²} = σᵢⱼ / √T`. An almost-sure `O(T^{-1/2})`
 rate is **not** claimed and is not provable here: it would need a law of the iterated logarithm,
 which this mathlib does not have, and the quantitative central limit theory (Berry–Esseen) that
 would give a distributional rate is absent as well — mathlib's central limit theorem is
-one-dimensional and carries no rate. Likewise the paper's `O(T^{-1})` for the mean-product term is
-delivered in `L²` form (`integral_sq_windowMean_mul`: its mean square is exactly
-`σ_u² σ_v² / T²`, so its `L²` norm is `σ_u σ_v / T`).
-`crossCovEstimator_windowCentred_l2_bound` then bounds the mean square of the
-window-mean-centred estimator the paper actually forms by `2σ²/T + 2σ_u²σ_v²/T²`, so the
-`O(T^{-1})` correction that the paper only names appears explicitly in the conclusion rather than
-being absorbed into an asymptotic symbol.
+one-dimensional and carries no rate. The mean-product term is the paper's `eq:pf-meanprod-l2`
+(`integral_sq_windowMean_mul`: its mean square is exactly `σ_u² σ_v² / T²`, so its `L²` norm is
+`σ_u σ_v / T`). `crossCovEstimator_windowCentred_l2_bound` then bounds the mean square of the
+window-mean-centered estimator by `2σ²/T + 2σ_u²σ_v²/T²`, the bound the paper's proof displays
+at divisor `T`.
 
-**Non-vacuity.** Case (iii) differs from the other two deletions precisely in that it does *not*
-force the finite-window estimator to vanish, and the paper says so in words. Both halves of that
-sentence are theorems here. `crossCovEstimator_windowCentred_ne_zero` exhibits a window on which
-the window-mean-centred estimator is nonzero, so the algebraic statements are not about the zero
+**Non-vacuity.** Case (iii) differs from the two substitutions precisely in that it does *not*
+force the finite-sample estimator to vanish. The paper says so at the end of the proof of
+Theorem 2: "The sample version does not vanish at finite `T`", with the same one-dimensional
+Gaussian instance, whose population-centered sum at divisor `T` has mean square `1/T`. Both
+halves of that sentence are theorems here. `crossCovEstimator_windowCentred_ne_zero` exhibits a window on which
+the window-mean-centered estimator is nonzero, so the algebraic statements are not about the zero
 function. And `exists_nondegenerate_case_iii_model` builds, from `ProbabilityTheory.exists_iid`
 and a pair of independent standard Gaussians, a probability model — not the zero measure, under
-which every independence and centring hypothesis is trivially true — in which the per-step
+which every independence and centering hypothesis is trivially true — in which the per-step
 independence `δθ̃ ⫫ δg`, the two centrings, all three `IsCentredIID` packages that the
 almost-sure theorem consumes, and the `IsSquareCentredIID` package that the `L²` theorems consume
 hold simultaneously, while the mean square of the estimator's `(0,0)` entry is exactly `1/T`, so
@@ -101,25 +109,25 @@ below would be consistent with a vacuous reading.
   `IcnnLift.crossCovEstimator`.
 * `tendsto_matrix_of_entries` — entrywise convergence over a finite index is convergence in the
   matrix topology.
-* `windowMean`, `windowCentre`, `bodyFluct_eq_windowCentre` — the window-mean centring of
+* `windowMean`, `windowCentre`, `bodyFluct_eq_windowCentre` — the window-mean centering of
   `eq:fluct`, agreeing with `CrossCov.bodyFluct`.
 * `centred_sum_identity`, `sample_crossCov_identity` — the sample-cross-covariance identity, as
   exact finite algebra, scalar core and matrix form.
-* `windowCentre_sub_const`, `crossCovEstimator_windowCentred_sub_const` — window-mean centring
-  annihilates a constant shift, so the raw-iterate estimator *is* the population-centred one.
+* `windowCentre_sub_const`, `crossCovEstimator_windowCentred_sub_const` — window-mean centering
+  annihilates a constant shift, so the raw-iterate estimator *is* the population-centered one.
 * `crossCovEstimator_windowCentred_ne_zero` — the estimator of case (iii) is not identically zero.
 * `crossCovEstimator_of_le`, `windowMean_of_le`, `crossCovEstimatorE_of_le` — a window at least
   as long as the iteration index is the whole prefix.
 * `integrable_vecE_of_coords`, `integrable_outerE_of_coords` — Bochner integrability on the two
   Euclidean carriers from integrability of the scalar coordinates, which is what makes the
   `Integrable` hypotheses of the strong-law packages reachable from ordinary scalar hypotheses.
-* `integral_outerE_eq_zero_of_indepFun`, `integral_vecE_eq_zero` — independence and centring zero
-  the population outer product, and a centred fluctuation is centred on the Euclidean carrier.
+* `integral_outerE_eq_zero_of_indepFun`, `integral_vecE_eq_zero` — independence and centering zero
+  the population outer product, and a centered fluctuation is centered on the Euclidean carrier.
 * `crossCovEstimator_unbiased` — `E[Σ̂⁽ᵗ⁾] = 0` entrywise from a zero-mean summand.
-* `crossCovEstimator_unbiased_of_indepFun` — the same from independence and centring.
+* `crossCovEstimator_unbiased_of_indepFun` — the same from independence and centering.
 * `integral_windowMean_eq_zero`, `integral_windowMean_mul_eq_zero` — the window means and their
-  product are centred.
-* `crossCovEstimator_windowCentred_unbiased` — the window-mean-centred estimator is exactly
+  product are centered.
+* `crossCovEstimator_windowCentred_unbiased` — the window-mean-centered estimator is exactly
   unbiased at every finite `T`, via the identity, from the two centrings as hypotheses.
 * `indepFun_windowMean_windowMean` — the two window means are independent, from the paper's
   collection-level conditional independence.
@@ -128,10 +136,10 @@ below would be consistent with a vacuous reading.
 * `crossCovEstimator_raw_windowCentred_unbiased_of_indepFun` — the same for the estimator built
   from the raw iterates.
 * `IsCentredIID`, `IsCentredIID.tendsto_average_ae`, `IsCentredIID.tendsto_coord_ae` — the
-  strong law for a pairwise independent, identically distributed, centred family.
+  strong law for a pairwise independent, identically distributed, centered family.
 * `crossCovEstimatorE_tendsto_zero_ae` — `Σ̂⁽ᵗ⁾ → 0` almost surely on the Euclidean carrier.
 * `crossCovEstimator_tendsto_zero_ae`, `crossCovEstimator_tendsto_zero_ae_matrix` — the
-  window-mean-centred estimator converges almost surely to zero, entrywise and then in the matrix
+  window-mean-centered estimator converges almost surely to zero, entrywise and then in the matrix
   topology, both terms of the identity handled.
 * `isCentredIID_outerE`, `isCentredIID_vecE_fst`, `isCentredIID_vecE_snd`,
   `crossCovEstimator_tendsto_zero_ae_of_indepFun` — the almost-sure limit from the paper-shaped
@@ -142,17 +150,23 @@ below would be consistent with a vacuous reading.
   the time shift that turns a prefix window into a trailing window.
 * `variance_average_of_iid` — `Var[T⁻¹ Σ Z] = Var[Z]/T`.
 * `integral_sq_average_of_iid`, `l2_error_average` — the `L²` error is `σ/√T`.
-* `integral_sq_crossCovEstimator_entry`, `crossCovEstimator_entry_l2_rate` — the paper's
-  `O(T^{-1/2})`, in `L²` form, for an entry of the estimator.
-* `integral_sq_windowMean_mul` — the paper's `O(T^{-1})` for the mean-product term, in `L²` form:
-  its mean square is `σ_u² σ_v² / T²`.
+* `integral_sq_crossCovEstimator_entry`, `crossCovEstimator_entry_l2_rate` — Theorem 2's
+  entrywise mean-square error of order `1/T` (`eq:pf-sum-l2`), for an entry of the estimator.
+* `integral_sq_windowMean_mul` — the paper's `eq:pf-meanprod-l2` for the mean-product term: its
+  mean square is `σ_u² σ_v² / T²`.
 * `memLp_crossCovEstimator_entry`, `memLp_windowMean`, `integrable_sq_windowMean_mul` — the
   integrability side conditions of the `L²` bound, derived from the packaged hypotheses.
-* `crossCovEstimator_windowCentred_l2_bound` — the two combined, for the window-mean-centred
+* `crossCovEstimator_windowCentred_l2_bound` — the two combined, for the window-mean-centered
   estimator the paper actually forms, with the mean-product remainder explicit in the conclusion.
 * `crossCovEstimator_windowCentred_l2_bound_of_indepFun`,
   `crossCovEstimator_raw_windowCentred_l2_bound` — the same bound with every side condition
   discharged, and for the raw iterates.
+* `indepFun_collections_of_iIndepFun`, `indepFun_comp_of_identDistrib` — per-probe to
+  collection-level independence: mutually independent probes with the latent weight independent
+  of `g₀` at each probe give independent collections, and identically distributed probes carry
+  the per-probe independence from one probe to all.
+* `crossCovEstimator_raw_windowCentred_l2_bound_of_iidBatches` — the `L²` bound under the
+  hypotheses Theorem 2 states: i.i.d. batches, per-probe independence, second moments.
 * `integral_sq_gaussianReal_std`, `integrable_sq_gaussianReal_std`, `integral_mul_gaussianProd`,
   `integral_sq_mul_gaussianProd`, `memLp_mul_gaussianProd` — the moments of the witness law.
 * `exists_nondegenerate_case_iii_model` — a probability model satisfying every packaged hypothesis
@@ -165,10 +179,10 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 The explicit hypotheses this file carries, and what each would take to discharge:
 
 * `IsCentredIID` and `IsSquareCentredIID` package (A1)'s i.i.d.-batch hypothesis together with the
-  case-(iii) population zero. They are hypotheses because they are modelling assumptions about the
+  case-(iii) population zero. They are hypotheses because they are modeling assumptions about the
   optimizer, not theorems: nothing in mathlib can produce the joint law of an SGD trajectory. The
   `mean_zero` field is exactly the population zero, and it is *derivable* rather than magical —
-  `integral_outerE_eq_zero_of_indepFun` derives it from conditional independence and centring, and
+  `integral_outerE_eq_zero_of_indepFun` derives it from conditional independence and centering, and
   `isCentredIID_outerE` assembles the whole package from the paper's own hypotheses. That the
   package is satisfiable at all, and satisfiable without collapsing the estimator to zero, is
   itself proved: see `exists_nondegenerate_case_iii_model`.
@@ -178,19 +192,24 @@ The explicit hypotheses this file carries, and what each would take to discharge
   function of one is independent of any function of the other — and the `_of_indepFun` forms of
   the unbiasedness and `L²` statements consume that collection-level hypothesis instead. `hM` is
   retained as a hypothesis only in the intermediate lemmas, so that each says exactly which
-  independence it uses.
+  independence it uses. The collection-level hypothesis is itself derived:
+  `indepFun_collections_of_iIndepFun` proves it from mutually independent batches and the
+  per-probe independence of the latent weight and `g₀`, and
+  `crossCovEstimator_raw_windowCentred_l2_bound_of_iidBatches` states the `L²` bound with
+  (A1)'s i.i.d. batches and that per-probe independence as its only probabilistic hypotheses.
 * Integrability and square-integrability hypotheses (`Integrable`, `MemLp _ 2`) are genuine
   analytic side conditions of the Bochner integral and of the variance, not evasions. The three
   that `crossCovEstimator_windowCentred_l2_bound` carries are derived from the packaged
   hypotheses in `crossCovEstimator_windowCentred_l2_bound_of_indepFun`, so the headline `L²`
   statement carries none of them.
-* `crossCovEstimator_windowCentred_unbiased` takes the centring of each summand and of the
+* `crossCovEstimator_windowCentred_unbiased` takes the centering of each summand and of the
   mean-product term as hypotheses; both are derived one theorem later. It is stated separately
   because it isolates the purely integral-theoretic step.
 
-Nothing in the paper's case (iii) is assumed that this file could have proved. In particular the
-sample-cross-covariance identity, which the paper asserts as "standard", is derived here, as is
-the order of the mean-product term, which the paper asserts without derivation.
+Nothing in Theorem 2 is assumed that this file could have proved. In particular the
+sample-cross-covariance identity, which the paper calls exact finite algebra
+(`eq:pf-sample-identity`), is derived here, as is the mean square of the mean-product term, which
+the paper derives in `eq:pf-meanprod-l2` from the independence of the two probe collections.
 -/
 
 open MeasureTheory ProbabilityTheory Finset Filter Topology Matrix
@@ -232,8 +251,9 @@ lemma matOfEuclid_outerE (u v : Fin d → ℝ) :
   simp [Matrix.vecMulVec_apply]
 
 /-- The outer-product map is measurable on the pair carrier. This is the measurable-glue fact
-that lets the paper's parenthetical — each summand `δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ` "depends on batch `s`
-alone" — be transported through `IndepFun.comp` and `IdentDistrib.comp` below. -/
+that lets the per-step fact that each summand `δθ̃⁽ˢ⁾ (δg⁽ˢ⁾)ᵀ` depends on batch `s` alone, which
+makes the summands pairwise independent and identically distributed in the paper's proof, be
+transported through `IndepFun.comp` and `IdentDistrib.comp` below. -/
 lemma measurable_outerE_pair :
     Measurable fun uv : (Fin d → ℝ) × (Fin d → ℝ) => outerE uv.1 uv.2 :=
   (WithLp.measurable_toLp 2 _).comp <| measurable_pi_lambda _ fun p =>
@@ -300,11 +320,11 @@ variable {d : ℕ} {Ω : Type*}
 noncomputable def windowMean (T t : ℕ) (u : ℕ → Fin d → ℝ) : Fin d → ℝ :=
   (T : ℝ)⁻¹ • ∑ s ∈ range T, u (t - T + s)
 
-/-- The window-mean centring `u⁽ˢ⁾ - ū` of `eq:fluct`. -/
+/-- The window-mean centering `u⁽ˢ⁾ - ū` of `eq:fluct`. -/
 noncomputable def windowCentre (T t : ℕ) (u : ℕ → Fin d → ℝ) : ℕ → Fin d → ℝ :=
   fun s => u s - windowMean T t u
 
-/-- `CrossCov.bodyFluct` is the window-mean centring of the body values: the two files speak
+/-- `CrossCov.bodyFluct` is the window-mean centering of the body values: the two files speak
 about the same fluctuation. -/
 theorem bodyFluct_eq_windowCentre (h : Ω → Fin d → ℝ) (X : ℕ → Ω) (T t : ℕ) :
     bodyFluct h X T t = windowCentre T t (fun s => h (X s)) := rfl
@@ -313,7 +333,7 @@ theorem bodyFluct_eq_windowCentre (h : Ω → Fin d → ℝ) (X : ℕ → Ω) (T
     windowMean T t u i = (T : ℝ)⁻¹ * ∑ s ∈ range T, u (t - T + s) i := by
   simp [windowMean, Finset.sum_apply]
 
-/-- The scalar core of the sample-cross-covariance identity: centring two real windows at their
+/-- The scalar core of the sample-cross-covariance identity: centering two real windows at their
 own means and averaging the products gives the average of the raw products minus the product of
 the means. Pure finite algebra; no probability enters, and every window length is covered —
 `T = 0` included, both sides then vanishing. -/
@@ -342,11 +362,12 @@ lemma centred_sum_identity (T : ℕ) (a b : ℕ → ℝ) :
   ring
 
 /-- **The sample-cross-covariance identity** the paper invokes in case (iii). Writing `u` and `v`
-for the population-centred fluctuations `θ̃⁽ˢ⁾ - E[θ̃ | φ]` and `g⁽ˢ⁾ - E[g | φ]`, the estimator
-built from the *window*-mean-centred fluctuations equals the average of the population-centred
+for the population-centered fluctuations `θ̃⁽ˢ⁾ - E[θ̃ | φ]` and `g⁽ˢ⁾ - E[g | φ]`, the estimator
+built from the *window*-mean-centered fluctuations equals the average of the population-centered
 outer products minus the outer product of the two window means:
 `Σ̂⁽ᵗ⁾ = (1/T) Σ u⁽ˢ⁾ (v⁽ˢ⁾)ᵀ - ū v̄ᵀ`.
-The paper asserts this as standard; it is derived here, as exact finite algebra valid for every
+This is the paper's `eq:pf-sample-identity` at divisor `T`, which the paper calls exact finite
+algebra; it is derived here, valid for every
 `t` and every window length `T` — `T = 0` included, both sides then vanishing. -/
 theorem sample_crossCov_identity (T t : ℕ) (u v : ℕ → Fin d → ℝ) :
     crossCovEstimator T t (windowCentre T t u) (windowCentre T t v)
@@ -356,12 +377,12 @@ theorem sample_crossCov_identity (T t : ℕ) (u v : ℕ → Fin d → ℝ) :
     Matrix.sub_apply, windowCentre, Pi.sub_apply, smul_eq_mul, windowMean_apply]
   exact centred_sum_identity T (fun s => u (t - T + s) i) (fun s => v (t - T + s) j)
 
-/-- **Window-centring is invariant under population centring.** For a nonempty window,
+/-- **Window-centering is invariant under population centering.** For a nonempty window,
 subtracting a constant from every member of the family changes the window mean by that constant
-and the window-centred fluctuation not at all. In particular the window-centred fluctuation of
+and the window-centered fluctuation not at all. In particular the window-centered fluctuation of
 the raw iterates — `eq:fluct`, the `δθ̃⁽ˢ⁾` the paper's estimator actually uses — is literally
-the window-centred fluctuation of the population-centred iterates `θ̃⁽ˢ⁾ - E[θ̃ | φ]`, so the
-theorems below about `windowCentre` of centred families are theorems about the paper's estimator
+the window-centered fluctuation of the population-centered iterates `θ̃⁽ˢ⁾ - E[θ̃ | φ]`, so the
+theorems below about `windowCentre` of centered families are theorems about the paper's estimator
 of raw iterates. The hypothesis `T ≠ 0` is genuine: at `T = 0` the window mean is `0`, not the
 mean over an empty window shifted by `c`. -/
 theorem windowCentre_sub_const (T t : ℕ) (hT : T ≠ 0) (u : ℕ → Fin d → ℝ) (c : Fin d → ℝ) :
@@ -377,11 +398,11 @@ theorem windowCentre_sub_const (T t : ℕ) (hT : T ≠ 0) (u : ℕ → Fin d →
   ring
 
 /-- **The estimator the paper forms from the raw iterates is the estimator formed from the
-population-centred ones.** Window-mean centring annihilates a constant shift of the family, so
-for a nonempty window the window-mean-centred estimator built from the raw latent iterates
+population-centered ones.** Window-mean centering annihilates a constant shift of the family, so
+for a nonempty window the window-mean-centered estimator built from the raw latent iterates
 `θ̃⁽ˢ⁾` and raw gradients `g⁽ˢ⁾` is *equal* — not merely asymptotically equal — to the one built
 from `θ̃⁽ˢ⁾ - E[θ̃ | φ]` and `g⁽ˢ⁾ - E[g | φ]`. This is what makes the probabilistic theorems
-below, whose families are population-centred by hypothesis, theorems about the paper's `Σ̂⁽ᵗ⁾`,
+below, whose families are population-centered by hypothesis, theorems about the paper's `Σ̂⁽ᵗ⁾`,
 which is formed from raw iterates. -/
 theorem crossCovEstimator_windowCentred_sub_const (T t : ℕ) (hT : T ≠ 0)
     (u v : ℕ → Fin d → ℝ) (c e : Fin d → ℝ) :
@@ -391,8 +412,8 @@ theorem crossCovEstimator_windowCentred_sub_const (T t : ℕ) (hT : T ≠ 0)
   rw [windowCentre_sub_const T t hT, windowCentre_sub_const T t hT]
 
 /-- **Case (iii) does not make the finite-window estimator identically zero.** The paper says so
-in words — "Unlike cases (i) and (ii), this does not make the finite-window estimator identically
-zero" — and this is that sentence as a theorem: an explicit window on which the window-mean-centred
+at the end of the proof of Theorem 2 — "The sample version does not vanish at finite `T`" — and
+this is the algebraic half of that sentence as a theorem: an explicit window on which the window-mean-centered
 estimator is nonzero. Without it, every conclusion of this file would be compatible with the
 estimator being the zero function, and case (iii) would not be distinguishable from the two
 identically-zero deletions of `CrossCov.lean`. The witness takes `d = 1`, the window
@@ -460,7 +481,7 @@ theorem integrable_outerE_of_coords {μ : Measure Ω} {U V : Ω → Fin d → �
 
 /-- **The population zero of a summand.** If the iterate fluctuation `δθ̃` and the gradient
 fluctuation `δg` are independent (under `μ`, which is the paper's conditional law given `φ`) and
-`δθ̃` is centred, then the population outer product `E[δθ̃ δgᵀ]` is zero. This is the
+`δθ̃` is centered, then the population outer product `E[δθ̃ δgᵀ]` is zero. This is the
 case-(iii) factorization `Σ_slack = E[δθ̃] E[δgᵀ] = 0`, proved coordinate by coordinate through
 the continuous linear functional `EuclideanSpace.proj`. -/
 theorem integral_outerE_eq_zero_of_indepFun {μ : Measure Ω} {U V : Ω → Fin d → ℝ}
@@ -481,9 +502,9 @@ theorem integral_outerE_eq_zero_of_indepFun {μ : Measure Ω} {U V : Ω → Fin 
   rw [hproj, hmul]
   rfl
 
-/-- A fluctuation that is centred entrywise is centred on the Euclidean carrier: the population
+/-- A fluctuation that is centered entrywise is centered on the Euclidean carrier: the population
 mean of `vecE ∘ U` vanishes coordinate by coordinate through `EuclideanSpace.proj`. This is the
-centring `E[δθ̃ | φ] = 0` (and `E[δg | φ] = 0`) of the paper's construction, in the form the
+centering `E[δθ̃ | φ] = 0` (and `E[δg | φ] = 0`) of the paper's construction, in the form the
 strong-law carrier needs. -/
 theorem integral_vecE_eq_zero {μ : Measure Ω} {U : Ω → Fin d → ℝ}
     (hint : Integrable (fun ω => vecE (U ω)) μ)
@@ -512,7 +533,7 @@ theorem crossCovEstimator_unbiased {μ : Measure Ω} (T t : ℕ) (U V : ℕ → 
   simp [hprod]
 
 /-- **Unbiasedness from the paper's own hypothesis.** Independence of the two fluctuations at
-each step, together with the centring of the iterate fluctuation, gives `E[Σ̂⁽ᵗ⁾] = 0`. -/
+each step, together with the centering of the iterate fluctuation, gives `E[Σ̂⁽ᵗ⁾] = 0`. -/
 theorem crossCovEstimator_unbiased_of_indepFun {μ : Measure Ω} (T t : ℕ)
     (U V : ℕ → Ω → Fin d → ℝ)
     (hindep : ∀ s, IndepFun (U s) (V s) μ)
@@ -528,7 +549,7 @@ theorem crossCovEstimator_unbiased_of_indepFun {μ : Measure Ω} (T t : ℕ)
   have := hij.integral_mul_eq_mul_integral (hUm s i') (hVm s j')
   simpa [Pi.mul_apply, hUc s i'] using this
 
-/-- The window mean of a centred family is itself centred. -/
+/-- The window mean of a centered family is itself centered. -/
 theorem integral_windowMean_eq_zero {μ : Measure Ω} (T t : ℕ) (U : ℕ → Ω → Fin d → ℝ) (i : Fin d)
     (hUint : ∀ s, Integrable (fun ω => U s ω i) μ)
     (hUc : ∀ s, ∫ ω, U s ω i ∂μ = 0) :
@@ -559,12 +580,12 @@ theorem integral_windowMean_mul_eq_zero {μ : Measure Ω} (T t : ℕ) (U V : ℕ
   simp only [Pi.mul_apply] at h
   rw [h, integral_windowMean_eq_zero T t U i hUint hUc, zero_mul]
 
-/-- **The window-mean-centred estimator is exactly unbiased at every finite `T`.** This is the
+/-- **The window-mean-centered estimator is exactly unbiased at every finite `T`.** This is the
 purely integral-theoretic step: the sample-cross-covariance identity splits the estimator into an
 average of summands and a mean-product term, and the two centrings `hprod` and `hMeanZero` are
 taken here as **hypotheses** and combined by linearity of the integral. Neither is derived at this
 level; `crossCovEstimator_windowCentred_unbiased_of_indepFun` below derives both from case
-(iii)'s conditional independence together with the centring construction, and
+(iii)'s conditional independence together with the centering construction, and
 `crossCovEstimator_raw_windowCentred_unbiased_of_indepFun` states the conclusion for the estimator
 built from the raw iterates. The conclusion holds at every iteration `t` and every window
 length `T`, and it is exact, not asymptotic. -/
@@ -616,9 +637,9 @@ theorem indepFun_windowMean_windowMean {μ : Measure Ω} (T t : ℕ)
     simp only [windowMean_apply]; fun_prop
   exact hcoll.comp hφ hψ
 
-/-- **Exact unbiasedness of the window-mean-centred estimator, from the paper's own
+/-- **Exact unbiasedness of the window-mean-centered estimator, from the paper's own
 hypotheses.** The inputs are case (iii)'s conditional independence of the two window
-collections (`hcoll`), the centring of the iterate fluctuation, and integrability side
+collections (`hcoll`), the centering of the iterate fluctuation, and integrability side
 conditions; everything else — the per-step independence, the vanishing of each summand mean,
 the independence and integrability of the two window means, and the vanishing of the
 mean-product term — is derived. This is `E[Σ̂⁽ᵗ⁾] = 0` for the estimator the paper actually
@@ -661,10 +682,10 @@ theorem crossCovEstimator_windowCentred_unbiased_of_indepFun {μ : Measure Ω} (
 /-- **Exact unbiasedness for the estimator built from the *raw* iterates.** This is
 `crossCovEstimator_windowCentred_unbiased_of_indepFun` transported along
 `crossCovEstimator_windowCentred_sub_const`: the hypotheses are still about the
-population-centred fluctuations `θ̃⁽ˢ⁾ - c_θ` and `g⁽ˢ⁾ - c_g` (with `c_θ = E[θ̃ | φ]` and
-`c_g = E[g | φ]` the population means, so that `hΘc` is the paper's centring construction), but
+population-centered fluctuations `θ̃⁽ˢ⁾ - c_θ` and `g⁽ˢ⁾ - c_g` (with `c_θ = E[θ̃ | φ]` and
+`c_g = E[g | φ]` the population means, so that `hΘc` is the paper's centering construction), but
 the conclusion is about `Σ̂⁽ᵗ⁾` formed from the raw families `Θ` and `G`, which is the estimator
-the paper actually writes down. The hypothesis `T ≠ 0` is needed because window-mean centring is
+the paper actually writes down. The hypothesis `T ≠ 0` is needed because window-mean centering is
 what removes the shift, and there is no window to average over at `T = 0`. -/
 theorem crossCovEstimator_raw_windowCentred_unbiased_of_indepFun {μ : Measure Ω} (T t : ℕ)
     (hT : T ≠ 0) (Θ G : ℕ → Ω → Fin d → ℝ) (cΘ cG : Fin d → ℝ) (i j : Fin d)
@@ -689,10 +710,11 @@ section StrongLaw
 
 variable {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
 
-/-- A pairwise independent, identically distributed, integrable and centred family of
+/-- A pairwise independent, identically distributed, integrable and centered family of
 Banach-space-valued random variables — the Lean form of (A1)'s i.i.d. window together with the
 case-(iii) population zero. Only *pairwise* independence is required, because the strong law used
-below is Etemadi's; this is strictly weaker than the paper's i.i.d. hypothesis. -/
+below is Etemadi's, as in the paper's proof; this is strictly weaker than the i.i.d. hypothesis
+of Assumption A1. -/
 structure IsCentredIID {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [CompleteSpace E]
     [MeasurableSpace E] [BorelSpace E] (μ : Measure Ω) (Z : ℕ → Ω → E) : Prop where
   /-- the summand is integrable -/
@@ -704,7 +726,7 @@ structure IsCentredIID {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [C
   /-- the population mean is zero: the case-(iii) population cross-covariance vanishes -/
   mean_zero : ∫ ω, Z 0 ω ∂μ = 0
 
-/-- The strong law for a centred family: prefix averages converge almost surely to zero. -/
+/-- The strong law for a centered family: prefix averages converge almost surely to zero. -/
 theorem IsCentredIID.tendsto_average_ae {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     [CompleteSpace E] [MeasurableSpace E] [BorelSpace E] {μ : Measure Ω} {Z : ℕ → Ω → E}
     (h : IsCentredIID μ Z) :
@@ -723,7 +745,7 @@ theorem IsCentredIID.tendsto_coord_ae {κ : Type*} [Fintype κ] {μ : Measure Ω
   simp only [Function.comp_def, map_zero] at hc
   simpa [euclidCoord_smul, euclidCoord_sum] using hc
 
-/-- **The almost-sure limit on the Euclidean carrier.** For a centred i.i.d. family of outer
+/-- **The almost-sure limit on the Euclidean carrier.** For a centered i.i.d. family of outer
 products, the estimator of `eq:cross-cov` converges almost surely to the zero matrix as the
 trailing window grows. Once `T ≥ t` the window is the whole prefix, so the strong law applies
 verbatim. -/
@@ -737,7 +759,7 @@ theorem crossCovEstimatorE_tendsto_zero_ae {μ : Measure Ω} (t : ℕ) (U V : �
   exact (crossCovEstimatorE_of_le T t hT _ _).symm
 
 /-- **Case (iii)'s almost-sure conclusion, for the estimator the paper actually forms.** The
-window-mean-centred estimator converges almost surely to zero, entrywise. Both terms of the
+window-mean-centered estimator converges almost surely to zero, entrywise. Both terms of the
 sample-cross-covariance identity are handled: the independent average by the strong law on
 `EuclideanSpace ℝ (Fin d × Fin d)`, and the mean-product term by the strong law applied to each
 of the two window means on `EuclideanSpace ℝ (Fin d)`. No rate is claimed here; see
@@ -780,7 +802,7 @@ theorem crossCovEstimator_tendsto_zero_ae_matrix {μ : Measure Ω} (t : ℕ)
           (windowCentre T t fun s => V s ω)) atTop (𝓝 0) := by
   filter_upwards [crossCovEstimator_tendsto_zero_ae t U V hY hU hV] with ω hω
   exact tendsto_matrix_of_entries fun i j => by simpa using hω i j
-/-- **The outer-product family is centred i.i.d., from the paper's own hypotheses.** Under (A1)
+/-- **The outer-product family is centered i.i.d., from the paper's own hypotheses.** Under (A1)
 the pairs `(θ̃⁽ˢ⁾, g⁽ˢ⁾)` are pairwise independent and identically distributed across the window
 (each summand "depends on batch `s` alone"), and case (iii) makes the two components of a pair
 independent; the population zero of the outer product is then *derived* by
@@ -802,7 +824,7 @@ theorem isCentredIID_outerE {μ : Measure Ω} (U V : ℕ → Ω → Fin d → �
   mean_zero := integral_outerE_eq_zero_of_indepFun hstep hUm hVm hUc hint
 
 /-- The first components of a pairwise independent, identically distributed family of pairs form
-a centred i.i.d. family on the Euclidean carrier; transport along `measurable_vecE_fst`. -/
+a centered i.i.d. family on the Euclidean carrier; transport along `measurable_vecE_fst`. -/
 theorem isCentredIID_vecE_fst {μ : Measure Ω} (U V : ℕ → Ω → Fin d → ℝ)
     (hpair : Pairwise fun a b =>
       IndepFun (fun ω => (U a ω, V a ω)) (fun ω => (U b ω, V b ω)) μ)
@@ -829,10 +851,10 @@ theorem isCentredIID_vecE_snd {μ : Measure Ω} (U V : ℕ → Ω → Fin d → 
   mean_zero := integral_vecE_eq_zero hint hVc
 
 /-- **Case (iii)'s almost-sure conclusion, from the paper-shaped hypotheses.** The inputs are
-(A1)'s modelling of the window — the pairs `(θ̃⁽ˢ⁾, g⁽ˢ⁾)` pairwise independent and identically
+(A1)'s modeling of the window — the pairs `(θ̃⁽ˢ⁾, g⁽ˢ⁾)` pairwise independent and identically
 distributed across `s` — together with case (iii)'s independence of the two components at a
-step, the centring `E[δθ̃ | φ] = E[δg | φ] = 0` of the construction, and integrability side
-conditions. The population zero of the summands is **derived** from independence and centring
+step, the centering `E[δθ̃ | φ] = E[δg | φ] = 0` of the construction, and integrability side
+conditions. The population zero of the summands is **derived** from independence and centering
 (`integral_outerE_eq_zero_of_indepFun`), not assumed; the three packaged families of
 `crossCovEstimator_tendsto_zero_ae` are assembled by the transport lemmas above. -/
 theorem crossCovEstimator_tendsto_zero_ae_of_indepFun {μ : Measure Ω} (t : ℕ)
@@ -857,8 +879,8 @@ theorem crossCovEstimator_tendsto_zero_ae_of_indepFun {μ : Measure Ω} (t : ℕ
     (isCentredIID_vecE_snd U V hpair hident hVint hVc)
 
 /-- **Case (iii)'s almost-sure conclusion for the estimator built from the *raw* iterates**, at
-the matrix level. The hypotheses are the packaged i.i.d.-and-centred conditions on the
-population-centred fluctuations `θ̃⁽ˢ⁾ - c_θ`, `g⁽ˢ⁾ - c_g` — assembled from the paper's own
+the matrix level. The hypotheses are the packaged i.i.d.-and-centered conditions on the
+population-centered fluctuations `θ̃⁽ˢ⁾ - c_θ`, `g⁽ˢ⁾ - c_g` — assembled from the paper's own
 hypotheses by `isCentredIID_outerE`, `isCentredIID_vecE_fst` and `isCentredIID_vecE_snd` — while
 the conclusion is about `Σ̂⁽ᵗ⁾` formed from the raw families, which is what the paper writes.
 The transport is exact rather than asymptotic: for every `T ≠ 0` the two estimators are equal
@@ -885,7 +907,7 @@ section L2Rate
 
 variable {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
 
-/-- A square-integrable, pairwise independent, identically distributed, centred real family. -/
+/-- A square-integrable, pairwise independent, identically distributed, centered real family. -/
 structure IsSquareCentredIID (μ : Measure Ω) (Z : ℕ → Ω → ℝ) : Prop where
   /-- each summand is square integrable -/
   memLp : ∀ s, MemLp (Z s) 2 μ
@@ -900,7 +922,7 @@ theorem IsSquareCentredIID.mean_zero' {μ : Measure Ω} {Z : ℕ → Ω → ℝ}
     (h : IsSquareCentredIID μ Z) (s : ℕ) : ∫ ω, Z s ω ∂μ = 0 := by
   rw [(h.ident s).integral_eq]; exact h.mean_zero
 
-/-- **A time shift of a square-integrable centred i.i.d. family is again such a family.** The
+/-- **A time shift of a square-integrable centered i.i.d. family is again such a family.** The
 trailing window `{t - T, …, t - 1}` of the paper's estimator is the shift by `t - T` of the
 prefix window, so the `L²` statements below hold for **every** iteration `t` and every window
 length `T`, not merely in the prefix regime `t ≤ T`. -/
@@ -960,7 +982,7 @@ theorem l2_error_average {μ : Measure Ω} [IsFiniteMeasure μ] (Z : ℕ → Ω 
     √(∫ ω, ((T : ℝ)⁻¹ * ∑ s ∈ range T, Z s ω) ^ 2 ∂μ) = √(Var[Z 0; μ]) / √T := by
   rw [integral_sq_average_of_iid Z T h, Real.sqrt_div (variance_nonneg _ _)]
 
-/-- The mean square of an entry of the estimator built from the population-centred fluctuations
+/-- The mean square of an entry of the estimator built from the population-centered fluctuations
 is the summand variance divided by `T` — for **every** iteration `t` and every window length
 `T`: the trailing window is the shift by `t - T` of the prefix window
 (`IsSquareCentredIID.shift`), and shifting an i.i.d. family changes neither the variance
@@ -984,7 +1006,7 @@ theorem integral_sq_crossCovEstimator_entry {μ : Measure Ω} [IsFiniteMeasure �
 
 /-- **The finite-window fluctuation of an entry of the estimator is `O(T^{-1/2})` in `L²`.**
 For every iteration `t` and every window length `T`, the `(i,j)` entry of the estimator built
-from the population-centred fluctuations has `L²` norm `σᵢⱼ / √T`, with `σᵢⱼ²` the variance of a
+from the population-centered fluctuations has `L²` norm `σᵢⱼ / √T`, with `σᵢⱼ²` the variance of a
 single summand `δθ̃ᵢ δgⱼ`. -/
 theorem crossCovEstimator_entry_l2_rate {μ : Measure Ω} [IsFiniteMeasure μ] (T t : ℕ)
     (U V : ℕ → Ω → Fin d → ℝ) (i j : Fin d)
@@ -996,8 +1018,8 @@ theorem crossCovEstimator_entry_l2_rate {μ : Measure Ω} [IsFiniteMeasure μ] (
 
 /-- **The mean-product term of the identity is `O(T^{-1})` in `L²`.** Its mean square is the
 product of the two window-mean variances, each of which is `σ²/T`; so its `L²` norm is
-`σ_u σ_v / T`, one order smaller than the leading average. This is the paper's `O(T^{-1})` claim
-for that term, again in `L²` form.
+`σ_u σ_v / T`, one order smaller than the leading average. This is the paper's
+`eq:pf-meanprod-l2`, at divisor `T`.
 
 The hypothesis `hM` — independence of the two window means — is the paper's own step: under (A1)
 the whole window collection of iterate fluctuations is independent of the whole collection of
@@ -1110,13 +1132,13 @@ theorem integrable_sq_windowMean_mul {μ : Measure Ω} (T t : ℕ) (U V : ℕ �
   filter_upwards with ω
   simp [Pi.mul_apply, mul_pow]
 /-- **The finite-window fluctuation of the estimator the paper actually forms, with the
-mean-product remainder carried explicitly into the conclusion.** The window-mean-centred
+mean-product remainder carried explicitly into the conclusion.** The window-mean-centered
 estimator is the difference of the two objects just measured, so `(x - y)^2 ≤ 2x^2 + 2y^2` gives
 `E[(Σ̂⁽ᵗ⁾)ᵢⱼ²] ≤ 2 σᵢⱼ²/T + 2 σ_uᵢ² σ_vⱼ²/T²`, for every iteration `t` and every window length
 `T` (at `T = 0` both sides vanish).
-The leading term is the paper's `O(T^{-1/2})` fluctuation in `L²`; the second term is the paper's
-`O(T^{-1})` mean-product correction, and it appears in the conclusion at its own order rather than
-being dropped. The constant `2` is the crude constant of the elementary inequality
+This is the bound the proof of Theorem 2 displays after `eq:pf-meanprod-l2`, at divisor `T`: the
+leading term is the `L²` fluctuation of `eq:pf-sum-l2`, and the second term is the mean-product
+correction of `eq:pf-meanprod-l2`, at its own order. The constant `2` is the crude constant of the elementary inequality
 `(x - y)² ≤ 2x² + 2y²`; a Minkowski argument would replace the bound by
 `√(E[(Σ̂⁽ᵗ⁾)ᵢⱼ²]) ≤ σᵢⱼ/√T + σ_uᵢ σ_vⱼ/T`, which is sharper but not stronger in order.
 The independence `hM` and the three integrability side conditions are carried explicitly here so
@@ -1216,7 +1238,7 @@ theorem crossCovEstimator_windowCentred_l2_bound_of_indepFun {μ : Measure Ω} [
 
 /-- **The same `L²` bound for the estimator built from the *raw* iterates.** Transported along
 `crossCovEstimator_windowCentred_sub_const`, exactly as with unbiasedness and the almost-sure
-limit: the hypotheses are about the population-centred fluctuations, the conclusion is about the
+limit: the hypotheses are about the population-centered fluctuations, the conclusion is about the
 `Σ̂⁽ᵗ⁾` the paper writes down. -/
 theorem crossCovEstimator_raw_windowCentred_l2_bound {μ : Measure Ω} [IsFiniteMeasure μ]
     (T t : ℕ) (hT : T ≠ 0) (Θ G : ℕ → Ω → Fin d → ℝ) (cΘ cG : Fin d → ℝ) (i j : Fin d)
@@ -1234,6 +1256,211 @@ theorem crossCovEstimator_raw_windowCentred_l2_bound {μ : Measure Ω} [IsFinite
   simpa only [crossCovEstimator_windowCentred_sub_const T t hT, Pi.sub_apply] using h
 
 end L2Rate
+
+/-! ### Collection-level independence, from i.i.d. batches and per-probe independence
+
+The `L²` bound above binds the collection-level independence `hcoll`. Appendix A.2 derives it in
+one sentence: "the joint law of the `2T` vectors is the product over probes of the per-probe laws,
+each of which factorizes by the conditional independence, so the collections `{δθ̃_k}_k` and
+`{ξ_k}_k` are independent". This section proves that sentence and states the bound under the
+hypotheses Theorem 2 prints. -/
+
+section BatchLevel
+
+/-- **Per-probe to collection-level independence** (Appendix A.2: "the joint law of the `2T`
+vectors is the product over probes of the per-probe laws, each of which factorizes by the
+conditional independence, so the collections `{δθ̃_k}_k` and `{ξ_k}_k` are independent"). If
+the probes `X_k` are mutually independent and at every probe `f(X_k)` is independent of
+`g(X_k)`, the whole collection `(f(X_k))_k` is independent of the whole collection
+`(g(X_k))_k`. The index type is arbitrary: it is `Fin T` for the `T` probes of `eq:cross-cov`
+(the `hcoll` of `CrossCovProbe`) and `ℕ` for the window of this file. The product rule is
+checked on the generating π-system of finite intersections of coordinate events, which is the
+product-law computation of the appendix sentence. -/
+theorem indepFun_collections_of_iIndepFun {Ω ι β γ δ : Type*} [MeasurableSpace Ω]
+    [MeasurableSpace β] [MeasurableSpace γ] [MeasurableSpace δ] {μ : Measure Ω}
+    {X : ι → Ω → β} (hXm : ∀ k, Measurable (X k)) (hX : iIndepFun X μ)
+    {f : β → γ} {g : β → δ} (hf : Measurable f) (hg : Measurable g)
+    (hpp : ∀ k, IndepFun (fun ω => f (X k ω)) (fun ω => g (X k ω)) μ) :
+    IndepFun (fun ω k => f (X k ω)) (fun ω k => g (X k ω)) μ := by
+  classical
+  haveI := hX.isProbabilityMeasure
+  set mU : ι → MeasurableSpace Ω := fun k =>
+    MeasurableSpace.comap (fun ω => f (X k ω)) inferInstance with hmU
+  set mV : ι → MeasurableSpace Ω := fun k =>
+    MeasurableSpace.comap (fun ω => g (X k ω)) inferInstance with hmV
+  set mX : ι → MeasurableSpace Ω := fun k => MeasurableSpace.comap (X k) inferInstance with hmX
+  have hUX : ∀ k, mU k ≤ mX k := fun k =>
+    measurable_iff_comap_le.1 (hf.comp (comap_measurable (X k)))
+  have hVX : ∀ k, mV k ≤ mX k := fun k =>
+    measurable_iff_comap_le.1 (hg.comp (comap_measurable (X k)))
+  have hiX : iIndep mX μ := (iIndepFun_iff_iIndep _ _ _).1 hX
+  have hUle : ∀ k, mU k ≤ ‹MeasurableSpace Ω› := fun k =>
+    measurable_iff_comap_le.1 (hf.comp (hXm k))
+  have hVle : ∀ k, mV k ≤ ‹MeasurableSpace Ω› := fun k =>
+    measurable_iff_comap_le.1 (hg.comp (hXm k))
+  have key : Indep (⨆ k ∈ (Set.univ : Set ι), mU k) (⨆ k ∈ (Set.univ : Set ι), mV k) μ := by
+    refine IndepSets.indep (iSup₂_le fun k _ => hUle k) (iSup₂_le fun k _ => hVle k)
+      (isPiSystem_piiUnionInter _ (fun n => @MeasurableSpace.isPiSystem_measurableSet Ω (mU n)) _)
+      (isPiSystem_piiUnionInter _ (fun n => @MeasurableSpace.isPiSystem_measurableSet Ω (mV n)) _)
+      (generateFrom_piiUnionInter_measurableSet mU _).symm
+      (generateFrom_piiUnionInter_measurableSet mV _).symm ?_
+    rw [IndepSets_iff]
+    rintro _ _ ⟨t1, -, f1, hf1, rfl⟩ ⟨t2, -, f2, hf2, rfl⟩
+    set F1 : ι → Set Ω := fun x => if x ∈ t1 then f1 x else Set.univ with hF1def
+    set F2 : ι → Set Ω := fun x => if x ∈ t2 then f2 x else Set.univ with hF2def
+    have hF1 : ∀ x, MeasurableSet[mU x] (F1 x) := fun x => by
+      by_cases hx : x ∈ t1
+      · simp only [F1, if_pos hx]; exact hf1 x hx
+      · simp only [F1, if_neg hx]; exact MeasurableSet.univ
+    have hF2 : ∀ x, MeasurableSet[mV x] (F2 x) := fun x => by
+      by_cases hx : x ∈ t2
+      · simp only [F2, if_pos hx]; exact hf2 x hx
+      · simp only [F2, if_neg hx]; exact MeasurableSet.univ
+    have e1 : ⋂ x ∈ t1, f1 x = ⋂ x ∈ t1 ∪ t2, F1 x := by
+      ext ω
+      simp only [Set.mem_iInter, Finset.mem_union, F1]
+      constructor
+      · intro h x hx
+        split_ifs with h1
+        · exact h x h1
+        · exact Set.mem_univ ω
+      · intro h x hx
+        have := h x (Or.inl hx)
+        rwa [if_pos hx] at this
+    have e2 : ⋂ x ∈ t2, f2 x = ⋂ x ∈ t1 ∪ t2, F2 x := by
+      ext ω
+      simp only [Set.mem_iInter, Finset.mem_union, F2]
+      constructor
+      · intro h x hx
+        split_ifs with h2
+        · exact h x h2
+        · exact Set.mem_univ ω
+      · intro h x hx
+        have := h x (Or.inr hx)
+        rwa [if_pos hx] at this
+    have e12 : (⋂ x ∈ t1 ∪ t2, F1 x) ∩ (⋂ x ∈ t1 ∪ t2, F2 x)
+        = ⋂ x ∈ t1 ∪ t2, (F1 x ∩ F2 x) := by
+      ext ω
+      simp only [Set.mem_inter_iff, Set.mem_iInter]
+      exact ⟨fun h x hx => ⟨h.1 x hx, h.2 x hx⟩,
+        fun h => ⟨fun x hx => (h x hx).1, fun x hx => (h x hx).2⟩⟩
+    rw [e1, e2, e12,
+      hiX.meas_biInter (S := t1 ∪ t2)
+        (fun x _ => MeasurableSet.inter (hUX x _ (hF1 x)) (hVX x _ (hF2 x))),
+      hiX.meas_biInter (S := t1 ∪ t2) (fun x _ => hUX x _ (hF1 x)),
+      hiX.meas_biInter (S := t1 ∪ t2) (fun x _ => hVX x _ (hF2 x)), ← Finset.prod_mul_distrib]
+    exact Finset.prod_congr rfl fun x _ => (hpp x).meas_inter (hF1 x) (hF2 x)
+  rw [IndepFun_iff_Indep]
+  refine indep_of_indep_of_le key ?_ ?_
+  · simp only [MeasurableSpace.pi, MeasurableSpace.comap_iSup, MeasurableSpace.comap_comp]
+    exact iSup_le fun k => le_iSup₂_of_le (f := fun k (_ : k ∈ (Set.univ : Set ι)) => mU k)
+      k (Set.mem_univ k) le_rfl
+  · simp only [MeasurableSpace.pi, MeasurableSpace.comap_iSup, MeasurableSpace.comap_comp]
+    exact iSup_le fun k => le_iSup₂_of_le (f := fun k (_ : k ∈ (Set.univ : Set ι)) => mV k)
+      k (Set.mem_univ k) le_rfl
+
+/-- **Per-probe independence is a property of the law of one probe.** If two probes have the
+same law and `f` and `g` of the first are independent, so are `f` and `g` of the second. Under
+(A1)'s identically distributed batches, Theorem 2's conditional independence of the latent weight
+and `g₀`, stated once, therefore holds at every probe. -/
+theorem indepFun_comp_of_identDistrib {Ω Ω' β γ δ : Type*} [MeasurableSpace Ω]
+    [MeasurableSpace Ω'] [MeasurableSpace β] [MeasurableSpace γ] [MeasurableSpace δ]
+    {μ : Measure Ω} {ν : Measure Ω'} [IsFiniteMeasure μ] [IsFiniteMeasure ν]
+    {X : Ω → β} {Y : Ω' → β} (hXY : IdentDistrib X Y μ ν)
+    {f : β → γ} {g : β → δ} (hf : Measurable f) (hg : Measurable g)
+    (h : IndepFun (fun ω => f (X ω)) (fun ω => g (X ω)) μ) :
+    IndepFun (fun ω => f (Y ω)) (fun ω => g (Y ω)) ν := by
+  have hfX := hXY.comp hf
+  have hgX := hXY.comp hg
+  have hpX := hXY.comp (hf.prodMk hg)
+  change IndepFun (f ∘ X) (g ∘ X) μ at h
+  change IndepFun (f ∘ Y) (g ∘ Y) ν
+  rw [indepFun_iff_map_prod_eq_prod_map_map hfX.aemeasurable_fst hgX.aemeasurable_fst] at h
+  rw [indepFun_iff_map_prod_eq_prod_map_map hfX.aemeasurable_snd hgX.aemeasurable_snd]
+  calc ν.map (fun ω => ((f ∘ Y) ω, (g ∘ Y) ω))
+      = μ.map (fun ω => ((f ∘ X) ω, (g ∘ X) ω)) := hpX.map_eq.symm
+    _ = (μ.map (f ∘ X)).prod (μ.map (g ∘ X)) := h
+    _ = (ν.map (f ∘ Y)).prod (ν.map (g ∘ Y)) := by rw [hfX.map_eq, hgX.map_eq]
+
+/-- **Theorem 2's entrywise mean-square error of order `1/T`, under the hypotheses Theorem 2
+states.** Assumption A1: the batches `X_k` are independent and identically distributed (`X_k` may
+be any probe variable, a pair of batches when the hypernetwork reads a batch sampled
+independently of the one that forms the gradient). The latent weight `θ̃ = θf(X)` and the
+gradient `g₀ = gf(X)` at the mean latent weight are measurable functions of the probe,
+conditionally independent given the parameters (at one probe; `μ` is the conditional law), with
+finite second moments in the read coordinates `i` and `j`, whose means are `cΘ i` and `cG j`.
+Then the estimate formed with `g₀(X_k)` in place of `g_k`, centered at its sample means, at
+divisor `T`, has `E[(Σ̂_ξ)ᵢⱼ²] ≤ 2σᵢⱼ²/T + 2σ_u²σ_v²/T²` on every window of `T` probes. Every
+binder of `crossCovEstimator_raw_windowCentred_l2_bound` is derived: the three
+`IsSquareCentredIID` packages from the i.i.d. batches, the moments and the centering, and `hcoll`
+from `indepFun_collections_of_iIndepFun`. Second moments suffice where Theorem 2 prints fourth:
+the summand `θ̃ᵢ g₀ⱼ` is square-integrable because its two factors are independent. -/
+theorem crossCovEstimator_raw_windowCentred_l2_bound_of_iidBatches {d : ℕ} {Ω β : Type*}
+    [MeasurableSpace Ω] [MeasurableSpace β] {μ : Measure Ω} (T t : ℕ) (hT : T ≠ 0)
+    (X : ℕ → Ω → β) (hXm : ∀ k, Measurable (X k)) (hX : iIndepFun X μ)
+    (hXid : ∀ k, IdentDistrib (X k) (X 0) μ μ)
+    (θf gf : β → Fin d → ℝ) (hθf : Measurable θf) (hgf : Measurable gf)
+    (hpp : IndepFun (fun ω => θf (X 0 ω)) (fun ω => gf (X 0 ω)) μ)
+    (cΘ cG : Fin d → ℝ) (i j : Fin d)
+    (hθ2 : MemLp (fun ω => θf (X 0 ω) i) 2 μ) (hg2 : MemLp (fun ω => gf (X 0 ω) j) 2 μ)
+    (hcΘ : ∫ ω, θf (X 0 ω) i ∂μ = cΘ i) (hcG : ∫ ω, gf (X 0 ω) j ∂μ = cG j) :
+    ∫ ω, (crossCovEstimator T t (windowCentre T t fun s => θf (X s ω))
+        (windowCentre T t fun s => gf (X s ω)) i j) ^ 2 ∂μ
+      ≤ 2 * (Var[fun ω => (θf (X 0 ω) i - cΘ i) * (gf (X 0 ω) j - cG j); μ] / T)
+        + 2 * ((Var[fun ω => θf (X 0 ω) i - cΘ i; μ] / T)
+              * (Var[fun ω => gf (X 0 ω) j - cG j; μ] / T)) := by
+  haveI := hX.isProbabilityMeasure
+  have hpp' : ∀ k, IndepFun (fun ω => θf (X k ω) - cΘ) (fun ω => gf (X k ω) - cG) μ := fun k =>
+    (indepFun_comp_of_identDistrib (hXid k).symm hθf hgf hpp).comp
+      (measurable_id.sub_const cΘ) (measurable_id.sub_const cG)
+  have hcoll : IndepFun (fun ω s => θf (X s ω) - cΘ) (fun ω s => gf (X s ω) - cG) μ :=
+    indepFun_collections_of_iIndepFun hXm hX (hθf.sub_const cΘ) (hgf.sub_const cG) hpp'
+  have huθ : Measurable fun b : β => θf b i - cΘ i :=
+    ((measurable_pi_apply i).comp hθf).sub_const _
+  have hug : Measurable fun b : β => gf b j - cG j :=
+    ((measurable_pi_apply j).comp hgf).sub_const _
+  have huθg : Measurable fun b : β => (θf b i - cΘ i) * (gf b j - cG j) := huθ.mul hug
+  have hθ2c : MemLp (fun ω => θf (X 0 ω) i - cΘ i) 2 μ := hθ2.sub (memLp_const _)
+  have hg2c : MemLp (fun ω => gf (X 0 ω) j - cG j) 2 μ := hg2.sub (memLp_const _)
+  have hθ0 : ∫ ω, (θf (X 0 ω) i - cΘ i) ∂μ = 0 := by
+    rw [integral_sub (hθ2.integrable one_le_two) (integrable_const _), hcΘ]; simp
+  have hg0 : ∫ ω, (gf (X 0 ω) j - cG j) ∂μ = 0 := by
+    rw [integral_sub (hg2.integrable one_le_two) (integrable_const _), hcG]; simp
+  have hppc : IndepFun (fun ω => θf (X 0 ω) i - cΘ i) (fun ω => gf (X 0 ω) j - cG j) μ :=
+    hpp.comp (φ := fun v : Fin d → ℝ => v i - cΘ i) (ψ := fun v : Fin d → ℝ => v j - cG j)
+      ((measurable_pi_apply i).sub_const _) ((measurable_pi_apply j).sub_const _)
+  have hU : IsSquareCentredIID μ fun s ω => θf (X s ω) i - cΘ i :=
+    { memLp := fun s => ((hXid s).comp huθ).memLp_iff.2 hθ2c
+      indep := fun a b hab => (hX.indepFun hab).comp huθ huθ
+      ident := fun s => (hXid s).comp huθ
+      mean_zero := hθ0 }
+  have hV : IsSquareCentredIID μ fun s ω => gf (X s ω) j - cG j :=
+    { memLp := fun s => ((hXid s).comp hug).memLp_iff.2 hg2c
+      indep := fun a b hab => (hX.indepFun hab).comp hug hug
+      ident := fun s => (hXid s).comp hug
+      mean_zero := hg0 }
+  have hprod0 : MemLp (fun ω => (θf (X 0 ω) i - cΘ i) * (gf (X 0 ω) j - cG j)) 2 μ := by
+    refine (memLp_two_iff_integrable_sq
+      (hθ2c.aestronglyMeasurable.mul hg2c.aestronglyMeasurable)).2 ?_
+    have hsq : IndepFun (fun ω => (θf (X 0 ω) i - cΘ i) ^ 2)
+        (fun ω => (gf (X 0 ω) j - cG j) ^ 2) μ :=
+      hppc.comp (measurable_id.pow_const 2) (measurable_id.pow_const 2)
+    refine (hsq.integrable_mul hθ2c.integrable_sq hg2c.integrable_sq).congr ?_
+    filter_upwards with ω
+    simp [Pi.mul_apply, mul_pow]
+  have hY : IsSquareCentredIID μ fun s ω => (θf (X s ω) i - cΘ i) * (gf (X s ω) j - cG j) :=
+    { memLp := fun s => ((hXid s).comp huθg).memLp_iff.2 hprod0
+      indep := fun a b hab => (hX.indepFun hab).comp huθg huθg
+      ident := fun s => (hXid s).comp huθg
+      mean_zero := by
+        have h := hppc.integral_mul_eq_mul_integral hθ2c.aestronglyMeasurable
+          hg2c.aestronglyMeasurable
+        simp only [Pi.mul_apply] at h
+        rw [h, hθ0, zero_mul] }
+  exact crossCovEstimator_raw_windowCentred_l2_bound T t hT (fun s ω => θf (X s ω))
+    (fun s ω => gf (X s ω)) cΘ cG i j hY hU hV hcoll
+
+end BatchLevel
 
 /-! ### Non-vacuity: case (iii)'s hypotheses have a non-degenerate model -/
 
@@ -1285,9 +1512,9 @@ identically-zero deletions of `CrossCov.lean`. They can. Take the i.i.d. sequenc
 `δθ̃⁽ˢ⁾` the first coordinate and `δg⁽ˢ⁾` the second; then all of the following hold at once:
 
 * `μ` is a probability measure — in particular not the zero measure, under which independence,
-  identical distribution and centring are all trivially true and nothing is being asserted;
-* the two channels are independent at a step and each is centred, which is case (iii)'s
-  hypothesis together with the paper's centring construction;
+  identical distribution and centering are all trivially true and nothing is being asserted;
+* the two channels are independent at a step and each is centered, which is case (iii)'s
+  hypothesis together with the paper's centering construction;
 * all three `IsCentredIID` packages that `crossCovEstimator_tendsto_zero_ae` consumes hold, so
   the almost-sure conclusion is not vacuous;
 * the summands `δθ̃⁽ˢ⁾ δg⁽ˢ⁾` satisfy `IsSquareCentredIID`, so the `L²` conclusions are not
@@ -1298,9 +1525,9 @@ identically-zero deletions of `CrossCov.lean`. They can. Take the i.i.d. sequenc
   the estimator is **not** almost surely zero.
 
 Together with `crossCovEstimator_windowCentred_ne_zero`, which exhibits a window on which the
-*window-mean-centred* estimator is nonzero, this is the paper's sentence "Unlike cases (i) and
-(ii), this does not make the finite-window estimator identically zero", proved rather than
-asserted. -/
+*window-mean-centered* estimator is nonzero, this is the paper's sentence "The sample version does
+not vanish at finite `T`", with the paper's own one-dimensional Gaussian instance of mean square
+`1/T`. -/
 theorem exists_nondegenerate_case_iii_model :
     ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (U V : ℕ → Ω → Fin 1 → ℝ),
       IsProbabilityMeasure μ ∧

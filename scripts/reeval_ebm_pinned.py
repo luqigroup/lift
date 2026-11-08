@@ -17,12 +17,32 @@ For one-dimensional archives the hypernet snapshots stored in each
 checkpoint are re-read the same way, giving the TV-along-training curve with
 the pinned emission at every stored iterate.
 
-Post-hoc tool: reads the archive's ``seed{s}_hypernet.pt`` files directly and
+Post-hoc tool: reads the archive's ``seed{s}_<backend>.pt`` files directly and
 does not go through ``projorg.setup_environment``, since minting a fresh
 config hash would point at an empty directory. Architecture comes from the
 driver's config JSON plus ``key-value`` tokens parsed from a projorg
 directory name, overridable with ``--set``; a wrong architecture fails loudly
 at ``load_state_dict``.
+
+Two settings are parameter-free and ``load_state_dict`` cannot check them:
+whether the lift standardizes its pooled summary (``--pool_norm``) and the
+positivity map of the readout (``--hyper_pos_mode``; softplus for
+``hypernet`` and ``direct``, exp for ``hypernet_exp`` and ``direct_exp``).
+The replay guard checks both. At every snapshot ``k`` the trainer stored the
+emitter state and its emission ``theta_k`` on one fixed batch ``snap_x``, so
+the rebuilt module must reproduce ``theta_k`` from that state and
+``snap_x``. The guard runs on every scored snapshot and raises above
+``--guard_tol``; a non-finite entry agrees only with a non-finite entry at
+the same place. For the default backend an archive without ``snap_x`` is
+scored with the guard recorded as skipped; for any other backend it is an
+error. An archive trained with emitter noise stored noisy emissions, so its
+guard is recorded as skipped.
+
+``direct`` and ``direct_exp`` are read too. Their emission does not depend
+on the data, so the pinned and batch readings coincide; reading them puts
+every method's held-out NLL history on one common sample (``--nll_hist 1``:
+``-mean log q(x)`` over ``--nll_n`` target samples drawn on the CPU from
+``--nll_seed``).
 
 Usage::
 
@@ -34,6 +54,10 @@ Usage::
         --archive 'data/_fetch_tmp/uci_hepmass_10seed_ramp_poolnorm_*' \\
         --target_kind uci_hepmass --config configs/experiments_pgd_uci_hepmass.json \\
         --pool_norm 1 --seeds 0 1 2 --out data/analysis/pinned/uci_hepmass_lift
+    python scripts/reeval_ebm_pinned.py \\
+        --archive data/checkpoints/lcmm_1d_exp/gumbel --backend hypernet_exp \\
+        --target_kind gumbel --config configs/experiments_lcmm_1d_logconcave.json \\
+        --pool_norm 1 --snapshots 1 --nll_hist 1 --out data/analysis/pinned/lcmm_1d_exp_gumbel
 """
 from __future__ import annotations
 
@@ -55,7 +79,7 @@ sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.dirname(_HERE))
 
 from _experiments_hypernet_vs_direct_1d_lib import (  # noqa: E402
-    HypernetVsDirect1D, grid_metrics_1d,
+    DirectParamModule, HypernetVsDirect1D, grid_metrics_1d,
 )
 from lift.models.conditional_sampler_flow import ConditionalSamplerFlow  # noqa: E402
 from lift.objectives.builders import build_hypernet_ebm  # noqa: E402
@@ -70,6 +94,131 @@ _NAME_KEYS = {
     "n_batch_hyper": int, "M_logZ_eval": int, "tv_grid_n": int,
     "hyper_pool_norm": int,
 }
+
+DEFAULT_BACKEND = "hypernet"
+BACKEND_MAP = {"hypernet": "softplus", "hypernet_exp": "exp",
+               "direct": "softplus", "direct_exp": "exp"}
+LIFT_BACKENDS = ("hypernet", "hypernet_exp")
+GUARD_TOL = 1e-4
+
+
+class ReplayMismatch(RuntimeError):
+    """A stored emission that the rebuilt module does not reproduce."""
+
+
+def resolve_pos_mode(backend: str, requested: str) -> str:
+    """The readout map to build: the backend's own unless stated.
+
+    A stated map that differs from the backend's is built as stated and left
+    to the replay guard; it is never silently corrected.
+    """
+    if backend not in BACKEND_MAP:
+        raise ValueError(f"unknown backend {backend!r}; expected one of {sorted(BACKEND_MAP)}")
+    if requested == "auto":
+        return BACKEND_MAP[backend]
+    if requested not in ("softplus", "exp"):
+        raise ValueError(f"hyper_pos_mode must be auto, softplus or exp, got {requested!r}")
+    if requested != BACKEND_MAP[backend]:
+        print(f"WARNING: --hyper_pos_mode {requested} differs from {backend}'s map "
+              f"{BACKEND_MAP[backend]}; the replay guard decides", flush=True)
+    return requested
+
+
+def build_modules(backend: str, args, D: int, *, pool_norm: bool, pos_mode: str,
+                  pool_scale: float = 0.0, noise_std: float = 0.0):
+    """``(ebm, emitter)`` for one archive, ready for ``load_state_dict``.
+
+    The lift is the ``HyperNetwork`` with the archive's parameter-free
+    settings; direct is ``DirectParamModule`` in the stated map, beside the
+    frozen template the trainer used.
+    """
+    common = dict(K=1, D=D, hidden_dim=int(args.hidden_dim), nlayers=int(args.nlayers),
+                  strong_convexity=float(args.strong_convexity))
+    if backend in LIFT_BACKENDS:
+        return build_hypernet_ebm(
+            **common,
+            hyper_hidden_sizes=[int(h) for h in args.hyper_hidden_sizes],
+            hyper_summary_kind="mlp",
+            hyper_pos_constraint_mode=str(pos_mode),
+            hyper_extra_kwargs={"pool_norm": bool(pool_norm), "pool_scale": float(pool_scale)},
+            hyper_activation_noise_std=float(noise_std),
+        )
+    ebm, _unused = build_hypernet_ebm(**common)
+    return ebm, DirectParamModule(**common, pos_constraint_mode=str(pos_mode))
+
+
+def _max_err(out: Dict[str, torch.Tensor], ref: Dict[str, torch.Tensor], tol: float) -> tuple[float, bool]:
+    """Largest absolute difference over every emitted tensor, and whether all agree.
+
+    A non-finite value at the same entry on both sides is agreement; on one
+    side only it is a mismatch of size infinity.
+    """
+    if set(out) != set(ref):
+        return float("inf"), False
+    err, ok = 0.0, True
+    for k, r in ref.items():
+        a, b = out[k].detach().cpu().double(), r.detach().cpu().double()
+        if a.shape != b.shape:
+            return float("inf"), False
+        if a.numel():
+            d = (a - b).abs()
+            d[(a == b) | (torch.isnan(a) & torch.isnan(b))] = 0.0
+            err = max(err, float(torch.nan_to_num(d, nan=float("inf")).max()))
+        ok = ok and bool(torch.allclose(a, b, rtol=tol, atol=tol, equal_nan=True))
+    return err, ok
+
+
+def replay_guard(emitter: nn.Module, ck: dict, *, all_snapshots: bool, device, tol: float = GUARD_TOL,
+                 required: bool = True, raise_on_fail: bool = True,
+                 noise_std: float = 0.0) -> Dict[str, object]:
+    """Rebuild each scored emission from its stored state and ``snap_x``.
+
+    Snapshot ``k`` pairs the emitter state ``hyper_E_snaps[k]`` with the
+    stored emission ``theta_snaps[k]``. With ``all_snapshots`` every pair is
+    checked (when the two lists align); otherwise the final state
+    ``hyper_E_state`` against ``theta_snaps[-1]``. The emitter is left in its
+    final state.
+
+    Returns ``{"status": "pass" | "fail" | "skipped", ...}``. Raises
+    ``ReplayMismatch`` on a failure when ``raise_on_fail``, and
+    ``ValueError`` when a field is missing and ``required``.
+    """
+    if float(noise_std) > 0.0:
+        return {"status": "skipped", "reason": f"hyper_noise_std {float(noise_std):g} > 0: "
+                "the stored emissions carry the training noise and cannot be replayed"}
+    snap_x, theta = ck.get("snap_x"), list(ck.get("theta_snaps") or [])
+    hsnaps = list(ck.get("hyper_E_snaps") or [])
+    missing = [k for k, v in (("snap_x", snap_x), ("theta_snaps", theta)) if v is None or len(v) == 0]
+    if all_snapshots and required and len(hsnaps) != len(theta):
+        missing.append(f"hyper_E_snaps aligned with theta_snaps ({len(hsnaps)} vs {len(theta)})")
+    if missing:
+        if required:
+            raise ValueError(f"replay guard: the archive stores no {', '.join(missing)}")
+        return {"status": "skipped", "reason": f"archive stores no {', '.join(missing)}"}
+    iters = [int(i) for i in (ck.get("snap_iters") or range(len(theta)))]
+    if all_snapshots and len(hsnaps) == len(theta):
+        pairs = list(enumerate(hsnaps))
+    else:
+        pairs = [(len(theta) - 1, ck["hyper_E_state"])]
+    x = snap_x.to(device)
+    errs, bad = [], []
+    for k, state in pairs:
+        emitter.load_state_dict(state)
+        emitter.eval()
+        with torch.no_grad():
+            err, ok = _max_err(emitter(x), theta[k], tol)
+        errs.append(err)
+        if not ok:
+            bad.append(iters[k])
+    emitter.load_state_dict(ck["hyper_E_state"])
+    rec = {"status": "fail" if bad else "pass", "tol": float(tol), "n_stored": len(theta),
+           "n_checked": len(pairs), "iters": [iters[k] for k, _ in pairs], "errs": errs,
+           "max_abs_err": max(errs), "failed_iters": bad}
+    if bad and raise_on_fail:
+        raise ReplayMismatch(f"rebuilt emission differs from the stored one at iteration(s) {bad} "
+                             f"(max abs error {max(errs):.3g} > tol {tol:g}): pool_norm or the "
+                             "readout map does not match this archive")
+    return rec
 
 
 class PinnedEmitter(nn.Module):
@@ -125,8 +274,20 @@ def _pooled_params(hyper_E, x_all: torch.Tensor, chunk: int) -> Dict[str, torch.
         return {k: v.detach() for k, v in hyper_E.emit_from_pooled(acc / n).items()}
 
 
-def _score(ebm, emitter, flow, target, args, device, D: int) -> Dict[str, float]:
-    """The lib's final metrics for a fixed emission (mirrors ``_eval_density``)."""
+def _fixed_params(direct, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    """The emission of a direct module, which ignores its input."""
+    direct.eval()
+    with torch.no_grad():
+        return {k: v.detach() for k, v in direct(x[:1]).items()}
+
+
+def _score(ebm, emitter, flow, target, args, device, D: int,
+           x_nll: Optional[np.ndarray] = None) -> Dict[str, float]:
+    """The lib's final metrics for a fixed emission (mirrors ``_eval_density``).
+
+    With ``x_nll`` (one dimension) also ``nll_fixed = -mean log q(x_nll)``,
+    the held-out NLL on that sample under the same grid normalizer.
+    """
     K = 1
     D_aug = int(args.flow_D_aug)
     n_grid = int(getattr(args, "tv_grid_n", 0))   # unused above one dimension
@@ -144,6 +305,8 @@ def _score(ebm, emitter, flow, target, args, device, D: int) -> Dict[str, float]
         m = grid_metrics_1d(target.log_prob_np, logp_fn, *target.xlim, n=n_grid)
         xs_np = np.linspace(target.xlim[0], target.xlim[1], n_grid)
         m["log_p_grid"] = np.asarray(logp_fn(xs_np), dtype=np.float64)
+        if x_nll is not None:
+            m["nll_fixed"] = float(-np.mean(np.asarray(logp_fn(x_nll), dtype=np.float64)))
         return m
     test = np.asarray(target.test_data, dtype=np.float64)
     return {"test_nll": float(-np.asarray(logp_fn(test)).mean())}
@@ -190,7 +353,22 @@ def _run_ensemble(a, device) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--archive", required=True, help="directory (or glob of directories) holding seed*_hypernet.pt")
+    p.add_argument("--archive", required=True, help="directory (or glob of directories) holding seed*_<backend>.pt")
+    p.add_argument("--backend", default=DEFAULT_BACKEND, choices=sorted(BACKEND_MAP),
+                   help="which checkpoints to read, seed*_<backend>.pt")
+    p.add_argument("--hyper_pos_mode", default="auto", choices=["auto", "softplus", "exp"],
+                   help="the readout map to build; auto takes the backend's own (exp for *_exp, else softplus). "
+                        "Parameter-free, so load_state_dict cannot check it: the replay guard does")
+    p.add_argument("--guard_only", type=int, default=0,
+                   help="1: run the replay guard on every stored snapshot and record it, score nothing; "
+                        "exits 1 after recording if any checkpoint fails")
+    p.add_argument("--guard_tol", type=float, default=GUARD_TOL,
+                   help="replay guard tolerance (rtol = atol) on every emitted tensor")
+    p.add_argument("--nll_hist", type=int, default=0,
+                   help="1 (with --snapshots 1, one dimension): also the held-out NLL at every snapshot on "
+                        "one fixed sample common to every run")
+    p.add_argument("--nll_n", type=int, default=1 << 14, help="size of the fixed NLL sample")
+    p.add_argument("--nll_seed", type=int, default=2027, help="CPU seed of the fixed NLL sample")
     p.add_argument("--target_kind", required=True)
     p.add_argument("--config", required=True, help="the driver's config JSON")
     p.add_argument("--set", action="append", default=[], help="key=value override of a config field")
@@ -218,20 +396,60 @@ def main() -> None:
     dirs = sorted(d for d in glob.glob(a.archive) if os.path.isdir(d))
     if not dirs:
         raise SystemExit(f"no archive matches {a.archive!r}")
-    pts = sorted(pt for d in dirs for pt in glob.glob(os.path.join(d, "seed*_hypernet.pt")))
+    pts = sorted(pt for d in dirs for pt in glob.glob(os.path.join(d, f"seed*_{a.backend}.pt")))
     if a.seeds is not None:
         pts = [pt for pt in pts if int(re.search(r"seed(\d+)_", os.path.basename(pt)).group(1)) in set(a.seeds)]
     if not pts:
-        raise SystemExit("no seed*_hypernet.pt found")
+        raise SystemExit(f"no seed*_{a.backend}.pt found")
+    required = a.backend != DEFAULT_BACKEND
+    is_lift = a.backend in LIFT_BACKENDS
+    if required and is_lift and a.pool_norm < 0:
+        raise SystemExit(f"state --pool_norm 0 or 1 for backend {a.backend!r}; it is inferred only for the default")
+    pos_mode = resolve_pos_mode(a.backend, a.hyper_pos_mode)
     args = _args_from(a.config, dirs[0], a.set)
     pool_norm = bool(a.pool_norm) if a.pool_norm >= 0 else ("poolnorm" in os.path.basename(dirs[0].rstrip("/")) or "poolnorm" in os.path.dirname(dirs[0]))
     exp = HypernetVsDirect1D(args, target_kind=a.target_kind)
     exp.device = device
     target = exp._build_target()
     D = int(getattr(target, "D", 1))
-    print(f"archive(s): {len(dirs)}  seeds: {len(pts)}  target: {a.target_kind} (D={D})  pool_norm={pool_norm}  "
+    print(f"archive(s): {len(dirs)}  seeds: {len(pts)}  target: {a.target_kind} (D={D})  backend={a.backend}  "
+          f"map={pos_mode}  pool_norm={pool_norm}  "
           f"pool_scale={a.hyper_pool_scale}  noise_std={a.hyper_noise_std}  strong_convexity={args.strong_convexity}  "
           f"arch: {args.hidden_dim}x{args.nlayers} body {args.hyper_hidden_sizes}  D_aug={args.flow_D_aug}", flush=True)
+
+    def _modules(ck: dict):
+        ebm, hyper_E = build_modules(a.backend, args, D, pool_norm=pool_norm, pos_mode=pos_mode,
+                                     pool_scale=a.hyper_pool_scale, noise_std=a.hyper_noise_std)
+        # Older archives store the energy model's state as ``lcmm_state``.
+        ebm.load_state_dict(ck["ebm_state"] if "ebm_state" in ck else ck["lcmm_state"]); hyper_E.load_state_dict(ck["hyper_E_state"])
+        return ebm.to(device).eval(), hyper_E.to(device).eval()
+
+    head = {"archive": a.archive, "target_kind": a.target_kind, "backend": a.backend, "hyper_pos_mode": pos_mode,
+            "pool_norm": pool_norm, "guard_tol": float(a.guard_tol)}
+    if a.guard_only:
+        out_json: Dict[str, object] = {**head, "guard_only": True, "seeds": {}}
+        n_fail = 0
+        for pt in pts:
+            seed = int(re.search(r"seed(\d+)_", os.path.basename(pt)).group(1))
+            ck = torch.load(pt, map_location="cpu", weights_only=False)
+            _ebm, hyper_E = _modules(ck)
+            try:
+                g = replay_guard(hyper_E, ck, all_snapshots=True, device=device, tol=a.guard_tol,
+                                 required=required, raise_on_fail=False, noise_std=a.hyper_noise_std)
+            except ValueError as e:
+                g = {"status": "fail", "reason": str(e)}
+            n_fail += g["status"] == "fail"
+            out_json["seeds"][str(seed)] = {"guard": g}
+            print(f"  seed {seed:2d}  guard {g['status']}  checked {g.get('n_checked', 0)}/{g.get('n_stored', 0)}  "
+                  f"max abs err {g.get('max_abs_err', float('nan')):.3g}  {g.get('reason', '')}", flush=True)
+            del ck
+        os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+        with open(a.out + ".json", "w") as f:
+            json.dump(out_json, f, indent=2)
+        print(f"wrote {a.out}.json  ({n_fail} of {len(pts)} failed)")
+        if n_fail:
+            raise SystemExit(1)
+        return
 
     # The full training data, once: a finite split entirely, an analytic target by a fixed large sample.
     if hasattr(target, "train_data"):
@@ -243,29 +461,35 @@ def main() -> None:
         pin_desc = f"{x_all.shape[0]} target samples (seed 2026)"
     print(f"pinned on {pin_desc}", flush=True)
 
-    out_json: Dict[str, object] = {"archive": a.archive, "target_kind": a.target_kind, "pinned_on": pin_desc,
-                                   "pool_norm": pool_norm, "seeds": {}}
+    # The fixed NLL sample, drawn on the CPU so it is the same on every device and for every run.
+    x_nll = None
+    if a.nll_hist and a.snapshots and D == 1:
+        torch.manual_seed(int(a.nll_seed))
+        x_nll = target.sample(int(a.nll_n), device="cpu").detach().double().numpy().reshape(-1, D)
+
+    def _emit(hyper_E) -> Dict[str, torch.Tensor]:
+        """The lift pooled over ``x_all``; direct, which reads no data, as it is."""
+        return _pooled_params(hyper_E, x_all, a.chunk) if is_lift else _fixed_params(hyper_E, x_all)
+
+    out_json: Dict[str, object] = {**head, "pinned_on": pin_desc, "seeds": {},
+                                   "nll_fixed_sample": ({"n": int(a.nll_n), "seed": int(a.nll_seed), "device": "cpu"}
+                                                        if x_nll is not None else None)}
     out_npz: Dict[str, np.ndarray] = {}
     for pt in pts:
         seed = int(re.search(r"seed(\d+)_", os.path.basename(pt)).group(1))
         ck = torch.load(pt, map_location="cpu", weights_only=False)
-        ebm, hyper_E = build_hypernet_ebm(
-            K=1, D=D, hidden_dim=int(args.hidden_dim), nlayers=int(args.nlayers),
-            strong_convexity=float(args.strong_convexity),
-            hyper_hidden_sizes=[int(h) for h in args.hyper_hidden_sizes],
-            hyper_summary_kind="mlp",
-            hyper_extra_kwargs={"pool_norm": bool(pool_norm), "pool_scale": float(a.hyper_pool_scale)},
-            hyper_activation_noise_std=float(a.hyper_noise_std),
-        )
-        # Archives written before the energy model was renamed store its state as ``lcmm_state``.
-        ebm.load_state_dict(ck["ebm_state"] if "ebm_state" in ck else ck["lcmm_state"]); hyper_E.load_state_dict(ck["hyper_E_state"])
-        ebm, hyper_E = ebm.to(device).eval(), hyper_E.to(device).eval()
+        ebm, hyper_E = _modules(ck)
+        guard = replay_guard(hyper_E, ck, all_snapshots=bool(a.snapshots), device=device, tol=a.guard_tol,
+                             required=required, noise_std=a.hyper_noise_std)
+        print(f"  seed {seed:2d}  replay guard {guard['status']}  "
+              + (f"checked {guard['n_checked']}/{guard['n_stored']}  max abs err {guard['max_abs_err']:.3g}"
+                 if guard["status"] == "pass" else guard.get("reason", "")), flush=True)
         flow = ConditionalSamplerFlow(K=1, D=D, D_aug=int(args.flow_D_aug), n_hidden=int(args.flow_n_hidden),
                                       n_flow_layers=int(args.flow_n_layers), n_mlp_layers=int(getattr(args, "flow_n_mlp_layers", 3)),
                                       cond_dim=int(getattr(args, "cond_dim", 8))).to(device)
         flow.load_state_dict(ck["flow_state"]); flow.eval()
 
-        pinned = PinnedEmitter(_pooled_params(hyper_E, x_all, a.chunk)).to(device)
+        pinned = PinnedEmitter(_emit(hyper_E)).to(device)
         with torch.no_grad():
             torch.manual_seed(seed)
             x_h = target.sample(int(args.n_batch_hyper), device=device).detach()
@@ -274,18 +498,22 @@ def main() -> None:
         m_bat = _score(ebm, batch, flow, target, args, device, D)
         rec = {"pinned": {k: float(v) for k, v in m_pin.items() if np.ndim(v) == 0},
                "batch": {k: float(v) for k, v in m_bat.items() if np.ndim(v) == 0},
-               "recorded": {k: float(v) for k, v in ck.get("metrics", {}).items() if np.ndim(v) == 0}}
+               "recorded": {k: float(v) for k, v in ck.get("metrics", {}).items() if np.ndim(v) == 0},
+               "guard": guard}
         if "log_p_grid" in m_pin:
             out_npz[f"seed{seed}/log_p_grid_pinned"] = m_pin["log_p_grid"]
             out_npz[f"seed{seed}/log_p_grid_batch"] = m_bat["log_p_grid"]
         if a.snapshots and ck.get("hyper_E_snaps"):
-            its, tvs = [], []
+            its, tvs, nlls = [], [], []
             for it, sd in zip(ck["snap_iters"], ck["hyper_E_snaps"]):
                 hyper_E.load_state_dict(sd)
-                em = PinnedEmitter(_pooled_params(hyper_E, x_all, a.chunk)).to(device)
-                tvs.append(float(_score(ebm, em, flow, target, args, device, D)["tv"])); its.append(int(it))
+                em = PinnedEmitter(_emit(hyper_E)).to(device)
+                m_k = _score(ebm, em, flow, target, args, device, D, x_nll=x_nll)
+                tvs.append(float(m_k["tv"])); its.append(int(it)); nlls.append(m_k.get("nll_fixed", float("nan")))
             hyper_E.load_state_dict(ck["hyper_E_state"])
             out_npz[f"seed{seed}/tv_hist_iters"] = np.asarray(its); out_npz[f"seed{seed}/tv_hist_pinned"] = np.asarray(tvs)
+            if x_nll is not None:
+                out_npz[f"seed{seed}/nll_hist_pinned"] = np.asarray(nlls)
             rec["tv_hist_pinned_last"] = tvs[-1]
         out_json["seeds"][str(seed)] = rec
         key = "tv" if D == 1 else "test_nll"

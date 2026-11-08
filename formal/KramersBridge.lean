@@ -29,8 +29,9 @@ from the two proved bounds and nothing else. The quantifier structure matters an
 one `KramersExitTime` already provides. That module varies the two diffusions either
 independently (`eventually_meanExitTime_lift_lt_direct`, lifted diffusion fixed) or additively
 (`eventually_meanExitTime_additive_lift_lt_direct`, `σ²` against `σ² + σ_Jac²`). The pair the
-corrected mechanism actually compares is *multiplicatively* coupled: the bias-channel diffusion
-of §3 of `docs/design/lemma1_rederivation.md` is `dw = -L̃'(w) dt + √η σ_eff(w) dB`, so the
+corrected mechanism actually compares, and the pair of the paper's `thm:main`(iii) and of Step 3
+of the proof of `cor:fpt`, is *multiplicatively* coupled: the bias-channel diffusion
+of §3 of the design note is `dw = -L̃'(w) dt + √η σ_eff(w) dB`, so the
 diffusion coefficient of the boundary-value problem is `η σ_eff²` and the two members of the
 comparison are `η · directDiffusion` and `η · liftDiffusion` with one shared learning rate `η`.
 `eventually_meanExitTime_lift_lt_direct_smallLearningRate` proves the strict ordering for that
@@ -38,7 +39,7 @@ family, for every sufficiently small learning rate, carrying no gap hypothesis a
 about prefactors; `eventually_meanExitTime_lift_lt_direct_of_channels` states it in
 `BarrierRescaling`'s own channel vocabulary, so that the sign hypotheses it consumes are exactly
 `hcoupling`, `hquadratic` and `hnondeg` and `hkramers` has disappeared. The small learning rate
-is the paper's own operating assumption, not an artefact.
+is the paper's own operating assumption, not an artifact.
 
 **The ratio identity survives as a bracket, and, at logarithmic scale, as an exact limit.**
 `meanExitTime_ratio_bracket` converts the two-sided bound into a two-sided bound on the ratio of
@@ -77,8 +78,10 @@ in `σ²`. That computation yields the Eyring–Kramers prefactor
 `T(x) = (2π / √(U''(w_b)|U''(w_s)|)) exp(2α/σ²) (1 + o(1))` — that is, `hkramers` with an
 explicit `C` and an explicit error. Nothing in the argument needs stochastic calculus: it is an
 asymptotic evaluation of the double integral `meanExitTime` already defines, and it needs `U` to
-be `C³` near the two extrema with `U''(w_b) > 0` and `U''(w_s) < 0`, which is the paper's (A5)
-in its full strength rather than the `C¹` weakening used so far. It is a substantial piece of
+be `C³` near the two extrema with `U''(w_b) > 0` and `U''(w_s) < 0`, which is more than the
+paper's Assumption A2(b) asks: A2(b) asks only that `L̃` be continuous on `[a, b]` and
+differentiable in its interior, which is what the binders used so far carry. (History: the v4
+draft's (A5) asked for a `C²` single-barrier potential.) It is a substantial piece of
 real analysis — a uniform Laplace method with remainder — and it is **future work**; it is named
 here so that the remaining gap is a definite piece of mathematics and not a gesture. Until it is
 carried out, `hkramers` stays a hypothesis, and every conclusion `BarrierRescaling` draws from
@@ -94,7 +97,7 @@ on the interval. The obvious candidate — a quadratic barrier — is **not** av
 `no_quadratic_single_barrier` proves it: a quadratic whose basin bottom and barrier top are both
 interior to `[a, b]` and are respectively the minimum and the maximum of the quadratic on
 `[a, b]` must have vanishing leading and linear coefficients, hence be constant, hence have zero
-barrier action. The single-barrier structure of (A5) with both extrema interior forces two
+barrier action. The extremality clause of A2(b) with both extrema interior forces two
 interior critical points, and so forces a potential of degree at least three (or a transcendental
 one such as `-cos`). This is why `KramersExitTime`'s own witness is a cubic and why the witness
 here is a cosine.
@@ -135,6 +138,11 @@ here is a cosine.
   hypotheses with a positive barrier.
 * `smallLearningRate_ordering_nonvacuous` — the cosine-barrier instance, with the instantiated
   conclusion carried in the statement.
+* `tendsto_mul_log_div_precond`, `eventually_const_mul_lt_of_tendsto_mul_log`,
+  `mean_first_passage_kramers_exponent_precond_of_dynkin`,
+  `eventually_mean_first_passage_precond_lift_lt_direct` —
+  `prop:precond-full`(ii)–(iii) for the exit time: the exponent at a fixed preconditioner `p`,
+  and the small-step ordering of two preconditioned exit times with unequal prefactors `1/p`.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -144,13 +152,15 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 The hypotheses carried, and what each would take to discharge:
 
 * `hU`, `hax`, `hawb`, `hwbws`, `hwsb`, `hxws`, `hmax`, `hmin` — `KramersExitTime`'s own
-  regularity and single-barrier stack, weakened there to `C⁰` on the closed interval, plus the
-  ordering `a < w_b < w_s < b` and the two extremal clauses of (A5). They are inherited verbatim,
+  regularity and single-barrier stack, continuity on the closed interval, plus the
+  ordering `a < w_b < w_s < b` and the two extremal clauses of the paper's A2(b), together with
+  the start `a ≤ x < w_s` of `cor:fpt`. They are inherited verbatim,
   and `smallLearningRate_ordering_nonvacuous` discharges all of them on a concrete instance.
 * `hDynkin` in the paper-facing form — Dynkin's formula for the generator
   `A = (σ²/2)∂² - U'∂`. It is `KramersExitTime`'s hypothesis, inherited unchanged; this mathlib
   has no Itô calculus, so it cannot be discharged here.
-* `hcoupling : 0 ≤ coupling` in the channel form — assumption (A6) of §11.3 of the note, which
+* `hcoupling : 0 ≤ coupling` in the channel form — assumption (A6) of §11.3 of the design note
+  (the current paper has no such label and states the sign it needs as the condition `c > 0`), which
   `CouplingSign.lean` machine-checks cannot be traded for a derivation. It enters only through
   `directDiffusion_lt_liftDiffusion` and is `BarrierRescaling`'s hypothesis, not a new one.
 
@@ -318,8 +328,9 @@ theorem eventually_meanExitTime_lift_lt_direct_smallLearningRate {U : ℝ → �
 The two effective diffusions of the corrected decomposition of §2 are
 `directDiffusion s sigmaObj = s² σ_obj²` and
 `liftDiffusion s sigmaObj coupling quadratic = s² σ_obj² + coupling + quadratic`. Under the sign
-hypotheses `BarrierRescaling` already carries — `hcoupling`, the projected form of assumption
-(A6) of §11.3, which `CouplingSign.lean` shows is not derivable; `hquadratic`, discharged from
+hypotheses `BarrierRescaling` already carries — `hcoupling`, the projected form of the design
+note's assumption (A6) of its §11.3 (the current paper states the sign it needs as the condition
+`c > 0`), which `CouplingSign.lean` shows is not derivable; `hquadratic`, discharged from
 `TraceLemmas.quadForm_conj_nonneg` once the channel is instantiated as a quadratic form; and the
 non-degeneracy disjunction — the lift's mean exit time is strictly below the direct baseline's
 for every sufficiently small learning rate.
@@ -483,7 +494,7 @@ side is exactly `(L/δ) t exp(-t)` at `t = 2δ/(ηv)`, hence at most `L/δ` by
 proved upper-bound prefactor is `2P/(ηv)`, which degrades as `v` grows, so a *constant* `C`
 can respect it only below a threshold, and `v₀` is that threshold.
 
-The consequence for the audit is that `hkramers` is not merely unrefuted by the proved bounds;
+The consequence is that `hkramers` is not merely unrefuted by the proved bounds;
 no instance of them can contradict it. What remains unproved is that the true exit time equals
 such a function, which is the second-order Laplace expansion described in the module
 docstring. -/
@@ -612,7 +623,7 @@ At a fixed diffusion the bracket does not close, and it cannot without the sharp
 logarithmic scale, in the small-learning-rate limit, it closes exactly, and the identity
 `escapeTime_ratio_of_kramers` derives from `hkramers` is recovered without `hkramers`. -/
 
-/-- Multiplying by a positive constant maps the punctured right neighbourhood of the origin into
+/-- Multiplying by a positive constant maps the punctured right neighborhood of the origin into
 itself; this transports `KramersExitTime`'s small-noise limit from the diffusion coefficient to
 the learning rate. -/
 theorem tendsto_nhdsGT_mul_const {c : ℝ} (hc : 0 < c) :
@@ -718,6 +729,136 @@ theorem tendsto_mul_log_ratio_sub_escapeTimeRatio {U : ℝ → ℝ} {a b x wb ws
     exact (mul_log_escapeTimeRatio (ne_of_gt heta) hsd.ne' hsl.ne').symm
   have h := h1.sub h2
   rwa [sub_self] at h
+
+/-! ### A preconditioned step (`prop:precond-full`(ii)–(iii))
+
+`KramersExitTime.eq_meanExitTime_div_of_precond` gives `T_p = T^{(ηp)}/p`. The two lemmas below
+are about any positive family with a small-noise exponent, so that the exit time here and the
+dwell in `ShoulderDwell` both consume them: dividing by a constant `p` does not move an
+exponent, and an unequal pair of constant prefactors cannot outlast a separation of exponents. -/
+
+/-- If `s log A(s) → L`, then at a fixed `p > 0`, `p s log (A(p s)/p) → L` as `s → 0⁺`: the
+factor `1/p` contributes `p s log p → 0`. -/
+theorem tendsto_mul_log_div_precond {A : ℝ → ℝ} {L p : ℝ} (hp : 0 < p)
+    (hA : Filter.Tendsto (fun s => s * Real.log (A s)) (𝓝[>] (0 : ℝ)) (𝓝 L))
+    (hpos : ∀ s, 0 < s → 0 < A s) :
+    Filter.Tendsto (fun s => p * s * Real.log (A (p * s) / p)) (𝓝[>] (0 : ℝ)) (𝓝 L) := by
+  have h1 := hA.comp (tendsto_nhdsGT_mul_const hp)
+  have h2 : Filter.Tendsto (fun s : ℝ => p * s * Real.log p) (𝓝[>] (0 : ℝ)) (𝓝 0) := by
+    have h : Filter.Tendsto (fun s : ℝ => p * s * Real.log p) (𝓝 (0 : ℝ))
+        (𝓝 (p * 0 * Real.log p)) :=
+      ((continuous_const.mul continuous_id).mul continuous_const).tendsto 0
+    rw [mul_zero, zero_mul] at h
+    exact h.mono_left nhdsWithin_le_nhds
+  have h := h1.sub h2
+  rw [sub_zero] at h
+  refine h.congr' ?_
+  filter_upwards [self_mem_nhdsWithin] with s hs
+  have hs' : (0 : ℝ) < s := hs
+  simp only [Function.comp_apply]
+  rw [Real.log_div (hpos (p * s) (mul_pos hp hs')).ne' hp.ne', mul_comm s p]
+  ring
+
+/-- **Constant prefactors do not outlast a separation of exponents.** If `s log A(s) → L > 0`
+and `A > 0`, then at two fixed scales `kd < kl` and for every constant `c > 0`,
+`c · A(η kl) < A(η kd)` for every sufficiently small `η`: the exponents `L/(η kd)` and
+`L/(η kl)` separate by `L(1/kd - 1/kl)/η`, which outgrows `log c`. -/
+theorem eventually_const_mul_lt_of_tendsto_mul_log {A : ℝ → ℝ} {L c kd kl : ℝ}
+    (hL : 0 < L) (hc : 0 < c) (hkd : 0 < kd) (hkdl : kd < kl)
+    (hA : Filter.Tendsto (fun s => s * Real.log (A s)) (𝓝[>] (0 : ℝ)) (𝓝 L))
+    (hpos : ∀ s, 0 < s → 0 < A s) :
+    ∀ᶠ eta in 𝓝[>] (0 : ℝ), c * A (eta * kl) < A (eta * kd) := by
+  have hkl : 0 < kl := hkd.trans hkdl
+  have hscale : ∀ k : ℝ, 0 < k → Filter.Tendsto (fun eta => eta * Real.log (A (eta * k)))
+      (𝓝[>] (0 : ℝ)) (𝓝 (L / k)) := by
+    intro k hk
+    have h := (hA.comp (tendsto_nhdsGT_mul_const hk)).const_mul (1 / k)
+    have hval : 1 / k * L = L / k := by field_simp
+    rw [hval] at h
+    refine h.congr fun eta => ?_
+    simp only [Function.comp_apply]
+    field_simp
+  have hlogc : Filter.Tendsto (fun eta : ℝ => eta * Real.log c) (𝓝[>] (0 : ℝ)) (𝓝 0) := by
+    have h : Filter.Tendsto (fun eta : ℝ => eta * Real.log c) (𝓝 (0 : ℝ))
+        (𝓝 (0 * Real.log c)) := (continuous_mul_const (Real.log c)).tendsto 0
+    rw [zero_mul] at h
+    exact h.mono_left nhdsWithin_le_nhds
+  have hl := hlogc.add (hscale kl hkl)
+  rw [zero_add] at hl
+  filter_upwards [hl.eventually_lt (hscale kd hkd) (div_lt_div_of_pos_left hL hkd hkdl),
+    self_mem_nhdsWithin] with eta h1 h2
+  have heta : (0 : ℝ) < eta := h2
+  have hAl := hpos (eta * kl) (mul_pos heta hkl)
+  have hAd := hpos (eta * kd) (mul_pos heta hkd)
+  rw [← Real.log_lt_log_iff (mul_pos hc hAl) hAd, Real.log_mul hc.ne' hAl.ne']
+  have h3 : eta * (Real.log c + Real.log (A (eta * kl))) < eta * Real.log (A (eta * kd)) := by
+    rw [mul_add]
+    exact h1
+  exact lt_of_mul_lt_mul_left h3 heta.le
+
+/-- **`prop:precond-full`(ii), the exit-time exponent.** Given Dynkin's formula for the
+preconditioned diffusion at every `s = η σ_eff² > 0` and a fixed `p > 0`,
+`η p σ_eff² log T_p(x) → 2α`. -/
+theorem mean_first_passage_kramers_exponent_precond_of_dynkin {U U' : ℝ → ℝ}
+    {a b x wb ws p : ℝ} (hp : 0 < p) (tau Dtau DDtau : ℝ → ℝ → ℝ)
+    (hDynkin : ∀ s : ℝ, 0 < s →
+      MeanExitTimeBVP (p ^ 2 * s) (fun y => p * U' y) a b (tau s) (Dtau s) (DDtau s))
+    (htau : ∀ s : ℝ, 0 < s → ContinuousOn (tau s) (Set.Icc a b))
+    (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hax : a ≤ x)
+    (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
+    (hbarrier : U wb < U ws)
+    (hmax : ∀ y ∈ Set.Icc a b, U y ≤ U ws) (hmin : ∀ z ∈ Set.Icc a b, U wb ≤ U z) :
+    Filter.Tendsto (fun s => p * s * Real.log (tau s x)) (𝓝[>] (0 : ℝ))
+      (𝓝 (2 * (U ws - U wb))) := by
+  have hab : a < b := hawb.trans (hwbws.trans hwsb)
+  have hxb : x ≤ b := hxws.le.trans hwsb.le
+  refine (tendsto_mul_log_div_precond (A := fun s => meanExitTime s U a b x) hp
+    (tendsto_mul_log_meanExitTime hU hax hawb hwbws hwsb hxws hbarrier hmax hmin)
+    (fun s hs => meanExitTime_pos hs hU hax hawb hwbws hwsb hxws)).congr' ?_
+  filter_upwards [self_mem_nhdsWithin] with s hs
+  have hspos : (0 : ℝ) < s := hs
+  rw [eq_meanExitTime_div_of_precond hp hspos hab hU hU' (htau s hspos) (hDynkin s hspos) x
+    ⟨hax, hxb⟩]
+
+/-- **`prop:precond-full`(iii), the exit-time clause.** Two preconditioned diffusions at one
+shared step size `η`, with entries `pd`, `pl` along `e_b` and effective variances `sd`, `sl`.
+If `pd sd < pl sl`, the lift's mean first passage is strictly the smaller for every sufficiently
+small `η`, the unequal prefactors `1/pd`, `1/pl` notwithstanding. With `p = χ(m² + σ_eff²)`
+the hypothesis `pd sd < pl sl` is the strict increase of `v ↦ v χ(m² + v)` at `sd < sl`. -/
+theorem eventually_mean_first_passage_precond_lift_lt_direct {U U' : ℝ → ℝ}
+    {a b x wb ws sd sl pd pl : ℝ}
+    (taud Dtaud DDtaud taul Dtaul DDtaul : ℝ → ℝ → ℝ)
+    (hDynkinD : ∀ eta : ℝ, 0 < eta → MeanExitTimeBVP (pd ^ 2 * (eta * sd))
+      (fun y => pd * U' y) a b (taud eta) (Dtaud eta) (DDtaud eta))
+    (hDynkinL : ∀ eta : ℝ, 0 < eta → MeanExitTimeBVP (pl ^ 2 * (eta * sl))
+      (fun y => pl * U' y) a b (taul eta) (Dtaul eta) (DDtaul eta))
+    (htaud : ∀ eta : ℝ, 0 < eta → ContinuousOn (taud eta) (Set.Icc a b))
+    (htaul : ∀ eta : ℝ, 0 < eta → ContinuousOn (taul eta) (Set.Icc a b))
+    (hsd : 0 < sd) (hpd : 0 < pd) (hpl : 0 < pl) (hprod : pd * sd < pl * sl)
+    (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hax : a ≤ x)
+    (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
+    (hbarrier : U wb < U ws)
+    (hmax : ∀ y ∈ Set.Icc a b, U y ≤ U ws) (hmin : ∀ z ∈ Set.Icc a b, U wb ≤ U z) :
+    ∀ᶠ eta in 𝓝[>] (0 : ℝ), taul eta x < taud eta x := by
+  have hab : a < b := hawb.trans (hwbws.trans hwsb)
+  have hxb : x ≤ b := hxws.le.trans hwsb.le
+  have hsl : 0 < sl := pos_of_mul_pos_right ((mul_pos hpd hsd).trans hprod) hpl.le
+  filter_upwards [eventually_const_mul_lt_of_tendsto_mul_log
+      (A := fun s => meanExitTime s U a b x) (by linarith) (div_pos hpd hpl) (mul_pos hpd hsd)
+      hprod (tendsto_mul_log_meanExitTime hU hax hawb hwbws hwsb hxws hbarrier hmax hmin)
+      (fun s hs => meanExitTime_pos hs hU hax hawb hwbws hwsb hxws),
+    self_mem_nhdsWithin] with eta h1 h2
+  have heta : (0 : ℝ) < eta := h2
+  rw [eq_meanExitTime_div_of_precond hpl (mul_pos heta hsl) hab hU hU' (htaul eta heta)
+      (hDynkinL eta heta) x ⟨hax, hxb⟩,
+    eq_meanExitTime_div_of_precond hpd (mul_pos heta hsd) hab hU hU' (htaud eta heta)
+      (hDynkinD eta heta) x ⟨hax, hxb⟩,
+    show pl * (eta * sl) = eta * (pl * sl) by ring, show pd * (eta * sd) = eta * (pd * sd) by ring,
+    div_lt_div_iff₀ hpl hpd]
+  rw [div_mul_eq_mul_div, div_lt_iff₀ hpl] at h1
+  linarith
 
 /-! ### Non-vacuity, and why the quadratic barrier is unavailable
 

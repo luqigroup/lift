@@ -2,7 +2,7 @@
 
 The ICNN outputs a scalar ``E(x)`` that is convex in ``x``: the
 hidden-to-hidden weights are non-negative, the activations are convex and
-non-decreasing (softplus or ReLU), and the input skip connections are
+non-decreasing (softplus, ReLU or ELU), and the input skip connections are
 unconstrained. A strong-convexity quadratic is added so that
 ``q(x) = exp(-E(x)) / Z`` is well defined even before training.
 
@@ -73,6 +73,8 @@ class ICNN(nn.Module):
             self.activation = nn.Softplus()
         elif activation == "relu":
             self.activation = nn.ReLU()
+        elif activation == "elu":
+            self.activation = nn.ELU(alpha=1.0)
         else:
             raise ValueError(f"Unknown activation: {activation}")
 

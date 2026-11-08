@@ -4,9 +4,25 @@ import CrossCov
 /-!
 # The shoulder, and the once-versus-twice attenuation count
 
-This file machine-checks the shoulder facts of the paper's Section 2
-(`docs/paper/v4/02_shoulder.tex`) and the attenuation-count asymmetry that opens Section 4
-(`docs/paper/v4/04_mechanism.tex`, the paragraph beginning "The two terms are not attenuated
+**Against the current paper.** This module was written against the v4 draft,
+and its section numbers, `eq:shoulder`, the displayed `0.051` and `1.5%`,
+and its (A2) (the v4 form `ψ'(θ̃) ≈ σ_s I_d`) are that draft's; they are kept as history. In the
+current paper the shoulder is defined in prose in §2.1
+(`sec:shoulder`) as the closed region `ψ'(θ̃_j) ≤ σ_sh` with `σ_sh = 0.05`, "latent weights
+below `-2.94`", which is `shoulder_closed_eq_Iic` at `s = 0.05`; the band clause is A2(a),
+`|ψ'(w) - σ_s| ≤ ε` on an interval, the scalar form of the small-spread reading of Section 7
+below. The once-versus-twice count proved here concerns the trace `σ²_Jac = tr Σ_slack`, and it
+remains true as algebra, but the current paper does not use it as the power of the diffusion:
+its `rem:power` (Appendix A.4) shows that the coupling term of `eq:sigma-eff`,
+`2 e_bᵀ H Σ_ξ e_b`, is `O(σ_s²)` and never of order `σ_s`, so both escape exponents are of order
+`σ_s⁻²` and their ratio is bounded (`CouplingPower.lean` and `PowerOfS.lean` carry that count).
+The divergence of `σ²_Jac/(σ_s²σ²_obj)` proved below is therefore not a divergence of the ratio
+of the two exponents, and the sentences below that call it "all the downstream argument ever
+needed" describe the v4 argument.
+
+This file machine-checks the shoulder facts of the v4 draft's Section 2
+and the attenuation-count asymmetry that opens its Section 4
+(the paragraph beginning "The two terms are not attenuated
 alike").
 
 Section 2 parametrizes the constrained weights of an input-convex network through a positivity
@@ -14,20 +30,17 @@ map, `θ = ψ(θ̃)`, and observes that gradients reach the free coordinate only
 positivity map's derivative, `∇_{θ̃}L = ψ'(θ̃) ⊙ ∇_θ L` (`eq:chain`). For the softplus positivity map
 `ψ(w) = log(1 + e^w)` the prefactor `ψ'` is the logistic function; it is strictly positive,
 strictly increasing, and tends to zero at `-∞`, so the sublevel set on which it has collapsed
-below a tolerance `σ_s` — the **shoulder** `S_{σ_s} = {w̃ : ψ'(w̃) < σ_s}` of
-`eq:shoulder` — is a genuine left-infinite half-line rather than a thin set. All of that is
+below a tolerance `σ_s` — the **shoulder** `S_{σ_s} = {w̃ : ψ'(w̃) < σ_s}` of v4's
+`eq:shoulder` (§2.1 of the current paper, in prose) — is a genuine left-infinite half-line
+rather than a thin set. All of that is
 proved here from `HasDerivAt`, with the half-line's right endpoint computed exactly as
 `log(σ_s/(1-σ_s))`, and with the corresponding edge in the constrained coordinate computed as
-`ψ(log(σ_s/(1-σ_s))) = -log(1-σ_s)`, the closed form behind the paper's `0.051` at
+`ψ(log(σ_s/(1-σ_s))) = -log(1-σ_s)`, the closed form behind v4's `0.051` at
 `σ_s = 0.05` (the identity is machine-checked; the decimal arithmetic is not).
 
-The generality of the phenomenon is a claim the paper makes, but a reader of `docs/paper/v4/` will
-not find it stated there, and this is worth saying plainly because the assignment for this file
-cited it by label. The remark that carried it, `rem:positivity-generality`, was not migrated into
-the sectioned v4 source — `log.md` records the decision, and `docs/handoff/HANDOFF.md` still lists
-the label among the manuscript's formal statements. Its text survives in the pre-split manuscript
-`research/paper_icnn_lift.tex`, which this repository keeps only on the branch
-`worktree-agent-a1027a26523ab1482`, and reads "The lift analysis below uses only that
+The generality of the phenomenon is a claim of the pre-split manuscript that the v4 draft does
+not state. The remark that carried it, `rem:positivity-generality`, was not carried into the
+v4 draft. In the pre-split manuscript it reads "The lift analysis below uses only that
 `ψ : ℝ → ℝ_{≥0}` is differentiable monotone, with a chain-rule prefactor `ψ'` that is small on an
 extended region of parameter space, so chain-rule attenuation is genuinely active on a non-trivial
 subset of parameter space". It continues that the non-differentiable projection limit
@@ -58,19 +71,19 @@ proved as a genuine `Tendsto … atTop` along `𝓝[>] 0`, for the estimator
 (`popCrossCovRatio_tendsto_atTop`) alike.
 
 **The power of the prefactor, and where the correction actually lives.** The superseded
-pre-split manuscript — the same `research/paper_icnn_lift.tex` named above — called `σ²_Jac`
-*unattenuated*, that is `Θ(1)` in the prefactor, and the authors' own design note settles that
-this was wrong (`docs/design/lemma1_rederivation.md` §11.2, which audits the occurrences line by
+pre-split manuscript called `σ²_Jac`
+*unattenuated*, that is `Θ(1)` in the prefactor, and the design note settles that
+this was wrong (§11.2, which checks the occurrences line by
 line): since `δg = ψ'(θ̃) ⊙ ∇_θ L` already contains one factor of the prefactor,
 `σ²_Jac = Θ(s)`, attenuated once. The v4 source formalized here already carries the corrected
 count in prose — Section 4 says `σ²_Jac` "carries that derivative once", and has in every
-revision of `04_mechanism.tex` — so this file corrects nothing in the current text; it
+revision of that section — so this file corrected nothing in the v4 text; it
 machine-checks the corrected power that the text states and the design note derived.
 `crossCovEstimator_attenuated_once` is the exact statement of it, and `attenuation_asymmetry`
 records both halves of the corrected reading at once: the cross-covariance channel does vanish
 as `s → 0⁺` — so it is *not* unattenuated — and yet the ratio to the twice-attenuated objective
 channel still diverges, which is all the downstream argument ever needed. One occurrence of
-"unattenuated" does survive in v4, in `A2_experiments.tex`'s drift-free bias-channel simulation,
+"unattenuated" does survive in v4, in its drift-free bias-channel simulation,
 where it attaches to the injected latent weight dial of that synthetic SDE rather than to the
 population `σ²_Jac`; the design note classifies that usage as scoped to the synthetic model and
 defensible, while cautioning that the dial does not share the real quantity's `s`-scaling.
@@ -118,7 +131,8 @@ do the work, and how small the spread must be is set by the cancellation in the 
   a free parameter at `-5` passes under `1.5%` of the gradient it passes at zero.
 * `shoulder_eq_deriv_sublevel` — the shoulder is the sublevel set of `deriv softplus`, so the
   identification `ψ' = logistic` is derived and not built into the definition.
-* `shoulder_eq_Iio`, `shoulder_closed_eq_Iic` — the shoulder of `eq:shoulder` is the half-line
+* `shoulder_eq_Iio`, `shoulder_closed_eq_Iic` — the shoulder (v4's `eq:shoulder`; the current
+  paper's §2.1 uses the closed version) is the half-line
   `(-∞, log(s/(1-s)))`, and its closed version is `(-∞, log(s/(1-s))]`.
 * `softplus_shoulder_edge` — the same edge read in the constrained coordinate: `-log(1-s)`.
 * `mem_shoulder_of_softplus_lt` — Section 2's reading of that edge: every constrained weight
@@ -214,8 +228,8 @@ The explicit hypotheses this file carries, and what each would take to discharge
    the argument assumes the remainder vanishes.
 3. **Positivity of the two constants.** `0 < A` and `0 < B` are hypotheses. `A > 0` is
    non-degeneracy of the objective gradient noise; `B > 0` is exactly the nonzero cross-covariance
-   reading that Theorem 1 of the paper characterizes, and `CrossCov.joint_necessity_finite` says
-   what it takes structurally. Neither can be proved here: `B = 0` is a real possibility (it is
+   reading that Theorem 2 of the paper (`thm:joint-necessity`) characterizes, and
+   `CrossCov.joint_necessity_finite` says what it takes structurally. Neither can be proved here: `B = 0` is a real possibility (it is
    what every architecture missing one of the three ingredients gives), and the paper's claim is
    conditional on it being nonzero.
 
@@ -516,7 +530,7 @@ theorem logistic_le_iff {s w : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
   rw [Real.le_log_iff_exp_le hq, logistic_def, div_le_iff₀ hden, le_div_iff₀ h1s]
   constructor <;> intro h <;> nlinarith
 
-/-- **`eq:shoulder`, exactly as displayed in the paper**: for a tolerance `0 < s < 1` the
+/-- **`eq:shoulder`, exactly as displayed in the v4 draft**: for a tolerance `0 < s < 1` the
 shoulder is the left-infinite interval `(-∞, log(s/(1-s)))`. The right endpoint is given in
 closed form, which is what makes the shoulder an extended region rather than a thin set: at
 `s = 0.05` it is the half-line below `log(1/19)`. -/
@@ -525,15 +539,17 @@ theorem shoulder_eq_Iio {s : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
   ext w
   simpa [shoulder, shoulderOf] using logistic_lt_iff (w := w) hs0 hs1
 
-/-- The closed sublevel set `{w̃ : ψ'(w̃) ≤ s}` is the corresponding closed half-line. -/
+/-- The closed sublevel set `{w̃ : ψ'(w̃) ≤ s}` is the corresponding closed half-line. This is
+the shoulder as the current paper defines it (§2.1, `ψ'(θ̃_j) ≤ σ_sh`); at `s = 0.05` the edge
+`log(1/19) ≈ -2.944` is its "latent weights below `-2.94`". -/
 theorem shoulder_closed_eq_Iic {s : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
     {w : ℝ | logistic w ≤ s} = Set.Iic (Real.log (s / (1 - s))) := by
   ext w
   simpa using logistic_le_iff (w := w) hs0 hs1
 
 /-- **The shoulder edge read in the constrained coordinate.** Applying the positivity map to the right
-endpoint of `eq:shoulder` gives `-log(1-s)`; at `s = 0.05` this is the paper's `ψ(-2.944) ≈
-0.051`, so every constrained weight below it lies in the shoulder. -/
+endpoint of `eq:shoulder` gives `-log(1-s)`; at `s = 0.05` this is the v4 draft's
+`ψ(-2.944) ≈ 0.051` (the current paper quotes only the latent edge), so every constrained weight below it lies in the shoulder. -/
 theorem softplus_shoulder_edge {s : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
     softplus (Real.log (s / (1 - s))) = -Real.log (1 - s) := by
   have h1s : (0 : ℝ) < 1 - s := by linarith
@@ -693,7 +709,7 @@ iterate fluctuation `δθ̃` of `eq:fluct` passes through no positivity-map deri
 re-evaluation of the latent weight, not a gradient step. The estimator of `eq:cross-cov` is therefore
 exactly linear in `s`.
 
-This is the corrected power of `docs/design/lemma1_rederivation.md` §11.2 — the count that
+This is the corrected power of §11.2 of the design note — the count that
 Section 4 of the v4 text states as "carries that derivative once": `σ²_Jac = Θ(s)`. The
 superseded pre-split manuscript's word "unattenuated", which would mean `Θ(1)`, was wrong, and
 §11.2 records the correction that the v4 wording now carries. -/
@@ -926,7 +942,7 @@ theorem attenuationRatio_tendsto_atTop_with_remainders {A B Cj Co : ℝ}
 scaling as `sB` and the objective channel as `s²A`:
 
 * the coupling channel *vanishes* as the positivity map flattens, so it is **not** unattenuated — the
-  content of `docs/design/lemma1_rederivation.md` §11.2's correction to the superseded pre-split
+  content of the correction in §11.2 of the design note to the superseded pre-split
   manuscript, which the v4 wording already incorporates;
 * the objective channel vanishes too;
 * and yet their ratio diverges, because the first is attenuated once where the second is

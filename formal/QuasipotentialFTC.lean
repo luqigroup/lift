@@ -4,7 +4,7 @@ import BarrierRescaling
 /-!
 # The quasipotential of equation (*) as an integral, and the discharge of `hUeff`
 
-`BarrierRescaling.lean` machine-checks claim (L2') of `docs/design/lemma1_rederivation.md` §3 —
+`BarrierRescaling.lean` machine-checks claim (L2') of the design note, §3 —
 the barrier rescaling `alpha_eff = alpha / sigma_eff^2` and its two-sided band form — but it does
 so with the effective potential `U_eff` left abstract, constrained only by the named hypothesis
 
@@ -15,6 +15,12 @@ does not leave `U_eff` abstract: it *defines* it, as the indefinite integral
 `U_eff(w) = ∫^w Ltilde'(u) / sigma_eff^2(u) du`. Read that way, `hUeff` is not a stochastic-analysis
 input at all — it is the fundamental theorem of calculus. This file takes the note's definition
 literally, and discharges `hUeff` from it.
+
+Against the current paper: (L2'), the section numbers and "the
+corrected Corollary 1" are the design note's, and (A1), (A2) below are the v4 draft's labels.
+In the current paper the quasipotential is `U_eff` of Lemma 1(iv) (`lem:diffusion`, Appendix
+A.3), the barrier bracket is Lemma 1(v), proved in Step 5 of its proof, and the regularity
+consumed here is the regularity row of `tab:hyp`: `L̃'` and `σ_eff²` continuous, `σ_eff² > 0`.
 
 The content is therefore a chain of three steps. First, `quasipotential` is the note's integral,
 with the lower limit made explicit (the note writes the indefinite `∫^w`, which fixes `U_eff` only
@@ -37,8 +43,9 @@ a two-sided `HasDerivAt` at every point of the closed band, its endpoints includ
 defined only on `[w_b, w_s]` cannot have a two-sided derivative at `w_b`, so `hUeff` implicitly
 requires `Ltilde'` and `sigma_eff^2` to be defined, continuous and elliptic on a neighbourhood of
 the band. That is why the hypotheses below are stated on an open interval `Ioo a b` containing the
-closed band rather than on the band itself. This is a real, if mild, strengthening of the paper's
-(A2), and it is stated rather than smuggled.
+closed band rather than on the band itself. The current paper states the same requirement, in
+Step 5 of the proof of Lemma 1: "the antiderivative from continuity and positivity on an open
+interval containing it".
 
 *`hUeff` is not vacuous, and it is not over-strong either.* It is not vacuous because a solution
 exists whenever the regularity holds — that is `hasDerivAt_quasipotential`, and
@@ -49,7 +56,7 @@ consumes and no more: `quasipotential_eq_gap_of_hasDerivAt` shows that *any* `Ue
 hypothesis, and `quasipotential_gap_unique` records the corresponding uniqueness statement. The
 additive constant that `hUeff` leaves free never reaches a conclusion.
 
-*Positivity of `sigma_eff^2` is the softplus hypothesis.* In the paper's decomposition
+*Positivity of `sigma_eff^2` is the softplus hypothesis.* In the design note's decomposition
 `sigma_eff^2(w) = s^2 sigma_obj^2 + c1 sigma_Jac^2 |H| + s^2 (HVH)` of §2, with `s = psi'(w)` the
 positivity-map derivative, every term carries at least one power of `psi'`, so ellipticity is exactly the
 statement that the positivity-map derivative does not vanish on the window. The design note's own
@@ -110,11 +117,12 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 The hypotheses this file carries, and what each would take to discharge:
 
 * `hcontL : ContinuousOn dL (Ioo a b)` and `hcontS : ContinuousOn sigma2 (Ioo a b)` — continuity
-  of `Ltilde'` and of `sigma_eff^2` on an open window around the band. This is the paper's (A1)
-  regularity clause. It is not dischargeable inside this file, because `Ltilde` and `sigma_eff^2`
+  of `Ltilde'` and of `sigma_eff^2` on an open window around the band. This is the regularity row
+  of the paper's `tab:hyp` for Lemma 1(iv)–(v). It is not dischargeable inside this file, because `Ltilde` and `sigma_eff^2`
   are abstract here; in the paper's setting it follows from smoothness of the softplus positivity map and
   of the per-sample loss, together with finiteness of the batch moments that build `sigma_eff^2`.
-* `hpos : ∀ u ∈ Ioo a b, 0 < sigma2 u` — uniform ellipticity on the window, the paper's (A2). See
+* `hpos : ∀ u ∈ Ioo a b, 0 < sigma2 u` — uniform ellipticity on the window, the condition
+  `σ_eff² > 0` of the same row (on the band of A2(a), `ψ' ≥ σ_s - ε > 0`). See
   the third observation above: for the softplus positivity map it holds globally and structurally.
 * `hband : Icc wb ws ⊆ Ioo a b` — the window contains the band. Forced by the two-sided
   `HasDerivAt` shape of `hUeff`, as explained above; it cannot be dropped without weakening
@@ -134,7 +142,7 @@ namespace IcnnLift
 
 section Definition
 
-/-- The **effective quasipotential** of equation (*) of `docs/design/lemma1_rederivation.md` §3,
+/-- The **effective quasipotential** of equation (*) of the design note, §3,
 `U_eff(w) = ∫^w Ltilde'(u) / sigma_eff^2(u) du`, with the lower limit `w0` made explicit. The
 argument `dL` is the paper's `Ltilde'` and `sigma2` is its `sigma_eff^2`.
 
@@ -215,7 +223,8 @@ strictly positive, then the quasipotential of equation (*) is differentiable at 
 
 which is exactly the hypothesis `hUeff` that `BarrierRescaling.lean` carries. Strict positivity
 enters only through `sigma_eff^2(u) ≠ 0`, which is what keeps the integrand continuous; it is the
-paper's uniform ellipticity (A2), and for the softplus positivity map it is automatic. -/
+paper's `σ_eff² > 0` (the regularity row of `tab:hyp`), and for the softplus positivity map it is
+automatic. -/
 theorem hasDerivAt_quasipotential {dL sigma2 : ℝ → ℝ} {s : Set ℝ}
     (hopen : IsOpen s) (hconn : s.OrdConnected)
     (hcontL : ContinuousOn dL s) (hcontS : ContinuousOn sigma2 s)
@@ -392,7 +401,8 @@ theorem quasipotential_gap_bounds_of_continuity_selfBased (hwb : wb ≤ ws)
 
 /-- The capstone in Arrhenius-exponent form: `BarrierRescaling.barrier_exponent_bounds` with the
 note's `U_eff` and every analytic input derived from continuity and ellipticity. This is the
-inequality the corrected Corollary 1 compares across the two methods. -/
+inequality the design note's corrected Corollary 1 compares across the two methods (in the current
+paper, the bracket of `cor:fpt`'s exponent by Lemma 1(v)). -/
 theorem barrier_exponent_bounds_of_continuity {eta : ℝ} (hwb : wb ≤ ws) (heta : 0 < eta)
     (hband : Icc wb ws ⊆ Ioo a b) (hw0 : w0 ∈ Ioo a b)
     (hcontL : ContinuousOn dL (Ioo a b)) (hcontS : ContinuousOn sigma2 (Ioo a b))

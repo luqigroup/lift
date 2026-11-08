@@ -3,35 +3,42 @@ import Mathlib
 /-!
 # One projected coordinate at the boundary: the two elementary clauses of `prop:clamp`
 
-Proposition `prop:clamp` of the paper (Section 3.3 of `paper_v5.tex`, proved in
-`app_proofs.tex`) is a model of a single constrained coordinate under projected stochastic
-gradient descent, held at the boundary of the cone. In the paper's letters: `γ, σ, η > 0`,
-`ζ₁, ζ₂, …` independent standard normal with distribution function `Φ`,
+Proposition `prop:clamp` of the paper (stated and proved in Appendix A.7) is a
+model of a single constrained coordinate under projected stochastic gradient descent, held at the
+boundary of the cone. In the paper's letters: `γ, σ, η > 0`, `ζ₀, ζ₁, …` independent standard
+normal with distribution function `Φ`,
 
-    W_{k+1} = max(0, W_k - η(γ + σ ζ_k)),      ρ = γ/σ,
+    W_{k+1} = max(0, W_k - η(γ + σ ζ_k)),      W₀ = 0,      ρ = γ/σ,
 
 and the proposition makes three assertions.
 
-1. **The dwell.** "A visit to the boundary ends at the first step whose gradient points into the
-   cone, so it lasts a geometric number of steps of mean `1/Φ(-ρ)`."
-2. **The clamped fraction.** "The recursion has a unique stationary law, under which
-   `P(W_∞ = 0) = exp(-∑_{k≥1} k⁻¹ Φ(-ρ√k))`, a function of `ρ` alone that increases from `0`
-   to `1`."
-3. **The offset.** "`E[W_∞] = η σ m(ρ)` with `m` finite and depending on `ρ` alone."
+1. **The dwell.** "The visit to the boundary begun at `W₀ = 0` ends at the first step whose update
+   points into the cone, so it lasts a geometric number of steps of mean `1/Φ(-ρ)`, and so does
+   every later visit, whatever the step at which it begins."
+2. **The clamped fraction.** "At every step the clamped fraction `P(W_k = 0)` is free of `η` and
+   `σ`, a function of `ρ` alone, non-decreasing in `ρ`, and tends to `1` as `ρ → ∞`." And, at
+   the limit: "The law of `M` is the recursion's unique stationary law, under which
+   `P(W_∞ = 0) = exp(-∑_{k≥1} k⁻¹ Φ(-ρ√k))`, decreasing to `0` as `ρ ↓ 0`."
+3. **The walk and the offset.** "Writing `S_j = -ησ ∑_{i<j}(ρ + ζ_i)`, we have
+   `W_k = max_{0≤j≤k} S_j` in distribution; `M = sup_{j≥0} S_j` is finite almost surely with
+   finite mean `E[M] = ησ m(ρ)`, `m` depending on `ρ` alone; and `W_k → M` in distribution."
 
-**This file formalizes clause 1 in full, and the homogeneity content of clause 3. It does not
-formalize clause 2 at all, and it does not prove that `m` is finite.** That split is not a
-matter of taste: clause 2 is the Spitzer/Sparre-Andersen ladder-epoch identity for a Gaussian
-random walk, and this mathlib (v4.31.0) has no fluctuation theory — no ladder heights, no
-Sparre-Andersen combinatorial lemma, no Spitzer identity, and no Wiener--Hopf factorization. A
-whole-tree search for `ladder`, `Spitzer`, `Sparre` and `fluctuation` returns nothing usable.
-The same is true of the finiteness of `m = E[sup_j S_j]`, which in the paper's proof is a
-citation to Asmussen's negative-drift theory. Both stay cited classical facts, exactly as the
-paper's proof uses them, and neither is asserted anywhere in this file.
+**This file formalizes clauses 1 and 3 in full, and the at-every-step part of clause 2.** The
+rest of clause 2, the stationary law and its Spitzer series, is proved in four
+later modules that build on this one, because this mathlib
+(v4.31.0) has no fluctuation theory (no ladder epochs, no Sparre-Andersen combinatorial lemma, no
+Spitzer identity, no Wiener--Hopf factorization): `LindleyStationary` (the law of `M` is the
+recursion's unique stationary law, reached from every starting law, and `P(W_k = 0)` decreases to
+its atom at `0`), `SpitzerCyclic` and `SpitzerIdentity` (Spitzer's ladder-epoch identity for an
+i.i.d. real walk, from the cyclic lemma), and `SpitzerGaussian` (`P(S_n > 0) = Φ(-ρ√n)`, the
+series and its limits in `ρ`), joined in `LindleyClamped`. The finiteness of `M` and of its mean
+`m = E[M]` is proved here by the argument the paper's proof gives: the Gaussian tail
+`P(S_j > 0) ≤ exp(-ρ²j/2)`, summed (Borel--Cantelli), for `M < ∞` almost surely, and
+`E[M] ≤ ∑_j E[S_j⁺]` for its mean.
 
 ## What clause 1 becomes here
 
-The paper's "first step whose gradient points into the cone" is `VisitEndsAt`: the first `n`
+The paper's "first step whose update points into the cone" is `VisitEndsAt`: the first `n`
 draws leave the iterate clamped and the draw at index `n` releases it. That this is the
 *first* such step, in the literal sense of an infimum, is `clampRun_eq_of_visitEndsAt` and
 `visitEndsAt_clampRun`, which identify `VisitEndsAt ρ z n` with `sInf {k | z k < -ρ} = n`.
@@ -55,6 +62,16 @@ standard-normal distribution function and not a stand-in; `clampExitProb_pos` an
 `clampExitProb_lt_one` are the two facts the geometric law needs, and both come from the
 Gaussian's density being positive everywhere.
 
+**Every later visit.** The paper's "and so does every later visit, whatever the step at which it
+begins" is proved in the last section without a strong Markov theorem, by the argument of the
+paper's proof. `W_k` is a function of
+`ζ₀, …, ζ_{k-1}` and the later draws are independent of those, so conditional on any event of
+`σ(ζ₀, …, ζ_{k-1})` on which `W_k = 0`, in particular the event `{W_{k-1} > 0, W_k = 0}` that a
+visit begins at step `k`, the visit from step `k` has the same geometric law and the same mean
+`1/Φ(-ρ)` (`measure_inter_visitFrom`, `cond_measureReal_visitFrom`, `tsum_cond_visitLength`).
+Summed over the value of a random start, the same holds at every start of a visit that is a
+stopping time of the recursion (`measure_iUnion_inter_visitFrom`).
+
 ## What clause 3 becomes here
 
 `clampIterate c ρ z` is the Lindley recursion at scale `c`; at `c = η σ` it is the paper's
@@ -68,17 +85,17 @@ expectations (`tendsto_integral_clampIterate_homogeneous`), and to the pathwise 
 identity about that supremum, asserting nothing about its existence or finiteness, and
 junk-valued (`0 = c·0`) on a path where the supremum is infinite.
 
-**The existence of the stationary mean is a hypothesis here, not a theorem.** The paper asserts
-`E[W_∞] = η σ m(ρ)`; what is proved here is that *if* the unit-scale means converge to `m` then
-the `η σ`-scale means converge to `η σ m`. Convergence itself, and the finiteness of `m`, are
-the Asmussen citation of the paper's proof, and are not formalized. This is the one place where
-the Lean statement is weaker than the LaTeX one, and it is weaker in the same way the paper's
-own proof is: the proof establishes the scaling and cites the rest.
+**The paper's `E[W_∞]` is the mean of the stationary law, the law of `M`** (`LindleyStationary`),
+and `E[M] = η σ m(ρ)` with `m` finite and free of `η, σ` is proved below
+(`lintegral_iSup_ofReal_walkSum_homogeneous`). Separately, `tendsto_integral_clampIterate_homogeneous`
+states the scaling for the means `E[W_k]` along the recursion and carries their convergence as a
+hypothesis: weak convergence does not give convergence of means without uniform integrability,
+and the paper does not assert it.
 
 ## Results
 * `eta_mul_add_eq` — the paper's increment `η(γ + σζ)` is `ησ(ρ + ζ)`: the reduction to `ρ`.
 * `clampStep_pos_iff`, `clampStep_eq_zero_iff` — a clamped step is released exactly when
-  `ζ < -ρ`, which is the paper's "the first step whose gradient points into the cone".
+  `ζ < -ρ`, which is the paper's "the first step whose update points into the cone".
 * `clampExitProb` — `Φ(-ρ)`, with `clampExitProb_pos`, `clampExitProb_lt_one`,
   `clampExitProb_eq_measureReal_Iio`.
 * `VisitEndsAt`, `clampRun`, `clampRun_eq_of_visitEndsAt`, `visitEndsAt_clampRun` — the visit
@@ -107,7 +124,7 @@ own proof is: the proof establishes the scaling and cites the rest.
   `tendsto_measureReal_clampIterate_eq_zero_atTop` — the clamped fraction at every step is at
   least `(1 - Φ(-ρ))^k` and tends to `1` as `ρ → ∞`.
 * `walkSum`, `walkSum_homogeneous`, `iSup_walkSum_homogeneous` — the paper's own
-  `M = ησ · sup_j(-∑_{i≤j}(ρ + ζ_i))`, and its `ησ` scaling.
+  `M = ησ · sup_j(-∑_{i<j}(ρ + ζ_i))`, and its `ησ` scaling.
 * `walkSum_succ`, `clampIterate_eq_sup'_sub` — the recursion unrolled:
   `W_k = max_{0≤j≤k}(S_k - S_j)`, pathwise.
 * `maxWalk`, `maxWalk_eq_sup'`, `revDraws`, `revIndex`, `revIndex_involutive`,
@@ -119,7 +136,8 @@ own proof is: the proof establishes the scaling and cites the rest.
 * `hasSubgaussianMGF_of_hasLaw`, `hasSubgaussianMGF_negSum`, `measureReal_walk_pos_le`,
   `ae_bddAbove_walkSum` — **`M` is finite almost surely**: the draws are sub-Gaussian with
   constant one, Chernoff gives `P(S_j > 0) ≤ exp(-ρ²j/2)`, and Borel--Cantelli leaves only
-  finitely many positive partial sums. No strong law, no fluctuation theory.
+  finitely many positive partial sums. No strong law, no fluctuation theory; this is the
+  paper's own argument.
 * `le_inv_mul_exp`, `lintegral_ofReal_walkSum_le`, `lintegral_iSup_ofReal_walkSum_lt_top` —
   **`M` has a finite mean**: the supremum is at most the sum of the positive parts, and the
   tilted bound makes those a geometric series.
@@ -132,56 +150,66 @@ own proof is: the proof establishes the scaling and cites the rest.
 * `offsetWitnessPath`, `clampIterate_offsetWitnessPath_succ`,
   `homogeneity_hypotheses_satisfiable` — the offset clause's hypothesis is inhabited, at a
   nonzero limit `m = 1`, with the instantiated conclusion `η σ` carried in the statement.
+* `clampIterate_congr`, `pastDraws`, `pastDraws_mono`, `pastDraws_le`,
+  `measurable_clampIterate_pastDraws`, `iterateFiltration_le_pastDraws` — `W_k` is a function of
+  `ζ₀, …, ζ_{k-1}`, and so is every event about `W₀, …, W_k`.
+* `VisitFrom`, `visitFrom_iff`, `inter_setOf_visitFrom_eq` — the visit from step `k`, read on the
+  iterate, ends at the first releasing draw after `k`.
+* `measure_inter_visitEndsAt_shift`, `measure_inter_visitFrom`, `measurableSet_visitStart`,
+  `measure_visitStart_inter_visitFrom`, `cond_measureReal_visitFrom`, `tsum_succ_mul_geometric`,
+  `tsum_cond_visitLength`, `measure_iUnion_inter_visitFrom` — **every later visit**: conditional
+  on the event that starts it, and at a random start that is a stopping time, the visit has the
+  geometric law of mean `1/Φ(-ρ)`.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
 `Classical.choice`, `Quot.sound`. What is carried rather than proved:
 
-* **Clause 2 of `prop:clamp`: three of its four assertions are proved at every step of the
-  recursion, and the stationary law itself is not.** What is proved (2026-09-13) is that the
-  clamped fraction `P(W_k = 0)` is scale-free, hence a function of `ρ` and the law of the draws
-  alone; that it is non-decreasing in `ρ`, by a pathwise coupling; and that it tends to `1` as
-  `ρ → ∞`. What is **not** proved, and is not assumed either: the Spitzer series for the
-  stationary clamped fraction, and the limit `0` as `ρ ↓ 0` that the series supplies. (That
-  `P(W_k = 0)` converges as `k → ∞` does not follow from `tendsto_integral_clampIterate`: the
-  indicator of `{0}` is not continuous and the limit law has an atom there. The monotone-events
-  argument that would give it is not formalized.)
-  The last is not available at finite `k` — at `ρ = 0` the clamped fraction at step `k` is
-  positive — so it is a statement about the limit object alone. Its two classical routes are the
-  Spitzer series, which needs fluctuation theory mathlib does not carry, and a zero-one argument
-  at zero drift followed by a continuity-in-`ρ` passage; the second is supported in principle
-  (mathlib has the Kolmogorov zero-one machinery in `Probability/Independence/ZeroOne.lean`, the
-  Gaussian convolution, and a central limit theorem) but needs tail-σ-algebra scaffolding and a
-  parametric continuity argument that this development has no analogue for.
-* **The finiteness of `m` is proved for the paper's `M`, not for the stationary law.**
-  `lintegral_iSup_ofReal_walkSum_lt_top` shows `E[sup_j S_j] < ∞` and
+* **Clause 2 of `prop:clamp`: here, at every step of the recursion; at the limit, in the later
+  modules.** Proved here: the clamped fraction `P(W_k = 0)` is scale-free, hence a
+  function of `ρ` and the law of the draws alone; it is non-decreasing in `ρ`, by a pathwise
+  coupling; and it tends to `1` as `ρ → ∞`. The limit `0` as `ρ ↓ 0` is false at any finite `k`,
+  so it is a statement about the limit object, and it is proved there: `P(W_k = 0)`
+  decreases to the stationary atom at `0` (`LindleyStationary`), which equals the Spitzer series
+  `exp(-∑_{k≥1} k⁻¹ Φ(-ρ√k))`, strictly increasing in `ρ` and tending to `0` as `ρ ↓ 0`
+  (`LindleyClamped`).
+* **The finiteness of `m` is proved for the paper's `M`, whose law `LindleyStationary` identifies
+  with the stationary law.** `lintegral_iSup_ofReal_walkSum_lt_top` shows `E[sup_j S_j] < ∞` and
   `ae_bddAbove_walkSum` that the supremum is finite almost surely — the two facts the paper's
-  proof takes from Asmussen — and
+  proof argues from the Gaussian tail (an earlier draft took them from Asmussen) — and
   `lintegral_iSup_ofReal_walkSum_homogeneous` gives `E[M^{(ησ)}] = ησ · E[M^{(1)}]`. The
   reversal identity `W_k =ᵈ max_{j≤k} S_j` is proved as well
   (`map_clampIterate_eq_map_maxWalk`), and so is the passage to the limit,
-  `W_k → M` in distribution (`tendsto_integral_clampIterate`). **What is still not proved is
-  that the law of `M` is stationary for the recursion, or that it is the unique such law**:
-  nothing here states invariance. The paper's "the recursion has a unique stationary law" is
-  therefore cited, while "the iterates converge in distribution to the law of `M`, which is
-  finite with finite mean `ησ m(ρ)`" is proved.
+  `W_k → M` in distribution (`tendsto_integral_clampIterate`). That the law of `M` is the
+  recursion's unique stationary law is proved in `LindleyStationary`.
   `tendsto_integral_clampIterate_homogeneous` still carries the convergence of the *means* of
   the recursion as a hypothesis — weak convergence does not deliver convergence of means without
   uniform integrability — inhabited by `homogeneity_hypotheses_satisfiable`.
-* **The dwell is stated for the boundary visit, not for the full recursion.** The geometric law
-  is proved for `VisitEndsAt`, a predicate on the draws, and the bridge to the iterate is
-  `clampIterate_eq_zero_of_visitEndsAt` (through a visit `W` is `0` at every step up to and
-  including `n`) together with `clampIterate_pos_of_visitEndsAt` (at step `n + 1` it is
-  released), added 2026-09-13 so that the paper's "a visit to the boundary" is a statement about
-  `W` and not only about `ζ`. What is still **not** proved is that the recursion ever returns to
-  the boundary: recurrence is part of the stationary-law clause and stays unclaimed.
+* **The dwell is proved for every visit, conditional on its start; that a later visit occurs is
+  not proved.** The geometric law is proved for `VisitEndsAt`, a predicate on the draws, and the
+  bridge to the iterate is `clampIterate_eq_zero_of_visitEndsAt` (through a visit `W` is `0` at
+  every step up to and including `n`) together with `clampIterate_pos_of_visitEndsAt` (at step
+  `n + 1` it is released), so that the paper's "a visit to the boundary" is a
+  statement about `W` and not only about `ζ`. The law is also proved for the
+  visit from any step `k`, conditional on any event of `σ(ζ₀, …, ζ_{k-1})` on which `W_k = 0`
+  (`measure_inter_visitFrom`), and at any random start of that kind
+  (`measure_iUnion_inter_visitFrom`). That is the paper's "whatever the step at which it begins",
+  which its proof argues from `W_k` depending on `ζ₀, …, ζ_{k-1}` alone, as here. No strong Markov
+  theorem is formalized: the start events are conditioned on at fixed times and then summed over.
+  What is still **not** proved is that the recursion ever returns to the
+  boundary: recurrence is part of the stationary-law clause and stays unclaimed, so for all this
+  file shows the event that a later visit begins could be null, and the conditional statements
+  carry `P(E) ≠ 0` for that reason.
 * **Independence is mutual and the laws are exact.** `measure_visitEndsAt` assumes
   `iIndepFun ζ P` (mutual independence, the paper's "independent") and
   `HasLaw (ζ i) (gaussianReal 0 1) P` (exactly standard normal, the paper's hypothesis). No
-  weaker hypothesis is used and none is claimed.
+  weaker hypothesis is used and none is claimed. The later-visit theorems also bind
+  `∀ i, Measurable (ζ i)`, which the independence of past and future σ-algebras consumes;
+  `clamp_hypotheses_satisfiable` supplies it with the rest.
 * The single coordinate, the constant drift `γ`, the Gaussian noise and the absence of
-  curvature are idealizations of the paper's own statement, which says so: `prop:clamp` is "a
-  model of one constrained coordinate at the boundary, not a statement about the network".
+  curvature are idealizations built into the paper's statement, whose title is "One projected
+  coordinate at the boundary"; the paper reads it as licensing only that projection pays at the
+  boundary in re-crossings and not in the stay.
 -/
 
 open MeasureTheory Filter Set ProbabilityTheory
@@ -199,7 +227,7 @@ theorem eta_mul_add_eq (eta gamma sigma z : ℝ) (hsigma : sigma ≠ 0) :
 
 /-- **A clamped step is released exactly when the draw is below `-ρ`.** From `W_k = 0` the next
 iterate `max(0, 0 - η(γ + σζ))` is strictly positive precisely when `ζ < -γ/σ = -ρ`. This is
-the paper's "a visit to the boundary ends at the first step whose gradient points into the
+the paper's "the visit to the boundary … ends at the first step whose update points into the
 cone", written out on the paper's own display. -/
 theorem clampStep_pos_iff {eta gamma sigma z : ℝ} (heta : 0 < eta) (hsigma : 0 < sigma) :
     0 < max 0 (0 - eta * (gamma + sigma * z)) ↔ z < -(gamma / sigma) := by
@@ -549,8 +577,8 @@ theorem clampIterate_nonneg (c rho : ℝ) (z : ℕ → ℝ) (k : ℕ) : 0 ≤ cl
 
 `VisitEndsAt` is a predicate on the noise sequence. The paper's sentence is about `W`, so the
 two lemmas below carry it across: through a visit the iterate really does stay at the boundary,
-and at the step the visit names it really is released. What stays unproved is that the recursion
-returns to the boundary at all, which belongs to the unformalized stationary-law clause. -/
+and at the step the visit names it really is released. That the recursion returns to the
+boundary at all is not proved; the visit laws below are stated conditional on their start. -/
 
 /-- **The iterate stays at the boundary while the draws fail to release it.** From an iterate
 sitting at `0`, every further step whose draw satisfies `-ρ ≤ z` leaves it at `0`. -/
@@ -612,7 +640,7 @@ theorem clampIterate_homogeneous {c : ℝ} (hc : 0 ≤ c) (rho : ℝ) (z : ℕ �
 /-- The supremum of the **iterates** scales likewise: `sup_k W_k^{(ησ)} = ησ · sup_k W_k^{(1)}`.
 
 **This is not the paper's `M`, and the correction is worth stating.** The paper's proof writes
-`M = ησ · sup_j (-∑_{i≤j}(ρ + ζ_i))`, a supremum of the *walk's partial sums*; the supremum here
+`M = ησ · sup_j (-∑_{i<j}(ρ + ζ_i))`, a supremum of the *walk's partial sums*; the supremum here
 is over the *recursion's values*. The two are different pathwise objects — `W_k` equals
 `max_{j≤k}(S_k - S_j)`, not `max_{j≤k} S_j`, and they agree only in distribution at each fixed
 time — and nothing here claims the iterates' supremum is finite. `iSup_walkSum_homogeneous`
@@ -631,11 +659,11 @@ theorem walkSum_homogeneous (c rho : ℝ) (z : ℕ → ℝ) (j : ℕ) :
   simp only [walkSum, one_mul]
   ring
 
-/-- **The paper's `M` scales by `ησ`.** `M = ησ · sup_j (-∑_{i≤j}(ρ + ζ_i))`, the identity the
+/-- **The paper's `M` scales by `ησ`.** `M = ησ · sup_j (-∑_{i<j}(ρ + ζ_i))`, the identity the
 offset clause of `prop:clamp` rests on, with the supremum on the right depending on `ρ` and the
 draws alone. Unconditional, hence junk-valued (`0 = c · 0`) on a path whose supremum is
-infinite; it has content exactly where `M` is finite, which is the negative-drift fact this
-development does not prove. -/
+infinite; it has content exactly where `M` is finite, which `ae_bddAbove_walkSum` below proves
+holds almost surely. -/
 theorem iSup_walkSum_homogeneous {c : ℝ} (hc : 0 ≤ c) (rho : ℝ) (z : ℕ → ℝ) :
     ⨆ j, walkSum c rho z j = c * ⨆ j, walkSum 1 rho z j := by
   rw [Real.mul_iSup_of_nonneg hc]
@@ -650,9 +678,10 @@ theorem integral_clampIterate_homogeneous {P : Measure Ω} (zeta : ℕ → Ω �
   exact integral_congr_ae (Eventually.of_forall fun ω => clampIterate_homogeneous hc rho _ k)
 
 /-- **The offset clause, at the strength this development proves it.** If the unit-scale means
-converge to `m` — the existence of the stationary mean, which the paper's proof takes from
-Asmussen and which is *not* proved here — then the means of the paper's own recursion converge
-to `η σ m`. Since `m` is read off a recursion in which neither `η` nor `σ` occurs, it is "a
+converge to `m` — convergence of means along the recursion, which weak convergence does not give
+and the paper does not assert; the stationary mean itself is `E[M]`, proved finite and scaled in
+`lintegral_iSup_ofReal_walkSum_homogeneous` — then the means of the paper's own recursion
+converge to `η σ m`. Since `m` is read off a recursion in which neither `η` nor `σ` occurs, it is "a
 function of `ρ` alone" in the paper's sense. -/
 theorem tendsto_integral_clampIterate_homogeneous {P : Measure Ω} (zeta : ℕ → Ω → ℝ)
     {eta sigma gamma m : ℝ} (heta : 0 < eta) (hsigma : 0 < sigma)
@@ -667,9 +696,8 @@ theorem tendsto_integral_clampIterate_homogeneous {P : Measure Ω} (zeta : ℕ �
 
 Clause 2 of `prop:clamp` asserts four things about `P(W_∞ = 0)`: that it is a function of `ρ`
 alone, that it increases in `ρ`, that it tends to `1` and to `0` at the two ends, and that it
-equals the Spitzer series. The stationary law `W_∞` is not definable here, so the three
-non-series clauses are proved instead **at every step of the recursion**, where they are
-pathwise facts about the iterate and need no fluctuation theory at all:
+equals the Spitzer series. Here the three non-series clauses are proved **at every step of the
+recursion**, where they are pathwise facts about the iterate and need no fluctuation theory:
 
 * the clamped fraction at step `k` does not depend on the scale `ησ` — it is the same number for
   every step size and every noise scale, hence a function of `ρ` and the law of the draws alone
@@ -678,8 +706,8 @@ pathwise facts about the iterate and need no fluctuation theory at all:
   (`clampIterate_antitone_in_rho`, `measureReal_clampIterate_eq_zero_mono_rho`);
 * it tends to `1` as `ρ → ∞` (`tendsto_measureReal_clampIterate_eq_zero_atTop`).
 
-What is **not** here, and why: the limit `k → ∞` (the stationary law itself), the limit
-`ρ ↓ 0`, and the Spitzer series. See the module docstring. -/
+The limit `k → ∞`, the limit `ρ ↓ 0` and the Spitzer series are in `LindleyStationary` and
+`LindleyClamped`. See the module docstring. -/
 
 /-- Being clamped is scale-free: at scale `c > 0` the iterate vanishes exactly when the
 unit-scale iterate does, because the two differ by the factor `c`. -/
@@ -1070,7 +1098,8 @@ theorem map_clampIterate_eq_map_maxWalk {P : Measure Ω} [IsProbabilityMeasure P
 
 /-! ### The walk's supremum is almost surely finite
 
-The paper's proof takes this from Asmussen, through the strong law. It needs neither: the draws
+The paper's proof argues this from the Gaussian tail, as this section does; an earlier draft took
+it from Asmussen through the strong law, which is not needed. The draws
 are exactly Gaussian, hence sub-Gaussian with constant one, so the Chernoff bound gives
 `P(S_j > 0) ≤ exp(-ρ²j/2)`, a geometric series, and Borel--Cantelli says that almost surely only
 finitely many partial sums are positive. A sequence that is eventually non-positive is bounded
@@ -1140,8 +1169,8 @@ theorem measureReal_walk_pos_le {P : Measure Ω} [IsProbabilityMeasure P] {zeta 
 
 /-- **The walk is almost surely bounded above.** Only finitely many partial sums are positive,
 by Borel--Cantelli on the geometric bound, so the supremum is a maximum over finitely many terms
-and `0`. This is the paper's "`M = sup_j S_j` is finite almost surely", proved rather than
-cited, and with no strong law and no fluctuation theory. -/
+and `0`. This is the paper's "`M = sup_{j≥0} S_j` is finite almost surely", by the argument of
+the paper's proof, with no strong law and no fluctuation theory. -/
 theorem ae_bddAbove_walkSum {P : Measure Ω} [IsProbabilityMeasure P] {zeta : ℕ → Ω → ℝ}
     (hindep : iIndepFun zeta P) (hmeas : ∀ i, Measurable (zeta i))
     (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c rho : ℝ} (hc : 0 < c) (hrho : 0 < rho) :
@@ -1209,7 +1238,8 @@ theorem ae_bddAbove_walkSum {P : Measure Ω} [IsProbabilityMeasure P] {zeta : �
 
 /-! ### The expected supremum is finite, and scales by `ησ`
 
-The paper takes the finite mean from Asmussen too. It is the same geometric estimate: the
+The paper's proof bounds the mean the same way, `E[M] ≤ ∑_j E[S_j⁺]`, finite by the same
+Gaussian tail; an earlier draft took the finite mean from Asmussen. In detail: the
 supremum is at most the sum of the positive parts, the positive part of a real is at most
 `t⁻¹exp(t·)` (`le_inv_mul_exp`), and at the tilt `t = ρ` the sub-Gaussian bound on the reversed
 partial sums gives `E[(S_j)^+] ≤ (c/ρ)exp(-ρ²j/2)`, a convergent geometric series.
@@ -1291,9 +1321,9 @@ theorem lintegral_ofReal_walkSum_le {P : Measure Ω} [IsProbabilityMeasure P] {z
         exact hKbound
 
 /-- **The expected supremum of the walk is finite.** The supremum is at most the sum of the
-positive parts, and those sum geometrically. This is the paper's "`M` … has a finite mean, the
-walk having negative drift and finite variance", with the Asmussen citation replaced by a
-Chernoff bound. -/
+positive parts, and those sum geometrically. This is the paper's "`M` … finite almost surely with
+finite mean", by the bound its proof gives, `E[M] ≤ ∑_j E[S_j⁺]`, here with a Chernoff estimate
+on each term. -/
 theorem lintegral_iSup_ofReal_walkSum_lt_top {P : Measure Ω} [IsProbabilityMeasure P]
     {zeta : ℕ → Ω → ℝ} (hindep : iIndepFun zeta P) (hmeas : ∀ i, Measurable (zeta i))
     (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c rho : ℝ} (hc : 0 < c) (hrho : 0 < rho) :
@@ -1395,8 +1425,8 @@ theorem tendsto_maxWalk_atTop {c rho : ℝ} {z : ℕ → ℝ}
 /-- **`W_k → M` in distribution.** For every bounded continuous test function, the expectation
 against the law of the iterate at step `k` converges to the expectation against the law of the
 walk's supremum. With the reversal identity this is the paper's "`W_k → M` in distribution", and
-it is the last step of the stationary-law sentence that this development can take: what remains
-is the Spitzer series and the limit at `ρ ↓ 0` it supplies. -/
+the stationary law, its uniqueness and its Spitzer series follow in `LindleyStationary` and
+`LindleyClamped`. -/
 theorem tendsto_integral_clampIterate {P : Measure Ω} [IsProbabilityMeasure P]
     {zeta : ℕ → Ω → ℝ} (hindep : iIndepFun zeta P) (hmeas : ∀ i, Measurable (zeta i))
     (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c rho : ℝ} (hc : 0 < c) (hrho : 0 < rho)
@@ -1452,9 +1482,9 @@ step size", with a nonzero constant, checked by the kernel in the statement.
 
 **The witness is degenerate in its randomness, and it has to be.** It is a single deterministic
 path, carried on a Dirac probability space: one draw that releases the iterate, then draws that
-hold it where it lands. A witness whose draws are genuinely i.i.d. standard normal *would be*
-the convergence theorem the paper takes from Asmussen, which is exactly what is not formalized
-here; exhibiting one would close the gap rather than witness it. What this theorem establishes
+hold it where it lands. A witness whose draws are genuinely i.i.d. standard normal would be a
+theorem that the means `E[W_k]` converge, which needs uniform integrability and is not
+formalized. What this theorem establishes
 is therefore the only thing a witness can establish: the hypothesis is not empty, so the
 homogeneity theorem is not vacuously true. -/
 
@@ -1515,5 +1545,295 @@ theorem homogeneity_hypotheses_satisfiable (eta sigma gamma : ℝ) (heta : 0 < e
   rw [mul_one] at h
   exact ⟨ℝ, inferInstance, Measure.dirac 0, fun j _ => offsetWitnessPath (gamma / sigma) j,
     inferInstance, fun _ => measurable_const, hconv, h⟩
+
+/-! ### Every later visit, conditional on how it began
+
+`prop:clamp` ends its first claim with "and so does every later visit, whatever the step at which
+it begins", and its proof argues this from `W_k` depending on `ζ₀, …, ζ_{k-1}` alone. No strong
+Markov theorem is proved here; what is proved is that fact and its consequence.
+The iterate `W_k` is a function of the draws `ζ₀, …, ζ_{k-1}` alone
+(`measurable_clampIterate_pastDraws`), and the later draws `ζ_k, ζ_{k+1}, …` are independent of
+those (`indep_iSup_of_disjoint`, from mutual independence). So for every event `E` determined by
+the first `k` draws on which `W_k = 0`, in particular the event `{W_{k-1} > 0, W_k = 0}` that a
+visit begins at step `k`, the visit from step `k` lasts `n + 1` steps with probability
+`(1 - Φ(-ρ))ⁿ Φ(-ρ)` given `E` (`measure_inter_visitFrom`, `cond_measureReal_visitFrom`), and its
+mean length given `E` is `1/Φ(-ρ)` (`tsum_cond_visitLength`). Summing over the value of a random
+start `τ` whose events `{τ = k}` are of that kind gives the same law at `τ`
+(`measure_iUnion_inter_visitFrom`); every stopping time of the recursion's own filtration at which
+`W_τ = 0` is such a start (`iterateFiltration_le_pastDraws`). The start of the `m`-th visit is one;
+that it is finite, i.e. that the recursion returns to the boundary at all, is not proved. -/
+
+/-- The iterate at step `k` depends on the draws `z₀, …, z_{k-1}` only. -/
+theorem clampIterate_congr {c rho : ℝ} {z z' : ℕ → ℝ} {k : ℕ} (h : ∀ i < k, z i = z' i) :
+    clampIterate c rho z k = clampIterate c rho z' k := by
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    rw [clampIterate_succ, clampIterate_succ, ih fun i hi => h i (Nat.lt_succ_of_lt hi),
+      h k (Nat.lt_succ_self k)]
+
+/-- **The visit from step `k` lasts `n + 1` steps**, read on the iterate: `W` is at the boundary
+at steps `k, …, k + n` and is released at step `k + n + 1`. At `k = 0` this is the visit begun at
+`W₀ = 0`; at a step `k` with `W_{k-1} > 0` it is the visit that begins at `k`. -/
+def VisitFrom (c rho : ℝ) (z : ℕ → ℝ) (k n : ℕ) : Prop :=
+  (∀ j ≤ n, clampIterate c rho z (k + j) = 0) ∧ 0 < clampIterate c rho z (k + n + 1)
+
+/-- **A visit from step `k` ends at the first step whose update points into the cone**, at every
+`k`: the visit from `k` lasts `n + 1` steps exactly when `W_k = 0`, the `n` draws after it leave
+the step clamped (`-ρ ≤ z_{k+i}`) and the next one releases it (`z_{k+n} < -ρ`). This is
+`VisitEndsAt` on the draws shifted by `k`, so the visit begun at `W₀ = 0` is the case `k = 0`. -/
+theorem visitFrom_iff {c rho : ℝ} (hc : 0 < c) (z : ℕ → ℝ) (k n : ℕ) :
+    VisitFrom c rho z k n ↔
+      clampIterate c rho z k = 0 ∧ VisitEndsAt rho (fun i => z (k + i)) n := by
+  constructor
+  · rintro ⟨h0, hpos⟩
+    refine ⟨by simpa using h0 0 (Nat.zero_le n), fun i hi => ?_, ?_⟩
+    · have hi0 : clampIterate c rho z (k + i) = 0 := h0 i hi.le
+      have hi1 : clampIterate c rho z (k + i + 1) = 0 := h0 (i + 1) hi
+      rw [clampIterate_succ, hi0, zero_sub] at hi1
+      have hle : -(c * (rho + z (k + i))) ≤ 0 := by
+        rw [← hi1]; exact le_max_right _ _
+      by_contra hlt
+      rw [not_le] at hlt
+      have : c * (rho + z (k + i)) < 0 := mul_neg_of_pos_of_neg hc (by linarith)
+      linarith
+    · have hn0 : clampIterate c rho z (k + n) = 0 := h0 n le_rfl
+      rw [clampIterate_succ, hn0, zero_sub] at hpos
+      have hneg : 0 < -(c * (rho + z (k + n))) := by
+        rcases lt_max_iff.mp hpos with h | h
+        · exact absurd h (lt_irrefl 0)
+        · exact h
+      by_contra hge
+      rw [not_lt] at hge
+      have : 0 ≤ c * (rho + z (k + n)) := mul_nonneg hc.le (by linarith)
+      linarith
+  · rintro ⟨hk, h1, h2⟩
+    refine ⟨fun j hj => clampIterate_eq_zero_of_forall_le hc.le hk j
+      fun i hi => h1 i (lt_of_lt_of_le hi hj), ?_⟩
+    have hn0 : clampIterate c rho z (k + n) = 0 :=
+      clampIterate_eq_zero_of_forall_le hc.le hk n fun i hi => h1 i hi
+    rw [clampIterate_succ, hn0, zero_sub]
+    have : c * (rho + z (k + n)) < 0 := mul_neg_of_pos_of_neg hc (by linarith)
+    exact lt_max_of_lt_right (by linarith)
+
+/-- `σ(ζ₀, …, ζ_{k-1})`, the events determined by the first `k` draws. -/
+abbrev pastDraws (zeta : ℕ → Ω → ℝ) (k : ℕ) : MeasurableSpace Ω :=
+  ⨆ i ∈ Set.Iio k, MeasurableSpace.comap (zeta i) inferInstance
+
+omit [MeasurableSpace Ω] in
+theorem pastDraws_mono (zeta : ℕ → Ω → ℝ) {k l : ℕ} (hkl : k ≤ l) :
+    pastDraws zeta k ≤ pastDraws zeta l :=
+  iSup₂_le fun i hi => le_iSup₂_of_le (f := fun i (_ : i ∈ Set.Iio l) =>
+    MeasurableSpace.comap (zeta i) inferInstance) i (lt_of_lt_of_le hi hkl) le_rfl
+
+theorem pastDraws_le {zeta : ℕ → Ω → ℝ} (hmeas : ∀ i, Measurable (zeta i)) (k : ℕ) :
+    pastDraws zeta k ≤ ‹MeasurableSpace Ω› :=
+  iSup₂_le fun i _ => measurable_iff_comap_le.1 (hmeas i)
+
+omit [MeasurableSpace Ω] in
+/-- **`W_k` is a function of `ζ₀, …, ζ_{k-1}`**, measurably: the first half of the fact the
+paper's proof uses for "every later visit, whatever the step at which it begins". -/
+theorem measurable_clampIterate_pastDraws (zeta : ℕ → Ω → ℝ) (c rho : ℝ) (k : ℕ) :
+    Measurable[pastDraws zeta k] fun ω => clampIterate c rho (fun i => zeta i ω) k := by
+  have heq : (fun ω => clampIterate c rho (fun i => zeta i ω) k)
+      = (fun z : ℕ → ℝ => clampIterate c rho z k)
+          ∘ (fun ω (i : ℕ) => if i < k then zeta i ω else 0) := by
+    funext ω
+    exact clampIterate_congr fun i hi => by simp [hi]
+  have htr : Measurable[pastDraws zeta k] (fun ω (i : ℕ) => if i < k then zeta i ω else 0) := by
+    rw [measurable_iff_comap_le]
+    simp only [MeasurableSpace.pi, MeasurableSpace.comap_iSup, MeasurableSpace.comap_comp]
+    refine iSup_le fun i => ?_
+    by_cases hi : i < k
+    · simp only [Function.comp_def, hi, if_true]
+      exact le_iSup₂_of_le (f := fun i (_ : i ∈ Set.Iio k) =>
+        MeasurableSpace.comap (zeta i) inferInstance) i hi le_rfl
+    · simp only [Function.comp_def, hi, if_false, MeasurableSpace.comap_const]
+      exact bot_le
+  rw [heq]
+  exact (measurable_clampIterate_apply c rho k).comp htr
+
+omit [MeasurableSpace Ω] in
+/-- The recursion's own filtration `σ(W₀, …, W_k)` is contained in `σ(ζ₀, …, ζ_{k-1})`: every
+event about the path of `W` up to step `k`, such as "the `m`-th visit begins at step `k`", is an
+event the later theorems of this section accept. -/
+theorem iterateFiltration_le_pastDraws (zeta : ℕ → Ω → ℝ) (c rho : ℝ) (k : ℕ) :
+    (⨆ j ≤ k, MeasurableSpace.comap
+      (fun ω => clampIterate c rho (fun i => zeta i ω) j) inferInstance) ≤ pastDraws zeta k :=
+  iSup₂_le fun j hj => measurable_iff_comap_le.1
+    ((measurable_clampIterate_pastDraws zeta c rho j).mono (pastDraws_mono zeta hj) le_rfl)
+
+/-- **The later draws are independent of every event determined by the first `k`**, and the
+visit they make is the geometric one: for `E ∈ σ(ζ₀, …, ζ_{k-1})`, the probability of `E` and a
+visit from step `k` of `n + 1` steps is `P(E) · (1 - Φ(-ρ))ⁿ Φ(-ρ)`. Stated on the draws; the
+reading on the iterate is `measure_inter_visitFrom`. -/
+theorem measure_inter_visitEndsAt_shift {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) (rho : ℝ) (k n : ℕ) {E : Set Ω}
+    (hE : MeasurableSet[pastDraws zeta k] E) :
+    P (E ∩ {ω | VisitEndsAt rho (fun i => zeta (k + i) ω) n})
+      = P E * ENNReal.ofReal ((1 - clampExitProb rho) ^ n * clampExitProb rho) := by
+  have hiI : iIndep (fun i => MeasurableSpace.comap (zeta i) inferInstance) P :=
+    (iIndepFun_iff_iIndep _ _ _).1 hindep
+  have hle : ∀ i, MeasurableSpace.comap (zeta i) (inferInstance : MeasurableSpace ℝ)
+      ≤ ‹MeasurableSpace Ω› := fun i => measurable_iff_comap_le.1 (hmeas i)
+  have hInd := indep_iSup_of_disjoint hle hiI (Set.Iio_disjoint_Ici (le_refl k))
+  have hV : MeasurableSet[⨆ i ∈ Set.Ici k, MeasurableSpace.comap (zeta i) inferInstance]
+      {ω | VisitEndsAt rho (fun i => zeta (k + i) ω) n} := by
+    rw [visitEndsAt_setOf rho (fun i => zeta (k + i)) n]
+    refine Finset.measurableSet_biInter _ fun j _ => ?_
+    have hj : MeasurableSet[MeasurableSpace.comap (zeta (k + j)) inferInstance]
+        (zeta (k + j) ⁻¹' (if j < n then Ici (-rho) else Iio (-rho))) := by
+      refine ⟨_, ?_, rfl⟩
+      split_ifs
+      · exact measurableSet_Ici
+      · exact measurableSet_Iio
+    exact le_iSup₂_of_le (f := fun i (_ : i ∈ Set.Ici k) =>
+      MeasurableSpace.comap (zeta i) inferInstance) (k + j) (Nat.le_add_right k j) le_rfl _ hj
+  have hlawk := measure_visitEndsAt (hindep.precomp (add_right_injective k))
+    (fun i => hlaw (k + i)) rho n
+  rw [(Indep_iff _ _ _).1 hInd E _ hE hV, hlawk]
+
+omit [MeasurableSpace Ω] in
+/-- On an event where `W_k = 0`, the visit from step `k` read on the iterate and read on the
+shifted draws are the same event. -/
+theorem inter_setOf_visitFrom_eq {c rho : ℝ} (hc : 0 < c) (zeta : ℕ → Ω → ℝ) (k n : ℕ)
+    {E : Set Ω} (hEW : ∀ ω ∈ E, clampIterate c rho (fun i => zeta i ω) k = 0) :
+    E ∩ {ω | VisitFrom c rho (fun i => zeta i ω) k n}
+      = E ∩ {ω | VisitEndsAt rho (fun i => zeta (k + i) ω) n} := by
+  ext ω
+  simp only [mem_inter_iff, mem_setOf_eq]
+  constructor
+  · rintro ⟨hω, hv⟩
+    exact ⟨hω, ((visitFrom_iff hc _ k n).1 hv).2⟩
+  · rintro ⟨hω, hv⟩
+    exact ⟨hω, (visitFrom_iff hc _ k n).2 ⟨hEW ω hω, hv⟩⟩
+
+/-- **"So does every later visit": the geometric law at every start, conditional on the start
+event.** For every step `k` and every event `E` determined by `ζ₀, …, ζ_{k-1}` on which
+`W_k = 0`, `P(E and the visit from k lasts n + 1 steps) = P(E) · (1 - Φ(-ρ))ⁿ Φ(-ρ)`, with
+`1 - Φ(-ρ) = Φ(ρ)`. The visit begun at `W₀ = 0` is `k = 0`, `E = Ω`. Proved from the
+independence of the later draws, without a strong Markov theorem. -/
+theorem measure_inter_visitFrom {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c : ℝ} (hc : 0 < c) (rho : ℝ)
+    (k n : ℕ) {E : Set Ω} (hE : MeasurableSet[pastDraws zeta k] E)
+    (hEW : ∀ ω ∈ E, clampIterate c rho (fun i => zeta i ω) k = 0) :
+    P (E ∩ {ω | VisitFrom c rho (fun i => zeta i ω) k n})
+      = P E * ENNReal.ofReal ((1 - clampExitProb rho) ^ n * clampExitProb rho) := by
+  rw [inter_setOf_visitFrom_eq hc zeta k n hEW]
+  exact measure_inter_visitEndsAt_shift hmeas hindep hlaw rho k n hE
+
+omit [MeasurableSpace Ω] in
+/-- The event that a visit begins at step `k + 1`, `{W_k > 0, W_{k+1} = 0}`, is determined by the
+first `k + 1` draws. -/
+theorem measurableSet_visitStart (zeta : ℕ → Ω → ℝ) (c rho : ℝ) (k : ℕ) :
+    MeasurableSet[pastDraws zeta (k + 1)]
+      {ω | 0 < clampIterate c rho (fun i => zeta i ω) k
+        ∧ clampIterate c rho (fun i => zeta i ω) (k + 1) = 0} := by
+  have h1 : Measurable[pastDraws zeta (k + 1)]
+      fun ω => clampIterate c rho (fun i => zeta i ω) k :=
+    (measurable_clampIterate_pastDraws zeta c rho k).mono
+      (pastDraws_mono zeta (Nat.le_succ k)) le_rfl
+  have h2 := measurable_clampIterate_pastDraws zeta c rho (k + 1)
+  exact (h1 measurableSet_Ioi).inter (h2 (measurableSet_singleton 0))
+
+/-- **A visit that begins at a later step lasts a geometric number of steps**: with
+`V = {W_k > 0, W_{k+1} = 0}` the event that a visit begins at step `k + 1`,
+`P(V and that visit lasts n + 1 steps) = P(V) · (1 - Φ(-ρ))ⁿ Φ(-ρ)`. -/
+theorem measure_visitStart_inter_visitFrom {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c : ℝ} (hc : 0 < c) (rho : ℝ)
+    (k n : ℕ) :
+    P ({ω | 0 < clampIterate c rho (fun i => zeta i ω) k
+          ∧ clampIterate c rho (fun i => zeta i ω) (k + 1) = 0}
+        ∩ {ω | VisitFrom c rho (fun i => zeta i ω) (k + 1) n})
+      = P {ω | 0 < clampIterate c rho (fun i => zeta i ω) k
+          ∧ clampIterate c rho (fun i => zeta i ω) (k + 1) = 0}
+        * ENNReal.ofReal ((1 - clampExitProb rho) ^ n * clampExitProb rho) :=
+  measure_inter_visitFrom hmeas hindep hlaw hc rho (k + 1) n
+    (measurableSet_visitStart zeta c rho k) fun _ hω => hω.2
+
+/-- **The law of a later visit, as a conditional law.** Given an event `E` of positive
+probability, determined by `ζ₀, …, ζ_{k-1}`, on which `W_k = 0`, the visit from step `k` lasts
+`n + 1` steps with conditional probability `(1 - Φ(-ρ))ⁿ Φ(-ρ)`, whatever `E` is. -/
+theorem cond_measureReal_visitFrom {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c : ℝ} (hc : 0 < c) (rho : ℝ)
+    (k n : ℕ) {E : Set Ω} (hE : MeasurableSet[pastDraws zeta k] E)
+    (hEW : ∀ ω ∈ E, clampIterate c rho (fun i => zeta i ω) k = 0) (hE0 : P E ≠ 0) :
+    P[{ω | VisitFrom c rho (fun i => zeta i ω) k n} | E].toReal
+      = (1 - clampExitProb rho) ^ n * clampExitProb rho := by
+  haveI := hindep.isProbabilityMeasure
+  have hnn : (0 : ℝ) ≤ 1 - clampExitProb rho := by linarith [clampExitProb_lt_one rho]
+  rw [cond_apply (pastDraws_le hmeas k E hE), measure_inter_visitFrom hmeas hindep hlaw hc rho
+    k n hE hEW, ← mul_assoc, ENNReal.inv_mul_cancel hE0 (measure_ne_top P E), one_mul,
+    ENNReal.toReal_ofReal (mul_nonneg (pow_nonneg hnn n) (clampExitProb_pos rho).le)]
+
+/-- The mean of the length `n + 1` under the geometric law `(1 - p)ⁿ p` is `1/p`. -/
+theorem tsum_succ_mul_geometric {p : ℝ} (hp0 : 0 < p) (hp1 : p < 1) :
+    ∑' n : ℕ, ((n : ℝ) + 1) * ((1 - p) ^ n * p) = 1 / p := by
+  have hnn : (0 : ℝ) ≤ 1 - p := by linarith
+  have hlt : 1 - p < 1 := by linarith
+  have hnorm : ‖1 - p‖ < 1 := by
+    rw [Real.norm_eq_abs, abs_of_nonneg hnn]
+    exact hlt
+  have hs1 : Summable (fun n : ℕ => (n : ℝ) * (1 - p) ^ n) := by
+    simpa using summable_pow_mul_geometric_of_norm_lt_one (R := ℝ) 1 hnorm
+  have hs2 : Summable (fun n : ℕ => (1 - p) ^ n) := summable_geometric_of_lt_one hnn hlt
+  calc ∑' n : ℕ, ((n : ℝ) + 1) * ((1 - p) ^ n * p)
+      = ∑' n : ℕ, ((n : ℝ) * (1 - p) ^ n + (1 - p) ^ n) * p := by
+        refine tsum_congr fun n => ?_
+        ring
+    _ = (∑' n : ℕ, ((n : ℝ) * (1 - p) ^ n + (1 - p) ^ n)) * p := by rw [tsum_mul_right]
+    _ = ((∑' n : ℕ, (n : ℝ) * (1 - p) ^ n) + ∑' n : ℕ, (1 - p) ^ n) * p := by
+        rw [hs1.tsum_add hs2]
+    _ = ((1 - p) / (1 - (1 - p)) ^ 2 + (1 - (1 - p))⁻¹) * p := by
+        rw [tsum_coe_mul_geometric_of_norm_lt_one hnorm, tsum_geometric_of_lt_one hnn hlt]
+    _ = 1 / p := by
+        rw [sub_sub_cancel]
+        field_simp
+        ring
+
+/-- **Every later visit has mean `1/Φ(-ρ)`.** Given an event `E` of positive probability,
+determined by `ζ₀, …, ζ_{k-1}`, on which `W_k = 0`, the conditional mean of the length of the
+visit from step `k` is `1/Φ(-ρ)`, the mean of the visit begun at `W₀ = 0` (`tsum_visitLength`). -/
+theorem tsum_cond_visitLength {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c : ℝ} (hc : 0 < c) (rho : ℝ)
+    (k : ℕ) {E : Set Ω} (hE : MeasurableSet[pastDraws zeta k] E)
+    (hEW : ∀ ω ∈ E, clampIterate c rho (fun i => zeta i ω) k = 0) (hE0 : P E ≠ 0) :
+    ∑' n : ℕ, ((n : ℝ) + 1) * P[{ω | VisitFrom c rho (fun i => zeta i ω) k n} | E].toReal
+      = 1 / clampExitProb rho := by
+  rw [← tsum_succ_mul_geometric (clampExitProb_pos rho) (clampExitProb_lt_one rho)]
+  exact tsum_congr fun n => by
+    rw [cond_measureReal_visitFrom hmeas hindep hlaw hc rho k n hE hEW hE0]
+
+/-- **The same law at a random start.** Let `E k` be the event that a random start `τ` equals
+`k`: pairwise disjoint, each determined by `ζ₀, …, ζ_{k-1}` and contained in `{W_k = 0}`. Then
+`P(τ < ∞ and the visit from τ lasts n + 1 steps) = P(τ < ∞) · (1 - Φ(-ρ))ⁿ Φ(-ρ)`. This is the
+paper's "every later visit, whatever the step at which it begins", at every start of a visit that is a
+stopping time of the recursion (`iterateFiltration_le_pastDraws`), proved by summing
+`measure_inter_visitFrom` over the value of `τ`. -/
+theorem measure_iUnion_inter_visitFrom {P : Measure Ω} {zeta : ℕ → Ω → ℝ}
+    (hmeas : ∀ i, Measurable (zeta i)) (hindep : iIndepFun zeta P)
+    (hlaw : ∀ i, HasLaw (zeta i) (gaussianReal 0 1) P) {c : ℝ} (hc : 0 < c) (rho : ℝ)
+    (n : ℕ) {E : ℕ → Set Ω} (hE : ∀ k, MeasurableSet[pastDraws zeta k] (E k))
+    (hEW : ∀ k, ∀ ω ∈ E k, clampIterate c rho (fun i => zeta i ω) k = 0)
+    (hdisj : Pairwise (Function.onFun Disjoint E)) :
+    P (⋃ k, E k ∩ {ω | VisitFrom c rho (fun i => zeta i ω) k n})
+      = P (⋃ k, E k) * ENNReal.ofReal ((1 - clampExitProb rho) ^ n * clampExitProb rho) := by
+  have hEm : ∀ k, MeasurableSet (E k) := fun k => pastDraws_le hmeas k _ (hE k)
+  have hVm : ∀ k, MeasurableSet (E k ∩ {ω | VisitFrom c rho (fun i => zeta i ω) k n}) := by
+    intro k
+    rw [inter_setOf_visitFrom_eq hc zeta k n (hEW k), visitEndsAt_setOf rho
+      (fun i => zeta (k + i)) n]
+    refine (hEm k).inter (Finset.measurableSet_biInter _ fun j _ => (hmeas (k + j)) ?_)
+    split_ifs
+    · exact measurableSet_Ici
+    · exact measurableSet_Iio
+  rw [measure_iUnion (fun a b hab => (hdisj hab).mono inter_subset_left inter_subset_left) hVm,
+    measure_iUnion hdisj hEm, ← ENNReal.tsum_mul_right]
+  exact tsum_congr fun k => measure_inter_visitFrom hmeas hindep hlaw hc rho k n (hE k) (hEW k)
 
 end IcnnLift

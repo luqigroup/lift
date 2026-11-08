@@ -4,9 +4,16 @@ import TraceLemmas
 /-!
 # The sign of the coupling channel
 
-This file settles, by machine-checked proof, a tension inside the authors' own design note
-`docs/design/lemma1_rederivation.md`, and it is the tension on which the corrected mechanism
-turns.
+This file settles, by machine-checked proof, a tension inside the design note, and it is
+the tension on which the corrected mechanism turns.
+
+**Against the current paper.** (A3), (A4), (A4'-q), (A6), FW-2' and the section numbers below
+are the design note's and the v4 draft's labels, and the module records that history. In the
+current paper the chain `g = g₀ + H δθ̃ + r₂` of §3.1 is an
+identity that defines the remainder `r₂`, not an assumption; the coupling term is
+`2 e_bᵀ H Σ_ξ e_b` of `eq:sigma-eff`, and its sign, net of the remainder, is the stated
+condition `c > 0`, which the paper says the method does not fix. This file's conclusion, that
+the sign is not automatic, is the content behind that sentence.
 
 Section 2 of that note derives the update-covariance decomposition that replaces the refuted
 Hessian decomposition of the shipped Lemma 1. Writing `δθ` for the batch-resampling fluctuation
@@ -144,12 +151,14 @@ them rests on an unformalized identification.
 * `crossTerm_ge_sub_abs_remainder` — the same identity as a lower bound, with the remainder
   functional in absolute value.
 * `crossTerm_frozen_eq_slack_sub`, `crossTerm_frozen_neg_of_slack_neg`,
-  `crossTerm_frozen_le_slack` (added 2026-09-13) — the subtraction the appendix's (A3)
-  discussion makes in words: at a vanishing chain remainder the coupling form of the **frozen**
-  coupling `Σ_ξ` is that of the full slack cross-covariance less `2 eᵀ H V H e`, so a direction
-  in which the slack channel's coupling form is negative is one in which the frozen coupling's
-  is. This is what carries this file's counterexamples from `Σ_slack` to `Σ_ξ`, and it
-  discharges the appendix sentence that said the subtraction was outside the formalization.
+  `crossTerm_frozen_le_slack` — the subtraction: at a vanishing chain
+  remainder the coupling form of the **frozen** coupling `Σ_ξ` is that of the full slack
+  cross-covariance less `2 eᵀ H V H e`, so a direction in which the slack channel's coupling
+  form is negative is one in which the frozen coupling's is. This is what carries this file's
+  counterexamples from `Σ_slack` to `Σ_ξ`. In the current paper the same substitution is made in
+  Step 2 of the proof of Lemma 1 (`lem:diffusion`, Appendix A.3), "the self-coupling `V H`
+  inside `Σ_slack` counting the fluctuation term twice"; the sign transfer was a sentence of the
+  earlier appendix's (A3) discussion (history).
 * `outerMoment`, `outerMoment_self_posSemidef`, `outerMoment_chain`, `outerMoment_smul_smul` —
   finite weighted second moments, positive semidefiniteness of `V = E[δθ δθᵀ]`, the derivation
   of `Σ_slack = V H + E[δθ rᵀ]` from the pointwise chain `δg = H δθ + r`, and their behaviour
@@ -262,12 +271,12 @@ decomposition from the SGD recursion. The derivation is section 2's and lives in
 `UpdateCovariance.lean`; what is proved here is the ordering between the two given the
 decomposition.
 
-One finding for the author that goes beyond the assignment. Section 2's overstatement is not a
+A further consequence. Section 2's overstatement is not a
 harmless simplification of a true-in-spirit claim, and it is not repaired by (A4'-q) either.
 Section 2 writes the chain with the remainder and then reports a cross term computed without it;
 the clause that would restore the sentence is not "`r` is small" but `E[δθ rᵀ] = 0`, or the
-strictly stronger-than-(A4'-q) control `ρ ≤ 2`. If any version of the "sign comes for free"
-sentence is retained in the tex, that is the clause it must carry. The same deletion surfaces
+strictly stronger-than-(A4'-q) control `ρ ≤ 2`. Any version of the "sign comes for free"
+sentence must carry that clause. The same deletion surfaces
 once more inside section 8 itself: (FW-1b)'s closing "in particular `E ⪰ s² H̄ V H̄`" is
 equivalent, for `s ≠ 0`, to the positive semidefiniteness of the coupling term, and therefore
 fails under (A4'-q) alone, on the same witness; only the PSD claim `E ⪰ 0` survives at `ρ = 3`.
@@ -426,13 +435,15 @@ theorem crossTerm_ge_sub_abs_remainder {H V R S : Matrix n n ℝ} (hH : H.IsHerm
 
 /-! ## The subtraction that carries the sign from the slack channel to the frozen coupling
 
-The appendix sentence this discharges, from the (A3) discussion of `app_proofs.tex`:
+History: the sentence this discharged, from the (A3) discussion of the earlier appendix
+(the sentence is no longer in the paper):
 
 > "The coupling form of `Σ_ξ` is that of `Σ_slack` less the non-negative quantity
 > `2 eᵀ H V H e`, by the split of `lem:diffusion`(i) at `r₂ = 0`, so it is negative in the same
 > direction."
 
-The split of `lem:diffusion`(i) is `Σ_slack = Σ_ξ + V H + Cov[δθ̃, r₂]`
+The current paper keeps the substitution without the sign conclusion, in Step 2 of the proof of
+Lemma 1. The split of `lem:diffusion`(i) is `Σ_slack = Σ_ξ + V H + Cov[δθ̃, r₂]`
 (`MinibatchNoise.covMat_slack_refined`); at `r₂ = 0` it is `Σ_slack = Σ_ξ + V H`, which is the
 hypothesis `hS` below. The subtraction is then exact, and the sign transfers because the
 subtracted quantity is a quadratic form in a positive semidefinite matrix
@@ -453,7 +464,7 @@ theorem crossTerm_frozen_eq_slack_sub {H V Xi S : Matrix n n ℝ} (hH : H.IsHerm
 /-- **The sign conclusion.** A direction in which the full slack cross-covariance has a negative
 coupling form is a direction in which the frozen coupling has one: the subtracted quantity is
 non-negative, so the frozen coupling's form is the smaller of the two. This is the transfer the
-appendix makes in words, and it is what makes `ce_crossTerm_neg` and
+earlier appendix made in words, and it is what makes `ce_crossTerm_neg` and
 `counterexample_trace_slack_pos` statements about `Σ_ξ` as well as about `Σ_slack`. -/
 theorem crossTerm_frozen_neg_of_slack_neg {H V Xi S : Matrix n n ℝ} (hV : V.PosSemidef)
     (hH : H.IsHermitian) (hS : S = Xi + V * H) {e : n → ℝ} (hneg : crossTerm H S e < 0) :

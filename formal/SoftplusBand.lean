@@ -5,10 +5,12 @@ import ShoulderAttenuation
 /-!
 # (A2) for the softplus positivity map: the single-prefactor tolerance with an explicit constant
 
-`Assumptions.lean` carries the paper's assumption (A2) -- "the operative region is a narrow band
-of the softplus shoulder over which `psi'` varies slowly", written in the appendix as
-`psi'(thetatilde) ~ sigma_s I_d` -- as the structure `SinglePrefactor psi B s eps`, whose
-substantive field is `approx : ∀ w ∈ B, |deriv psi w - s| ≤ eps`. That module proves (A2)
+`Assumptions.lean` carries the paper's Assumption A2(a) -- `psi` continuously differentiable and
+non-decreasing, with `|psi'(w) - sigma_s| ≤ eps` for every `w` in an interval `B`,
+`sigma_s = psi'(w_s) > 0` at a point of `B` and `0 ≤ eps < sigma_s` -- as the structure
+`SinglePrefactor psi B s eps`, whose substantive field is
+`approx : ∀ w ∈ B, |deriv psi w - s| ≤ eps`. Throughout this module "(A2)" means that clause,
+A2(a); the barrier clause A2(b) is not used. That module proves (A2)
 satisfiable for an arbitrary `C¹` non-decreasing positivity map (`exists_singlePrefactor_band`), but only
 in the shape "fix the tolerance `eps`, and continuity of `psi'` produces *some* band width
 `delta > 0`". No constant is exhibited, and the width produced is not quantified.
@@ -62,7 +64,7 @@ positivity map, and one that shrinks with the depth of the shoulder. This module
 takes, so that `abs_logDensityCurvature_sub_leading_le` applies to it directly with
 `sigma2 := softplusDiffusion sigma_obj^2` and `eps := 2 s0`.
 
-The module closes with the instantiation the audit asked for.
+The module closes with an instantiation inside the shoulder.
 `exists_singlePrefactor_softplus_inside_shoulder` produces, for any shoulder level `s0 > 0` and
 any relative tolerance `rho ∈ (0,1)`, a centre `w_s` such that the whole band of half-width
 `log (1 + rho)` lies inside `ShoulderAttenuation.shoulder s0` *and* carries a `SinglePrefactor`
@@ -73,13 +75,14 @@ exactly that degeneracy for this positivity map.
 What this module does **not** prove. It says nothing about *where training goes*: that the
 operative iterates actually sit on a shoulder band, at some `w_s` with `sigma(w_s)` small, is a
 claim about the optimizer and the data and is not addressed here or anywhere in this development.
-It says nothing about the vector-valued form of (A2): the paper's `psi'(thetatilde) ~ sigma_s I_d`
-asserts that a single scalar serves *across coordinates*, and the theorems here are
-one-dimensional statements about one coordinate's pre-activation, so the cross-coordinate claim
-reduces to all coordinates' pre-activations lying in a common band -- again a statement about
-training, not about `psi`. And it does not touch the remaining hypotheses of the development:
+It says nothing about a vector-valued form of the clause. The current A2(a) is scalar, one
+interval `B ⊂ ℝ`, and so are the theorems here; the paper's power count (`rem:power`) does read
+`psi' = sigma_s` in every coordinate at the mean latent weight, and that cross-coordinate
+reading reduces to all coordinates' pre-activations lying in a common band -- again a statement
+about training, not about `psi`. (An earlier draft wrote the clause in vector form, as
+`psi'(thetatilde) ~ sigma_s I_d`; that is history.) And it does not touch the remaining hypotheses of the development:
 `SinglePrefactor` also carries `contDiff` and `mono`, which are discharged here for softplus, but
-(A1), (A3)-(A6) are untouched.
+(A1) and the barrier clause A2(b) are untouched.
 
 ## Results
 * `logistic_eq_sigmoid` — the module's `logistic` is mathlib's `Real.sigmoid`, so mathlib's
@@ -240,7 +243,7 @@ theorem abs_logistic_sub_le_quarter_mul (w v : ℝ) : |logistic w - logistic v| 
 
 /-- **The (A2) bracket for softplus, absolute form.** With `s = psi'(w_s)`, the positivity-map derivative
 on the band `[w_s - delta, w_s + delta]` is trapped between `s - delta/4` and `s + delta/4`. The
-tolerance `eps = delta/4` is explicit and is the paper's "varies slowly" made quantitative. -/
+tolerance `eps = delta/4` is explicit, the tolerance of A2(a) produced rather than assumed. -/
 theorem softplus_prefactor_bracket {ws delta w : ℝ} (hw : |w - ws| ≤ delta) :
     logistic ws - delta / 4 ≤ deriv softplus w ∧ deriv softplus w ≤ logistic ws + delta / 4 := by
   rw [deriv_softplus_eq_logistic]
@@ -494,7 +497,7 @@ theorem band_subset_shoulder {ws rho s0 : ℝ} (h0 : 0 < rho)
   rw [hexp] at hb
   exact lt_of_le_of_lt hb h
 
-/-- **The instantiation asked for by the audit.** For any shoulder level `s0 > 0` and any relative
+/-- **The instantiation inside the shoulder.** For any shoulder level `s0 > 0` and any relative
 tolerance `rho` strictly between `0` and `1` there is a centre `w_s` such that the band of
 half-width `log (1 + rho)` around it lies entirely inside the shoulder, is not a single point, and
 carries a `SinglePrefactor` term for the softplus positivity map with prefactor `sigma(w_s)` and

@@ -3,12 +3,23 @@ import Mathlib
 /-!
 # The exact update-covariance decomposition and the projected effective diffusion
 
-This file machine-checks fact (ii) of `docs/design/lemma1_rederivation.md` §2 (lines 50-87), the
+This file machine-checks fact (ii) of §2 of the design note, the
 diffusion half of the corrected mechanism. Section 1 of that note concedes that the shipped
 Hessian decomposition of Lemma 1 is false — differentiation commutes with the batch expectation,
 so the pullback Hessian carries no cross-covariance term — and relocates the cross-covariance
 from the Hessian of the averaged loss to the *covariance of the per-step update*. What is proved
 here is that relocation, in the only form in which it is a theorem rather than an approximation.
+
+**Against the current paper.** "Lemma 1" in the paragraph above is the shipped v4 lemma, and
+(A1), (A2), (A4) below are the v4 draft's and the design note's labels; the module records that
+history. In the current paper the exact decomposition proved here
+is Step 2 of the proof of Lemma 1 (`lem:diffusion`, Appendix A.3, `eq:pf-cov3` and
+`eq:pf-projdiff`), written with the prefactor `s` set to one because the latent-weight gradient
+already includes `ψ'`; the cross-covariance the cross term carries, `covMat μ g dθ` with `g` the
+gradient at the mean iterate, is the paper's coupling `Σ_ξ` (transposed, and up to the prefactor
+`s` the paper absorbs into the gradient), which the design note calls `Σ_slack`. The non-negativity of the jitter term is Lemma 1(iii), and the sign of the cross
+term, which the text below calls "(A4)'s question", is the paper's stated condition `c > 0` on
+the coupling term plus the remainder, not an assumption label.
 
 The note expands the slack update around the mean iterate. Writing `dθ(X) = h(X) - E[h]` for the
 latent-weight fluctuation, `g(X)` for the loss gradient at the mean iterate, `H` for the loss Hessian
@@ -444,7 +455,7 @@ theorem updateExpansion_absorb_hessian_fluctuation (s : ℝ) (H : Matrix n n ℝ
   rw [hG ω, Matrix.sub_mulVec, smul_sub]
   abel
 
-/-- **The exact update-covariance decomposition** — fact (ii) of `lemma1_rederivation.md` §2.
+/-- **The exact update-covariance decomposition** — fact (ii) of §2 of the design note.
 
 For an update that expands as `G = s g + s H dθ + R` with `R` an arbitrary square-integrable
 remainder, the update covariance is *exactly*
@@ -830,8 +841,8 @@ theorem projDiffusion_cross_nonneg_of_gradient_chain [IsProbabilityMeasure μ]
 update whose gradient obeys `g = c + H dθ` exactly, the lift's projected diffusion is at least the
 direct baseline's `s² σ_obj²`. This is `projDiffusion_ge_baseline_of_cross_nonneg` with its one
 hypothesis discharged, and it is the strongest form of the note's asymmetry claim that this file
-establishes. It is not the paper's assumption (A4), which asserts the comparison under the weaker
-chain `δg = H dθ + r` with `r` merely controlled; that weaker statement is `CouplingSign.lean`'s
+establishes. It is not the v4 draft's assumption (A4), which asserted the comparison under the
+weaker chain `δg = H dθ + r` with `r` merely controlled; that weaker statement is `CouplingSign.lean`'s
 and nothing here bears on it. -/
 theorem projDiffusion_ge_baseline_of_gradient_chain [IsProbabilityMeasure μ] (s : ℝ)
     {H : Matrix n n ℝ} (hH : Hᵀ = H) (c : n → ℝ) {g dθ G : Ω → n → ℝ}
@@ -1409,8 +1420,9 @@ open PlaneWitness in
 /-- **The cross term carries the cross-covariance and neither variance, and that is falsifiable.**
 Substituting `Cov[dθ, dθ]` gives `68` and substituting `Cov[g, g]` gives `44`, where the projected
 diffusion is `36`. This is the discrimination that a witness with `g = dθ` cannot supply, and it
-is the one that matters, since the paper's claim is precisely that the slack-channel
-cross-covariance `Σ_slack` is what the cross term carries. -/
+is the one that matters, since the paper's claim is precisely that the cross term carries the
+cross-covariance of the fluctuation with the gradient at the mean iterate, the paper's coupling
+`Σ_ξ` up to the prefactor (the design note's `Σ_slack`). -/
 theorem planeWitness_cross_covariance_necessary :
     projDiffusion StdGaussianWitness.batchLaw dir update
         ≠ prefactor ^ 2 * (dir ⬝ᵥ (covMat StdGaussianWitness.batchLaw grad grad *ᵥ dir))

@@ -13,6 +13,8 @@ import FWReduction
 import InversePSDAntitone
 import KramersBridge
 import KramersExitTime
+import LindleyClamped
+import LindleyStationary
 import LogDensityCurvature
 import MinibatchNoise
 import PgdBaseline
@@ -24,6 +26,9 @@ import QuasipotentialMonotone
 import ShoulderAttenuation
 import ShoulderDwell
 import SoftplusBand
+import SpitzerCyclic
+import SpitzerGaussian
+import SpitzerIdentity
 import StationaryDensity
 import StructuralZeros
 import TaylorChain
@@ -51,6 +56,8 @@ run_cmd do
     `InversePSDAntitone,
     `KramersBridge,
     `KramersExitTime,
+    `LindleyClamped,
+    `LindleyStationary,
     `LogDensityCurvature,
     `MinibatchNoise,
     `PgdBaseline,
@@ -62,6 +69,9 @@ run_cmd do
     `ShoulderAttenuation,
     `ShoulderDwell,
     `SoftplusBand,
+    `SpitzerCyclic,
+    `SpitzerGaussian,
+    `SpitzerIdentity,
     `StationaryDensity,
     `StructuralZeros,
     `TaylorChain,

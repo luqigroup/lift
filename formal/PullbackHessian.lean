@@ -5,12 +5,25 @@ import CrossCov
 /-!
 # The exact pullback Hessian, and the refutation of the shipped Lemma 1 decomposition
 
-The shipped proof of `lem:moreau` (`docs/paper/v4/A1_proofs.tex`, the paragraph beginning
+**Against the current paper.** The lemma refuted here, `lem:moreau` with its `eq:moreau`, `H⋆`
+and assumption (A3), is the v4 draft's; the module records that
+history. The current paper has no `lem:moreau` and no Hessian
+decomposition: it places the coupling in the covariance of the update (`eq:sigma-eff`, Lemma 1
+of Appendix A.3), which is the corrected route the design note takes. "The paper" below means
+the v4 draft wherever `lem:moreau`, `eq:moreau`, `H⋆` or (A3) is attached. Two current labels
+are also used. The current `eq:fluct` is the population fluctuation `h_φ(X) - E_X[h_φ(X)]`; the
+sample-mean centering over `T` batches is part of the current `eq:cross-cov`, which is the
+`T`-probe estimator with divisor `1/(T-1)`. The `crossCovEstimator` of `CrossCov.lean` used
+below is the trailing-window form with divisor `1/T`, which the paper's appendix opening relates
+to `eq:cross-cov` by the factor `T/(T-1)`; at `T = 2` the witness below is therefore half of what
+`eq:cross-cov` returns on the same data, and its trace is positive either way.
+
+The shipped proof of `lem:moreau` (the v4 draft's appendix, the paragraph beginning
 "The Hessian `H⋆`, a symmetric matrix, decomposes …") asserts, without derivation, that the
 Hessian of the pullback landscape splits into an expected-loss curvature plus a
 cross-covariance contribution,
 `H⋆ = E_X[∇²_θ̃ L] + κ⁻² · ½ (Σ_slack + Σ_slackᵀ)`.
-The authors' design note (`docs/design/lemma1_rederivation.md` §1) concedes that this assertion
+The design note (§1) concedes that this assertion
 is false, and this file is the machine-checked form of that concession. The pullback landscape
 is `L̃(b) = E_X[(L ∘ ψ)(b + h_φ(X))]`; the batch variable enters only through the *translation*
 `b ↦ b + h_φ(X)`, so differentiation in `b` commutes with the batch average and the second
@@ -73,7 +86,7 @@ only shift that coefficient) do not rescue it, since the exact identity makes th
 traces equal. Finally a concrete witness is exhibited: the rank-one
 outer product `δθ̃ δgᵀ` with `δθ̃ = δg = e_j`, of trace `1 > 0`. It is realizable by the
 measurement protocol itself: on a window of length two whose values of the latent weight move by `2 eⱼ` between
-the draws, the window-centred fluctuations of `eq:fluct` — computed by `bodyFluct` of
+the draws, the window-centred fluctuations of `eq:cross-cov` — computed by `bodyFluct` of
 `CrossCov.lean`, derived rather than assumed — come out to `∓ eⱼ`, and the trailing-window
 estimator of `eq:cross-cov` returns exactly this witness. A window of length one could not do
 it: the centring subtracts the window mean, which over a single sample is the sample itself, so
@@ -378,7 +391,7 @@ theorem hasDerivAt_deriv_pullbackLoss (hf1 : ∀ i y, HasDerivAt (f i) (f1 i y) 
 /-- **The exact identity, one slack variable, finite batch law, unconditionally.**
 `L̃''(b) = ∑ᵢ wᵢ (L ∘ ψ)''(b + hᵢ)`. The right-hand side is the batch average of the per-batch
 loss curvatures; there is no further term. Compare the shipped equation of
-`A1_proofs.tex`, which adds `κ⁻² · ½ (Σ_slack + Σ_slackᵀ)` to exactly this right-hand side. -/
+the v4 draft's appendix, which adds `κ⁻² · ½ (Σ_slack + Σ_slackᵀ)` to exactly this right-hand side. -/
 theorem iteratedDeriv_two_pullbackLoss (hf1 : ∀ i y, HasDerivAt (f i) (f1 i y) y)
     (hf2 : ∀ i, HasDerivAt (f1 i) (f2 i) (b + h i)) :
     iteratedDeriv 2 (pullbackLoss w f h) b = ∑ i, w i * iteratedDeriv 2 (f i) (b + h i) := by
@@ -532,7 +545,7 @@ variable {w : ι → ℝ} {f : ι → (Fin d → ℝ) → ℝ}
 
 /-- **The exact identity as an equality of `d × d` matrices.**
 `∇²_b L̃(b) = ∑ᵢ wᵢ · ∇²_θ̃ (L ∘ ψ)(b + hᵢ)`, entry by entry, with no cross-covariance term.
-This is the statement the shipped decomposition of `A1_proofs.tex` contradicts: the shipped
+This is the statement the shipped decomposition of the v4 draft's appendix contradicts: the shipped
 equation adds `κ⁻² · ½ (Σ_slack + Σ_slackᵀ)` to the right-hand side of exactly this identity. -/
 theorem hessianMatrix_pullbackLoss (hf1 : ∀ i y, HasFDerivAt (f i) (f1 i y) y)
     (hf2 : ∀ i, HasFDerivAt (f1 i) (f2 i) (b + h i)) :
@@ -561,7 +574,7 @@ theorem hessianMatrix_pullbackLoss_of_const (hf1 : ∀ i y, HasFDerivAt (f i) (f
     _ = H := by rw [hw, one_smul]
 
 /-- The trace form of the exact identity: `tr ∇²_b L̃ = ∑ᵢ wᵢ tr ∇²_θ̃ (L ∘ ψ)(b + hᵢ)`. The
-shipped trace equation of `A1_proofs.tex` adds `σ_Jac²/κ²` to the right-hand side of exactly
+shipped trace equation of the v4 draft's appendix adds `σ_Jac²/κ²` to the right-hand side of exactly
 this identity, and it is that addition which the refutation below rules out. -/
 theorem trace_hessianMatrix_pullbackLoss (hf1 : ∀ i y, HasFDerivAt (f i) (f1 i y) y)
     (hf2 : ∀ i, HasFDerivAt (f1 i) (f2 i) (b + h i)) :
@@ -677,7 +690,7 @@ theorem iteratedDeriv_two_pullbackLossIntegral
 
 /-- The same identity with the integrand written intrinsically, as the second derivative of the
 per-batch composite loss: `L̃''(b₀) = ∫ (L ∘ ψ)''(b₀ + h_φ(x)) dμ(x)`. This is the form quoted
-in `docs/design/lemma1_rederivation.md` §1. -/
+in §1 of the design note. -/
 theorem iteratedDeriv_two_pullbackLossIntegral_eq_integral
     (hε : 0 < ε)
     (hf_meas : ∀ b ∈ ball b₀ ε, AEStronglyMeasurable (fun x => f x (b + h x)) μ)
@@ -814,7 +827,7 @@ section Refutation
 
 variable {d p : ℕ}
 
-/-- **The shipped decomposition of `A1_proofs.tex`**, as a predicate on matrices:
+/-- **The shipped decomposition of the v4 draft's appendix**, as a predicate on matrices:
 `H⋆ = E_X[∇²_θ̃ L] + κ⁻² · ½ (Σ + Σᵀ)`. This is the equation the shipped proof asserts without
 derivation, written in the reading under which `H⋆` denotes the `d × d` slack block, so that both
 sides have the same size. -/
@@ -858,7 +871,7 @@ theorem trace_eq_zero_of_hessianCrossCovDecomposition {κ : ℝ} (hκ : κ ≠ 0
 
 /-- **The refutation, matrix form — stronger than the trace form.** Under the same hypotheses,
 the entire added term vanishes: the symmetric part `½(Σ + Σᵀ)` is the zero matrix. This closes
-the anisotropy fallback of `A1_proofs.tex`, which hedges that "the added curvature is in general
+the anisotropy fallback of the v4 draft's appendix, which hedges that "the added curvature is in general
 anisotropic — a quadratic form aligned with the batch-coupled gradient noise" and that the trace
 is only its dimension-averaged summary: no quadratic form at all is added, in any direction,
 because the matrix carrying it is zero. `trace_eq_zero_of_hessianCrossCovDecomposition` is the
@@ -917,7 +930,7 @@ theorem hessianCrossCovDecomposition_antisymmCrossCov {κ : ℝ} (hκ : κ ≠ 0
   fin_cases i <;> fin_cases j <;> norm_num [antisymmCrossCov]
 
 /-- **The refutation with an explicit remainder carried.** The surrounding lemma statement of
-`A1_proofs.tex` hedges its conclusion with an `O(η σ_Jac²/(d κ²))` Itô–Taylor correction, so the
+the v4 draft's appendix hedges its conclusion with an `O(η σ_Jac²/(d κ²))` Itô–Taylor correction, so the
 honest question is whether the shipped decomposition can hold *up to a remainder* `R`. It can,
 but only at the cost of `tr Σ_slack = -κ² tr R` exactly: the cross-covariance contribution is
 not a leading-order addition with a subleading correction, it is precisely the negative of the
@@ -982,7 +995,7 @@ noncomputable def rankOneCrossCov (j : Fin d) : Matrix (Fin d) (Fin d) ℝ :=
 /-- The witness is a value of the estimator *function* of `eq:cross-cov`: feeding the
 trailing-window estimator of `CrossCov.lean` the constant fluctuation series `δθ̃ = δg = e_j` at
 window length one returns exactly `rankOneCrossCov j`. This is an algebraic evaluation, not a
-run of the measurement protocol: the protocol centres each window at its own mean (`eq:fluct`),
+run of the measurement protocol: the protocol centres each window at its own mean (`eq:cross-cov`),
 and a centred window of length one is degenerate — that is
 `crossCovEstimator_one_bodyFluct_eq_zero` next. The protocol-faithful realization, at window
 length two with the centring derived rather than assumed, is `rankOneCrossCov_realizable`
@@ -993,7 +1006,7 @@ theorem rankOneCrossCov_eq_crossCovEstimator (j : Fin d) (t : ℕ) :
   simp [crossCovEstimator, rankOneCrossCov]
 
 /-- **A window of length one cannot realize a nonzero estimate.** The window-centred fluctuation
-of `eq:fluct` subtracts the window mean, and over a window of length one the mean is the sample
+of `eq:cross-cov` subtracts the window mean, and over a window of length one the mean is the sample
 itself, so the measurement protocol's estimator at `T = 1` is identically the zero matrix — for
 every body, every batch sequence, every gradient series and every iteration. This is why the
 realization below uses a window of length two, and why the evaluation above is a statement about
@@ -1007,7 +1020,7 @@ theorem crossCovEstimator_one_bodyFluct_eq_zero {Ω : Type*}
 /-- **The witness is realizable by the measurement protocol itself.** Take the window of length
 two ending at `t = 2` and let the body's latent weight on the `s`-th draw be `2s • e_j`, the gradient
 fluctuation riding the same draws — the paper's same-batch protocol. The window-centred
-fluctuations of `eq:fluct` are computed by `bodyFluct` of `CrossCov.lean` — derived from the
+fluctuations of `eq:cross-cov` are computed by `bodyFluct` of `CrossCov.lean` — derived from the
 values of the latent weight, not assumed — and come out to `∓ e_j` on the two draws; the trailing-window estimator
 of `eq:cross-cov` then returns exactly `rankOneCrossCov j`. Together with
 `trace_rankOneCrossCov`, a genuinely realizable run of the estimator produces a cross-covariance
@@ -1050,7 +1063,7 @@ variable {ι : Type*} [Fintype ι]
 landscape `L̃(b) = ∑ᵢ wᵢ (L ∘ ψ)(b + hᵢ)` of a finite batch law, its actual `d × d` Hessian in the
 slack block, and the actual batch average of the per-batch loss Hessians. Then no
 cross-covariance of strictly positive trace can relate them the way the shipped decomposition of
-`A1_proofs.tex` asserts, for any positivity-map scale `κ ≠ 0`. The only hypotheses are that each
+the v4 draft's appendix asserts, for any positivity-map scale `κ ≠ 0`. The only hypotheses are that each
 per-batch composite loss is differentiable everywhere with a second derivative at its shifted
 point; nothing about the batch law, the positivity map, the learning rate or the invariant measure is
 assumed, and no remainder is discarded. -/
@@ -1088,7 +1101,7 @@ theorem pullbackHessian_not_scaledCrossCovDecomposition
     (hessianMatrix_pullbackLoss hf1 hf2) hship) (ne_of_gt hpos)
 
 /-- **The displayed conclusion of `lem:moreau` fails as well, not only its proof.** The lemma's
-statement in `A1_proofs.tex` is the trace inequality `tr H⋆ ≥ tr E_X[∇²_θ̃ L] + d μ_eff` with
+statement in the v4 draft's appendix is the trace inequality `tr H⋆ ≥ tr E_X[∇²_θ̃ L] + d μ_eff` with
 `μ_eff = Θ(σ_Jac²/(d κ²))` and `σ_Jac² = tr Σ` as `eq:cross-cov` defines it — an added term
 that is some *unspecified positive multiple* of `σ_Jac²/κ²`, further hedged by an
 `O(η σ_Jac²/(d κ²))` Itô–Taylor correction whose subtraction only shifts that multiple. A

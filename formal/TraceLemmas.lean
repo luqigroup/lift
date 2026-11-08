@@ -3,7 +3,7 @@ import Mathlib.Analysis.Matrix.Order
 /-!
 # Trace and quadratic-form toolkit for the cross-covariance argument
 
-The corrected mechanism of the paper (`docs/design/lemma1_rederivation.md` §2) turns on two
+The corrected mechanism of the paper (§2 of the design note) turns on two
 matrix facts that mathlib does not name, and that every later module reuses.
 
 The first is **self-duality of the positive-semidefinite cone in trace form**: for `V` and `H`
@@ -18,6 +18,13 @@ The second is the **cross-term quadratic form** `0 ≤ eᵀ (H * V * H) e` of th
 decomposition, the fact that makes the coupling channel add rather than subtract diffusion.
 
 The third is bookkeeping: the trace does not see symmetrization, `tr (½(M + Mᵀ)) = tr M`.
+
+Against the current paper: (A4) above is the v4 draft's label,
+and the current paper writes the chain `g = g₀ + H δθ̃ + r₂` as an identity defining `r₂`. Both
+facts appear in the proof of its Lemma 1 (`lem:diffusion`, Appendix A.3): the first in Step 1,
+where `tr(V H) ≥ 0` for a positive semidefinite `H` splits `σ²_Jac`, and the second in Step 3,
+`eq:pf-jitter`, where `e_bᵀ H V H e_b ≥ 0` is the fluctuation term of `eq:sigma-eff`, non-negative
+for any coupling.
 
 ## Results
 * `trace_mul_nonneg_of_posSemidef` — `0 ≤ (V * H).trace` for `V H` positive semidefinite.

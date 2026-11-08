@@ -5,29 +5,52 @@ import CrossCovIndep
 # Three architectural structural zeros: the consensus splitting, the deterministic latent weight,
 and the reverse-KL decoupling
 
-The paper draws three architectural corollaries from Theorem 1 (`thm:joint-necessity`), each of
-which says that a named alternative construction reads a *structural* zero of the slack-channel
-cross-covariance rather than a measured one. This file machine-checks all three, together with the
-falsifiability boundary that the paper attaches to them, and it does so by instantiating the
-deletions already proved in `CrossCov.lean` and `CrossCovIndep.lean` rather than by reproving them.
+**What this file backs in the current paper.** In the current paper the zeros proved
+here back three statements, by instantiating the results of `CrossCov.lean` and
+`CrossCovIndep.lean` rather than by reproving them.
 
-The first corollary is the **ADMM / consensus-splitting reading** (`docs/paper/v4/04_mechanism.tex`,
-subsection "ADMM reading"; ICLR appendix `app:admm-reading`). Read as a consensus splitting, the
+* The two substitutions printed after Theorem 2 (`thm:joint-necessity`, Section 3.4): a latent
+  weight with no learnable slack (`slackReading_bodyOnly_eq_zero`), and a hypernetwork constant
+  in the batch (`BatchIndependent`, `crossCovEstimator_eq_zero_of_batchIndependent`,
+  `slackReading_eq_zero_of_batchIndependent`, `bodyFluct_liftIterate`).
+* Theorem 4 (`thm:pgd-zero`, Appendix A.7): a latent weight that does not vary with the
+  conditioning batch, as for projection and for direct softplus, zeroes the estimator of
+  `eq:cross-cov` summand by summand (`crossCovEstimator_directSoftplus_eq_zero`,
+  `crossCovEstimator_biasOnly_eq_zero`) and in population has `δθ̃ ≡ 0`, hence a zero coupling and
+  a zero fluctuation covariance `V` (`popCrossCov_centered_eq_zero_of_deterministic`,
+  `iterateFluctuationCovariance_eq_zero_of_deterministic`,
+  `quadForm_conj_eq_zero_of_deterministic`).
+* Theorem 2's necessity reading: the coupling "requires all three" parts of the lift, and the
+  three together do not force a nonzero reading (`exists_fullLift_slackReading_eq_zero`).
+
+**History.** The rest of this header, and the docstrings below that cite `app:admm-reading`,
+`eq:lift-admm`, `rem:bcond`, `fig:four-cell-cross-cov`, `rem:moreau-scope`, `eq:cross-channel-lift`
+or the draft's assumption (A4), were written against the earlier ICLR draft
+of the paper, in which the joint-necessity
+theorem was Theorem 1; "the draft" below means that text. The draft drew
+three architectural corollaries from the theorem, each saying that a named alternative
+construction reads a *structural* zero of the slack-channel cross-covariance rather than a
+measured one, and it attached a falsifiability boundary to them. The current paper states none of
+the three corollaries and no such boundary. The theorems are kept, and their mathematical content
+is unchanged; only the paper citations are history.
+
+The first corollary is the **ADMM / consensus-splitting reading** (the v4 draft's
+subsection "ADMM reading"; the ICLR draft's appendix `app:admm-reading`). Read as a consensus splitting, the
 lift's latent weight plays the auxiliary primal variable `z` of the augmented Lagrangian and the slack
 `b` its own additive offset inside the latent iterate. The classical splitting has no
 data-conditioned body: its auxiliary variable is a free optimization variable, fixed across
-batches. The modelling assumption is therefore that the splitting's latent iterate is a
+batches. The modeling assumption is therefore that the splitting's latent iterate is a
 function of the conditioning batch that does not in fact depend on it, and everything else follows:
 the resampling fluctuation is identically zero, the window sample covariance of the auxiliary
 variable is zero, and the cross-covariance estimator and its slack-channel reading vanish for every
-iteration and every window length. That modelling assumption is the whole mathematical content of
-the paper's sentence "its auxiliary variable is fixed across batches", and it is named
+iteration and every window length. That modeling assumption is the whole mathematical content of
+the draft's sentence "its auxiliary variable is fixed across batches", and it is named
 `BatchIndependent` here so that a reader can see exactly what is being assumed.
 
-The second is the **deterministic limit of the latent weight** (`rem:bcond` of the ICLR version).
+The second is the **deterministic limit of the latent weight** (`rem:bcond` of the ICLR draft).
 Replacing the conditioning batch by a fixed learnable code leaves the pooling and the slack
 unchanged but freezes the body's argument, so the latent weight is again batch-independent and the
-reading is zero. The paper draws a sharper distinction inside the four-architecture ablation of
+reading is zero. The draft drew a sharper distinction inside the four-architecture ablation of its
 `fig:four-cell-cross-cov`, and the distinction survives formalization: the two batch-independent
 cells (direct softplus, and direct softplus with a bias) read zero **by the theorem**, because the
 estimator itself vanishes, whereas the body-only cell (hypernet without bias) reads zero
@@ -37,14 +60,15 @@ separated here by a theorem, not only by a docstring: `exists_bodyOnly_estimator
 exhibits a body-only configuration whose estimator is nonzero while its slack-channel reading is
 zero, which is impossible for the two batch-independent cells.
 
-The third is the **forward-versus-reverse-KL asymmetry** of `rem:moreau-scope`. In reverse KL the
-latent weight and the loss gradient are driven by different draws and decouple; formalized as conditional
-independence, this is case (iii) of Theorem 1 and is imported wholesale from `CrossCovIndep.lean`,
+The third is the **forward-versus-reverse-KL asymmetry** of the draft's `rem:moreau-scope`. In
+reverse KL the latent weight and the loss gradient are driven by different draws and decouple;
+formalized as conditional independence, this is the hypothesis of Theorem 2 (case (iii) in the
+labels of `CrossCovIndep.lean`) and is imported wholesale from `CrossCovIndep.lean`,
 in both its unconditional and its conditional (disintegration-kernel) forms, and extended here to
 the slack-channel *reading* `J_bᵀ Σ_slack`. That the hypothesis stack is satisfiable without
 degeneracy — independent, non-constant channels and an identity slack Jacobian, and the reading
 still zero — is itself a theorem, `exists_indepFun_popSlackReading_eq_zero`. Two honesty points then
-govern this section. First, the paper's forward-KL clause — that `σ_Jac²` is "generically nonzero"
+govern this section. First, the draft's forward-KL clause — that `σ_Jac²` is "generically nonzero"
 when both channels ride the same batch — **is not a theorem and is not proved here**. It is an
 empirical claim; the four-cell ablation and the training-time traces are its evidence. What
 independence licenses is one direction only, and it is stated as such: a nonzero reading certifies
@@ -56,11 +80,11 @@ the gradient fluctuation is a *deterministic function* of the iterate fluctuatio
 the same draw in the strongest sense available, and the cross-covariance is still exactly zero.
 The scope of that counterexample is stated exactly, and not inflated: it refutes the implication
 from batch coupling *alone*, and `not_hessianChain_gradWitness` proves that the witness lies outside
-the paper's assumption (A4), under which the leading term of `σ_Jac²` is the non-negative `tr(V H)`
+the draft's assumption (A4), under which the leading term of `σ_Jac²` is the non-negative `tr(V H)`
 of `Assumptions.ForwardKLChain.trace_leading_nonneg`. This file takes no position on the (A4)
 regime; it establishes only that batch coupling by itself does not force a nonzero reading.
 
-Second, the paper writes `σ_Jac² ≈ 0` for reverse KL rather than `= 0`, because real reverse-KL
+Second, the draft wrote `σ_Jac² ≈ 0` for reverse KL rather than `= 0`, because real reverse-KL
 pipelines decouple only approximately. Rather than assume the approximation away,
 `sigmaJacSq_eq_remainder_of_indepFun` carries the residual coupling as an **explicit remainder**
 `δg = δg₀ + r` with `δg₀` independent of `δθ̃`, and concludes the exact identity
@@ -70,16 +94,16 @@ which is what `≈` asserts, so `abs_sigmaJacSq_le_of_indepFun_of_remainder_boun
 quantitative half as well: with the fluctuation and the remainder bounded entrywise by `M_u` and
 `M_r` almost surely, `|σ_Jac²| ≤ d M_u M_r`, and exact decoupling is `M_r = 0`.
 
-The fourth result is the paper's own **falsifiability boundary**, also in `rem:moreau-scope`: if an
+The fourth result is the draft's **falsifiability boundary**, also in its `rem:moreau-scope`: if an
 external constraint freezes the conditioning batch to a fixed anchor, the batch-induced fluctuation
 vanishes and the mechanism falls silent. This is proved at both levels. At the finite-window level
 a frozen batch sequence zeroes the fluctuation even when the body is a genuinely batch-dependent
 map, which is a different hypothesis from the batch-independent-body deletion and needs its own
 argument; the hypothesis is stated on the trailing window the estimator actually reads, which is
-sharper than the paper's global freezing and has the paper's form as a corollary. At the population
+sharper than the draft's global freezing and has the draft's form as a corollary. At the population
 level a deterministic latent weight zeroes the iterate fluctuation, hence both `σ_Jac² = tr E[δθ̃ δgᵀ]`
 and the iterate-fluctuation covariance `V = E[δθ̃ δθ̃ᵀ]`, and hence both jitter-sourced terms of the
-corrected effective diffusion of `docs/design/lemma1_rederivation.md` §2, so that the lift's
+corrected effective diffusion of §2 of the design note, so that the lift's
 effective diffusion collapses onto the direct baseline's `s² σ_obj²` and the Kramers exponent it
 feeds is the baseline exponent.
 
@@ -90,11 +114,11 @@ proves that equivalence rather than leaving it for a referee to notice. The coro
 use `SigmaJacDominatedOn`, in which the implied constants are quantified before the configuration
 varies, as `Θ` intends. That version constrains the modulus across the whole admissible range, is
 satisfiable by a modulus which is not identically zero (`exists_sigmaJacDominatedOn_ne_zero`), and
-supports the paper's arrow as an actual limit (`tendsto_zero_of_sigmaJacDominatedOn`) and not only
+supports the draft's arrow as an actual limit (`tendsto_zero_of_sigmaJacDominatedOn`) and not only
 as an evaluation at a point.
 
-A note on which version of the mechanism this file speaks for. The design note
-`docs/design/lemma1_rederivation.md` §1 establishes that the shipped Lemma 1's Hessian
+A note on which version of the mechanism this file speaks for (history as well). The design note,
+in §1, establishes that the shipped Lemma 1's Hessian
 decomposition is false — differentiation commutes with the batch expectation, so the pullback
 Hessian carries no cross-covariance term — and the corrected route puts `σ_Jac²` in the diffusion
 instead. Nothing in this file asserts either route. The one place where a downstream modulus is
@@ -113,11 +137,12 @@ Batch independence and the two window-level deletions it drives:
 * `bodyFluct_eq_zero_of_batchIndependent`, `crossCovEstimator_eq_zero_of_batchIndependent`,
   `slackReading_eq_zero_of_batchIndependent` — the deletion (ii) chain for such a latent weight.
 * `liftIterate`, `bodyFluct_liftIterate` — the lift's own latent weight `θ̃ = b + h_φ(X)`, and the fact
-  that the slack drops out of `eq:lift-batch-fluct`: it has the same resampling fluctuation as its
-  body alone.
+  that the slack drops out of the fluctuation `eq:fluct`: it has the same resampling fluctuation as
+  its body alone.
 * `exists_bodyFluct_liftIterate_ne_of_empty_window` — and the `T ≠ 0` hypothesis of that identity
   is load-bearing: at `T = 0` the identity is false.
-* `slackReading_one` — with the identity slack Jacobian of (A3) the reading is the estimator itself.
+* `slackReading_one` — with the identity slack Jacobian `J_b = I` of `eq:lift` (Appendix A.1) the
+  reading is the estimator itself.
 
 The consensus splitting:
 * `splittingIterate`, `splittingIterate_batchIndependent` — the classical splitting's auxiliary
@@ -130,14 +155,16 @@ The consensus splitting:
 The deterministic latent weight and the four-cell ablation:
 * `anchoredParameter`, `anchoredParameter_eq_liftIterate_const`,
   `anchoredParameter_batchIndependent` — the fixed-code limit of the same latent weight.
-* `crossCovEstimator_anchored_eq_zero`, `slackReading_anchored_eq_zero` — `rem:bcond`'s zero.
+* `crossCovEstimator_anchored_eq_zero`, `slackReading_anchored_eq_zero` — the zero of the draft's
+  `rem:bcond`.
 * `crossCovEstimator_directSoftplus_eq_zero`, `crossCovEstimator_biasOnly_eq_zero` — the two
-  batch-independent cells: zero by the theorem.
+  batch-independent cells: zero by the theorem. The first is also the estimator clause of the
+  current paper's Theorem 4 (`thm:pgd-zero`) for direct softplus and projection.
 * `slackReading_bodyOnly_eq_zero` — the body-only cell: zero definitionally, for every fluctuation
   pair, with no hypothesis on the data.
 * `exists_bodyOnly_estimator_ne_zero_of_no_slack` — the two are genuinely different: a body-only
   configuration with a nonzero estimator and a zero reading.
-* `exists_fullLift_slackReading_eq_zero` — and the converse of Theorem 1 is unavailable: all three
+* `exists_fullLift_slackReading_eq_zero` — and the converse of Theorem 2 is unavailable: all three
   ingredients present, reading still zero.
 
 Reverse KL, and what forward KL does and does not license:
@@ -151,25 +178,25 @@ Reverse KL, and what forward KL does and does not license:
 * `popCrossCov_add_right`, `popCrossCov_zero_right`, `popCrossCov_eq_remainder_of_indepFun`,
   `sigmaJacSq_eq_remainder_of_indepFun` — the exact identity carrying the coupling remainder.
 * `abs_sigmaJacSq_le_of_bounded`, `abs_sigmaJacSq_le_of_indepFun_of_remainder_bounded` — and the
-  quantitative half of the paper's `≈`: `|σ_Jac²| ≤ d M_u M_r` under entrywise bounds on the
+  quantitative half of the draft's `≈`: `|σ_Jac²| ≤ d M_u M_r` under entrywise bounds on the
   fluctuation and on the coupling remainder.
 * `not_indepFun_of_sigmaJacSq_ne_zero` — the only implication the forward-KL side licenses: a
   nonzero `σ_Jac²` certifies that the two channels are not independent, which is strictly weaker
   than certifying that they ride the same draw.
 * `threePointUniform`, `integral_threePointUniform`, `fluctWitness`, `gradWitness` — the witness
   space and the two fluctuations carried on it.
-* `exists_batchCoupled_sigmaJacSq_eq_zero` — and the converse fails: two centred, integrable,
+* `exists_batchCoupled_sigmaJacSq_eq_zero` — and the converse fails: two centered, integrable,
   dependent fluctuations, the second a deterministic function of the first, with `σ_Jac² = 0`.
 * `not_hessianChain_gradWitness` — the scope of that counterexample: the witness admits no
-  representation of the form (A4) posits, so it refutes the implication from batch coupling alone
-  and says nothing about the regime (A4) describes.
+  representation of the form the draft's (A4) posits, so it refutes the implication from batch
+  coupling alone and says nothing about the regime (A4) describes.
 
 The frozen anchor:
 * `bodyFluct_eq_zero_of_frozen_window`, `crossCovEstimator_eq_zero_of_frozen_window`,
   `slackReading_eq_zero_of_frozen_window` — freezing the batch across the trailing window the
   estimator reads already silences a batch-dependent body, with no constraint outside the window.
 * `bodyFluct_eq_zero_of_frozen_batch`, `crossCovEstimator_eq_zero_of_frozen_batch`,
-  `slackReading_eq_zero_of_frozen_batch` — the globally frozen batch the paper states.
+  `slackReading_eq_zero_of_frozen_batch` — the globally frozen batch the draft states.
 * `popCrossCov_centered_eq_zero_of_deterministic`, `sigmaJacSq_eq_zero_of_deterministic` — and
   zeroes the population `σ_Jac²`.
 * `iterateFluctuationCovariance_eq_zero_of_deterministic`,
@@ -183,7 +210,7 @@ The frozen anchor:
 * `SigmaJacDominatedOn`, `sigmaJacDominated_of_sigmaJacDominatedOn`,
   `eq_zero_of_sigmaJacDominatedOn` — `Θ(·)` with the implied constants quantified before the
   configuration, which is what makes the corollary a deduction rather than a restatement.
-* `tendsto_zero_of_sigmaJacDominatedOn` — the paper's `σ_Jac² → 0` implies `μ_eff → 0` as an actual
+* `tendsto_zero_of_sigmaJacDominatedOn` — the draft's `σ_Jac² → 0` implies `μ_eff → 0` as an actual
   limit, by a squeeze.
 * `exists_sigmaJacDominatedOn_ne_zero` — the uniform relation is satisfiable by a modulus that is
   not identically zero, so those corollaries are not vacuous.
@@ -198,9 +225,9 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 The explicit hypotheses this file carries, and why each is a hypothesis rather than a theorem:
 
 * `BatchIndependent e`, in the splitting, deterministic-latent-weight and two batch-independent ablation
-  cells. This is a **modelling assumption about the architecture**, not a mathematical gap: it says
+  cells. This is a **modeling assumption about the architecture**, not a mathematical gap: it says
   the construction in question has no data-conditioned body. It cannot be a theorem because it is
-  the definition of the architecture being modelled. It is stated in the weakest usable form —
+  the definition of the architecture being modeled. It is stated in the weakest usable form —
   equality of the latent weight on any two batches — and every zero in the file is derived from it.
 * `T ≠ 0`, wherever a window mean is taken. With `T = 0` the estimator's `(T : ℝ)⁻¹` factor is `0`
   by mathlib's junk-value convention and the window mean subtracted in `bodyFluct` is the empty
@@ -209,11 +236,11 @@ The explicit hypotheses this file carries, and why each is a hypothesis rather t
   `exists_bodyFluct_liftIterate_ne_of_empty_window`. The hypothesis is the honest one and is present
   in `CrossCov.lean` for the same reason.
 * `IndepFun`, respectively `CondIndepFun`, for the reverse-KL statements. This is the formal content
-  of the paper's "in reverse KL the two decouple": under reverse KL the loss gradient is evaluated
+  of the draft's "in reverse KL the two decouple": under reverse KL the loss gradient is evaluated
   on model samples drawn independently of the conditioning batch. It is an assumption about how the
-  estimator is constructed, and it is exactly the hypothesis of case (iii) of Theorem 1.
-* `Integrable` hypotheses, and `[IsProbabilityMeasure μ]` in the centring statements. These are the
-  hypotheses of `ProbabilityTheory.IndepFun.integral_bilin` and of the centring step; without them
+  estimator is constructed, and it is exactly the hypothesis of Theorem 2 (case (iii)).
+* `Integrable` hypotheses, and `[IsProbabilityMeasure μ]` in the centering statements. These are the
+  hypotheses of `ProbabilityTheory.IndepFun.integral_bilin` and of the centering step; without them
   the population objects `E[δθ̃ | φ]` and `E[δθ̃ δgᵀ]` are undefined. The entrywise integrability
   hypotheses of `popCrossCov_add_right` are what make the integral additive; nothing forces the
   product of the fluctuation with an arbitrary remainder to be integrable.
@@ -222,20 +249,20 @@ The explicit hypotheses this file carries, and why each is a hypothesis rather t
   are inherited unchanged from `CrossCovIndep.lean`.
 * Entrywise almost-sure bounds `M_u` on the iterate fluctuation and `M_r` on the coupling
   remainder, in `abs_sigmaJacSq_le_of_bounded` and its corollary. These are what turn the exact
-  remainder identity into the smallness claim the paper's `≈` makes; without a bound on the residual
+  remainder identity into the smallness claim the draft's `≈` made; without a bound on the residual
   coupling nothing forces the surviving trace to be small, and assuming the residual away is exactly
   the corner this development does not cut.
 * An almost-everywhere constant latent weight, in the population frozen-anchor statements. This is the
   frozen anchor itself: an external constraint that fixes the conditioning set makes the produced
   latent iterate a single vector. It is stated almost everywhere rather than pointwise, which
-  is the weaker hypothesis, and it is the modelling content of `rem:moreau-scope`'s "if an external
+  is the weaker hypothesis, and it is the modeling content of the draft's `rem:moreau-scope`, "if an external
   constraint freezes `X` to a fixed anchor".
 * Frozen batches on the trailing window, in the finite-window frozen-anchor statements. The
   hypothesis constrains only the `T` batches the estimator at iteration `t` reads, which is weaker
-  than the paper's global freezing; the paper's own form is recovered as
+  than the draft's global freezing; the draft's own form is recovered as
   `bodyFluct_eq_zero_of_frozen_batch`.
 * `SigmaJacDominatedOn scale S q`, in `eq_zero_of_sigmaJacDominatedOn`,
-  `tendsto_zero_of_sigmaJacDominatedOn` and the capstone. This is the paper's `Θ(·)` written out as
+  `tendsto_zero_of_sigmaJacDominatedOn` and the capstone. This is the draft's `Θ(·)` written out as
   the two-sided bound it abbreviates, with the implied constants named, quantified, and — this is
   the point — quantified **before** the configuration, since that uniformity is the whole content of
   a `Θ`. The pointwise alternative `SigmaJacDominated` is kept in the file only so that
@@ -243,24 +270,25 @@ The explicit hypotheses this file carries, and why each is a hypothesis rather t
   logically equivalent to the conclusion, so a falsifiability corollary drawn from it would assume
   what it proves. The uniform relation is a hypothesis because the file takes no position on which
   downstream modulus it applies to, and in particular asserts nothing about the shipped Lemma 1's
-  `μ_eff`, whose Hessian derivation `docs/design/lemma1_rederivation.md` §1 refutes.
+  `μ_eff`, whose Hessian derivation §1 of the design note refutes.
 
 What this file does **not** prove, and why:
 
-* It does not prove that the lift's own reading is nonzero. Theorem 1 is a necessity statement, the
-  paper says so explicitly, and `exists_fullLift_slackReading_eq_zero` shows the converse fails as
+* It does not prove that the lift's own reading is nonzero. Theorem 2 is a necessity statement (the
+  paper: "the coupling requires all three"), and `exists_fullLift_slackReading_eq_zero` shows the
+  converse fails as
   a general implication: a configuration can carry slack, a batch-dependent body and their coupling
   and still read zero. Whether a *trained* lift reads nonzero is measured, not proved.
-* It does not prove the paper's "generically nonzero" clause for forward KL. That clause is
+* It does not prove the draft's "generically nonzero" clause for forward KL. That clause is
   empirical. See `not_indepFun_of_sigmaJacSq_ne_zero` for the one implication that does follow and
   `exists_batchCoupled_sigmaJacSq_eq_zero` for the counterexample to the converse. Neither does it
   disprove the clause: `not_hessianChain_gradWitness` records that the counterexample lies outside
-  the paper's assumption (A4), so it refutes the implication from batch coupling alone and leaves
+  the draft's assumption (A4), so it refutes the implication from batch coupling alone and leaves
   the (A4) regime — where `Assumptions.ForwardKLChain.trace_leading_nonneg` signs the leading
   term — untouched.
 * It does not prove that the `Θ` relation between `σ_Jac²` and any downstream modulus holds, on
   either route. `SigmaJacDominatedOn` is a hypothesis throughout, and
-  `exists_sigmaJacDominatedOn_ne_zero` is a satisfiability witness, not an instance of the paper's
+  `exists_sigmaJacDominatedOn_ne_zero` is a satisfiability witness, not an instance of the draft's
   claim.
 * It does not prove that reverse-KL training in practice decouples the two channels; it proves that
   decoupling, once assumed, forces the population zero, and it quantifies the residual when
@@ -287,16 +315,18 @@ variable {d : ℕ} {Ω : Type*}
 
 /-- A latent weight is **batch-independent** when its value does not depend on the conditioning batch.
 
-This is the single modelling assumption behind every window-level structural zero in this file: the
+This is the single modeling assumption behind every window-level structural zero in this file: the
 classical consensus splitting's auxiliary variable is fixed across batches, the deterministic limit
-of `rem:bcond` reads the body at a fixed code, and the two batch-independent cells of the four-cell
-ablation have a latent iterate that no batch enters. In each case the architecture is modelled
+of the draft's `rem:bcond` reads the body at a fixed code, and the two batch-independent cells of the
+draft's four-cell ablation have a latent iterate that no batch enters. In the current paper it is the
+hypothesis of the second substitution after Theorem 2 and of Theorem 4. In each case the architecture is modeled
 as a map from batches to latent iterates that happens to be constant, so that the paper's
 `δθ̃ ≡ 0` is *derived* from the architecture rather than assumed outright. -/
 def BatchIndependent (e : Ω → Fin d → ℝ) : Prop := ∀ x y, e x = e y
 
-/-- A batch-independent latent weight has zero resampling fluctuation: this is deletion (ii) of
-Theorem 1 in the vocabulary the architectural corollaries use. -/
+/-- A batch-independent latent weight has zero resampling fluctuation: this is the second
+substitution after Theorem 2 (deletion (ii)), in the vocabulary the draft's architectural
+corollaries used. -/
 theorem bodyFluct_eq_zero_of_batchIndependent {e : Ω → Fin d → ℝ} (he : BatchIndependent e)
     (X : ℕ → Ω) (T t s : ℕ) (hT : T ≠ 0) : bodyFluct e X T t s = 0 :=
   bodyFluct_eq_zero_of_const he X T t s hT
@@ -318,10 +348,11 @@ theorem slackReading_eq_zero_of_batchIndependent (Jb : Matrix (Fin d) (Fin d) �
 constant across the batches of a window, plus a body `h` evaluated on the conditioning batch. -/
 def liftIterate (b : Fin d → ℝ) (h : Ω → Fin d → ℝ) : Ω → Fin d → ℝ := fun x => b + h x
 
-/-- **The slack drops out of `eq:lift-batch-fluct`.** The lift's latent weight and its body alone have
-the same window-centred resampling fluctuation, because the slack is common to every step of the
-window and cancels against the window mean. This is the paper's "the slack drops out, and the body
-carries this variation on its own", derived rather than asserted, and it is why every structural
+/-- **The slack drops out of `eq:fluct`.** The lift's latent weight and its body alone have
+the same window-centered resampling fluctuation, because the slack is common to every step of the
+window and cancels against the window mean. This is why the paper's `eq:fluct` writes the
+fluctuation through `h_φ` alone (the draft said "the slack drops out, and the body carries this
+variation on its own"), derived rather than asserted, and it is why every structural
 zero below is a statement about the body and not about the slack. -/
 theorem bodyFluct_liftIterate (b : Fin d → ℝ) (h : Ω → Fin d → ℝ) (X : ℕ → Ω) (T t s : ℕ)
     (hT : T ≠ 0) : bodyFluct (liftIterate b h) X T t s = bodyFluct h X T t s := by
@@ -348,9 +379,9 @@ theorem exists_bodyFluct_liftIterate_ne_of_empty_window :
   have hc := congrFun hcon 0
   norm_num [bodyFluct, liftIterate] at hc
 
-/-- With the identity slack Jacobian that (A3) supplies, the slack-channel reading is the
-cross-covariance estimator itself, with no further attenuating composition — the ICLR version's
-`eq:cross-channel-lift`. -/
+/-- With the identity slack Jacobian `J_b = I` that `eq:lift` supplies (Appendix A.1), the
+slack-channel reading is the cross-covariance estimator itself, with no further attenuating
+composition — the ICLR draft's `eq:cross-channel-lift`. -/
 theorem slackReading_one (T t : ℕ) (dθ dg : ℕ → Fin d → ℝ) :
     slackReading (1 : Matrix (Fin d) (Fin d) ℝ) T t dθ dg = crossCovEstimator T t dθ dg := by
   rw [slackReading, Matrix.transpose_one, Matrix.one_mul]
@@ -363,13 +394,14 @@ section Splitting
 
 variable {d : ℕ} {Ω : Type*}
 
-/-- The latent iterate of the **classical consensus splitting** of `app:admm-reading`, read in
+/-- The latent iterate of the **classical consensus splitting** of the ICLR draft's
+`app:admm-reading`, read in
 the lift's coordinates: the auxiliary primal variable `z` of the augmented Lagrangian
 `eq:lift-admm`, plus the slack `b` as its own additive offset.
 
-The modelling assumption is in the type: `z` is a free optimization variable of the splitting, not
+The modeling assumption is in the type: `z` is a free optimization variable of the splitting, not
 a function of the data, so the iterate it produces is a *constant* map on the conditioning batch.
-That is the paper's "the classical splitting has no data-conditioned body — its auxiliary variable
+That is the draft's "the classical splitting has no data-conditioned body — its auxiliary variable
 is fixed across batches", and it is the only thing assumed about the splitting here. Nothing about
 the alternating schedule, the multiplier `y`, or the penalty parameter `ρ` is used, because none of
 it bears on the resampling fluctuation. -/
@@ -380,13 +412,13 @@ theorem splittingIterate_batchIndependent (b z : Fin d → ℝ) :
     BatchIndependent (splittingIterate (Ω := Ω) b z) := fun _ _ => rfl
 
 /-- The splitting's resampling fluctuation is identically zero, at every step of every window: this
-is the fluctuation `eq:lift-batch-fluct` measures, and it is what the two zeros below are drawn
+is the fluctuation `eq:fluct` measures, and it is what the two zeros below are drawn
 from. -/
 theorem bodyFluct_splitting_eq_zero (b z : Fin d → ℝ) (X : ℕ → Ω) (T t s : ℕ) (hT : T ≠ 0) :
     bodyFluct (splittingIterate (Ω := Ω) b z) X T t s = 0 :=
   bodyFluct_eq_zero_of_batchIndependent (splittingIterate_batchIndependent b z) X T t s hT
 
-/-- **The splitting's variance under resampling is zero**, in the paper's own words: the window
+/-- **The splitting's variance under resampling is zero**, in the draft's words: the window
 sample covariance of its latent iterate — the cross-covariance estimator of `eq:cross-cov`
 with the iterate fluctuation in both slots — vanishes identically. -/
 theorem splittingIterate_resamplingCovariance_eq_zero (b z : Fin d → ℝ) (X : ℕ → Ω) (T t : ℕ)
@@ -420,7 +452,8 @@ section FourCell
 
 variable {d : ℕ} {Ω : Type*}
 
-/-- The **deterministic limit of the latent weight** of `rem:bcond`: a learnable code `c` in place of the
+/-- The **deterministic limit of the latent weight** of the draft's `rem:bcond`: a learnable code `c`
+in place of the
 batch summary. The pooling `h` and the slack `b` survive unchanged — the same body map, the same
 additive slack — and only the body's argument is frozen. This is the reading of "a learnable code in
 place of the batch summary" on which the pooling is retained and the code is what it pools; the
@@ -441,30 +474,32 @@ theorem anchoredParameter_eq_liftIterate_const (b : Fin d → ℝ) (h : Ω → F
 theorem anchoredParameter_batchIndependent (b : Fin d → ℝ) (h : Ω → Fin d → ℝ) (c : Ω) :
     BatchIndependent (anchoredParameter b h c) := fun _ _ => rfl
 
-/-- **The deterministic latent weight reads a structural zero** (`rem:bcond`): the batch-induced
-fluctuation of `eq:lift-batch-fluct` vanishes and takes the cross-covariance with it, for every
+/-- **The deterministic latent weight reads a structural zero** (the draft's `rem:bcond`): the
+batch-induced fluctuation of `eq:fluct` vanishes and takes the cross-covariance with it, for every
 iteration and every window length. -/
 theorem crossCovEstimator_anchored_eq_zero (b : Fin d → ℝ) (h : Ω → Fin d → ℝ) (c : Ω) (X : ℕ → Ω)
     (dg : ℕ → Fin d → ℝ) (T t : ℕ) (hT : T ≠ 0) :
     crossCovEstimator T t (bodyFluct (anchoredParameter b h c) X T t) dg = 0 :=
   crossCovEstimator_eq_zero_of_batchIndependent (anchoredParameter_batchIndependent b h c) X dg T t hT
 
-/-- Hence the deterministic latent weight forfeits the certificate that Theorem 1 attaches to the lift:
+/-- Hence the deterministic latent weight forfeits the certificate that Theorem 2 attaches to the lift:
 its slack-channel reading is identically zero even though its slack is intact. -/
 theorem slackReading_anchored_eq_zero (Jb : Matrix (Fin d) (Fin d) ℝ) (b : Fin d → ℝ)
     (h : Ω → Fin d → ℝ) (c : Ω) (X : ℕ → Ω) (dg : ℕ → Fin d → ℝ) (T t : ℕ) (hT : T ≠ 0) :
     slackReading Jb T t (bodyFluct (anchoredParameter b h c) X T t) dg = 0 :=
   slackReading_eq_zero_of_batchIndependent Jb (anchoredParameter_batchIndependent b h c) X dg T t hT
 
-/-- Cell 1 of `fig:four-cell-cross-cov`: direct softplus `ψ(θ̃)`, a free latent weight with
-neither slack nor body. Its zero is **by the theorem** — the estimator itself vanishes, because the
-latent iterate carries no batch-induced fluctuation. -/
+/-- Cell 1 of the ICLR draft's `fig:four-cell-cross-cov`: direct softplus `ψ(θ̃)`, a free latent
+weight with neither slack nor body. Its zero is **by the theorem** — the estimator itself vanishes,
+because the latent iterate carries no batch-induced fluctuation. In the current paper this is the
+estimator clause of Theorem 4 (`thm:pgd-zero`) for direct softplus, and for projection, whose
+constrained weights are likewise stored parameters. -/
 theorem crossCovEstimator_directSoftplus_eq_zero (w : Fin d → ℝ) (X : ℕ → Ω) (dg : ℕ → Fin d → ℝ)
     (T t : ℕ) (hT : T ≠ 0) :
     crossCovEstimator T t (bodyFluct (fun _ : Ω => w) X T t) dg = 0 :=
   crossCovEstimator_eq_zero_of_batchIndependent (fun _ _ => rfl) X dg T t hT
 
-/-- Cell 2 of `fig:four-cell-cross-cov`: direct softplus with a bias, `ψ(b + θ̃)`. The slack is
+/-- Cell 2 of the ICLR draft's `fig:four-cell-cross-cov`: direct softplus with a bias, `ψ(b + θ̃)`. The slack is
 present and its Jacobian is the identity, but the pre-activation carries no batch-induced variance,
 so this cell's zero is again **by the theorem**: the estimator vanishes before any slack Jacobian is
 applied. PGD, having neither slack nor data-conditioned body, is covered by the same
@@ -474,7 +509,7 @@ theorem crossCovEstimator_biasOnly_eq_zero (b w : Fin d → ℝ) (X : ℕ → Ω
     crossCovEstimator T t (bodyFluct (splittingIterate (Ω := Ω) b w) X T t) dg = 0 :=
   crossCovEstimator_splitting_eq_zero b w X dg T t hT
 
-/-- Cell 3 of `fig:four-cell-cross-cov`: hypernet without bias, `ψ(h_φ(X))`. Its zero is
+/-- Cell 3 of the ICLR draft's `fig:four-cell-cross-cov`: hypernet without bias, `ψ(h_φ(X))`. Its zero is
 **definitional, not measured**: with no slack channel there is nothing to contract the estimator
 against, and the reading is zero for *every* pair of fluctuation sequences, with no hypothesis on
 the data, on the body, on the window, or on the batch. Contrast
@@ -489,7 +524,7 @@ There is a body-only configuration whose cross-covariance estimator is nonzero �
 depend on the batch and its gradient fluctuation does not vanish, since either failure would zero
 the estimator — while its slack-channel reading is zero. No batch-independent cell can do this,
 since for those the estimator itself vanishes. This is
-the paper's "the body-only cell has no slack channel to contract against, so its zero is
+the draft's "the body-only cell has no slack channel to contract against, so its zero is
 definitional rather than measured, and the honest measurement for that cell, the body-latent-weight
 cross-covariance, is a separate quantity". -/
 theorem exists_bodyOnly_estimator_ne_zero_of_no_slack :
@@ -505,11 +540,11 @@ theorem exists_bodyOnly_estimator_ne_zero_of_no_slack :
     rw [hzero]; rfl
   norm_num [crossCovEstimator, bodyFluct, Matrix.vecMulVec_apply, Finset.sum_range_succ] at h00
 
-/-- **The converse of Theorem 1 is unavailable, and this is a theorem and not an omission.** There
+/-- **The converse of Theorem 2 is unavailable, and this is a theorem and not an omission.** There
 is a configuration carrying all three ingredients — an identity slack Jacobian, a genuinely
 batch-dependent body with a nonzero fluctuation, and a nonzero gradient fluctuation — whose
-slack-channel reading is nevertheless zero. Theorem 1 is a necessity statement about the reading,
-the paper says so explicitly, and nothing in this file upgrades it. -/
+slack-channel reading is nevertheless zero. Theorem 2 is a necessity statement (the paper: "the
+coupling requires all three"), and nothing in this file upgrades it. -/
 theorem exists_fullLift_slackReading_eq_zero :
     ∃ (h : ℝ → Fin 1 → ℝ) (X : ℕ → ℝ) (dg : ℕ → Fin 1 → ℝ) (T t : ℕ),
       T ≠ 0 ∧ (∃ s, bodyFluct h X T t s ≠ 0) ∧ (∃ s, dg s ≠ 0) ∧
@@ -554,13 +589,13 @@ theorem popSlackReading_eq_zero_of_popCrossCov_eq_zero (Jb : Matrix (Fin d) (Fin
 
 /-- **Reverse KL, unconditional form.** Under reverse KL the latent weight and the loss gradient are
 driven by different draws, and the formal content of that decoupling is independence of the two
-random vectors. This is case (iii) of Theorem 1, imported from `CrossCovIndep.lean`
-(`popCrossCov_centered_eq_zero_of_indepFun`): the population cross-covariance of the centred
+random vectors. This is Theorem 2's clause (case (iii)), imported from `CrossCovIndep.lean`
+(`popCrossCov_centered_eq_zero_of_indepFun`): the population cross-covariance of the centered
 fluctuations vanishes.
 
-The hypothesis is a modelling assumption about how reverse-KL training is constructed, not a
+The hypothesis is a modeling assumption about how reverse-KL training is constructed, not a
 derived fact; see `sigmaJacSq_eq_remainder_of_indepFun` for what survives when the decoupling is
-only approximate, which is what the paper's `σ_Jac² ≈ 0` actually reports. -/
+only approximate, which is what the draft's `σ_Jac² ≈ 0` reported. -/
 theorem reverseKL_popCrossCov_eq_zero [IsProbabilityMeasure μ] {θtil g : Ω → Fin d → ℝ}
     (hdec : IndepFun θtil g μ) (hθ : Integrable θtil μ) (hg : Integrable g μ) :
     popCrossCov μ (fun ω => θtil ω - popMean μ θtil) (fun ω => g ω - popMean μ g) = 0 :=
@@ -583,9 +618,9 @@ theorem reverseKL_popSlackReading_eq_zero [IsProbabilityMeasure μ]
 above are not vacuously true and their zero is not obtained by switching off one of the objects it
 is about. On two independent fair coins — the witness `coinPair` of `CrossCovIndep.lean` — the
 latent weight and the loss gradient are independent, integrable, and each takes two different values, and
-the slack Jacobian is the identity that (A3) supplies rather than the zero matrix of deletion (i);
+the slack Jacobian is the identity that `eq:lift` supplies rather than the zero matrix of deletion (i);
 the population slack-channel reading is nevertheless zero. Read together with
-`CrossCovIndep.exists_centered_popCrossCov_ne_zero`, which exhibits a *non-vanishing* centred
+`CrossCovIndep.exists_centered_popCrossCov_ne_zero`, which exhibits a *non-vanishing* centered
 population cross-covariance, this locates the zero where the paper locates it: in the independence
 of the two channels, not in the definitions. -/
 theorem exists_indepFun_popSlackReading_eq_zero (d : ℕ) (hd : 0 < d) :
@@ -601,11 +636,12 @@ theorem exists_indepFun_popSlackReading_eq_zero (d : ℕ) (hd : 0 < d) :
   exact reverseKL_popSlackReading_eq_zero 1 indepFun_coinPair Integrable.of_finite
     Integrable.of_finite
 
-/-- **What the forward-KL side of `rem:moreau-scope` licenses, and all it licenses.** A nonzero
+/-- **What the forward-KL side of the draft's `rem:moreau-scope` licenses, and all it licenses.** A
+nonzero
 `σ_Jac²` certifies that the latent weight and the loss gradient are *not* independent. That is strictly
-less than the paper's "driven by the same target batch": common batch driving implies
+less than the draft's "driven by the same target batch": common batch driving implies
 non-independence, and non-independence does not imply common batch driving, so what the theorem
-rules out is the fully decoupled sampling of reverse KL and nothing finer. The paper's converse
+rules out is the fully decoupled sampling of reverse KL and nothing finer. The draft's converse
 clause, that forward KL makes `σ_Jac²` "generically nonzero", is an **empirical** claim supported by
 the four-cell ablation and the training-time traces; it is not a theorem, it is not proved here, and
 `exists_batchCoupled_sigmaJacSq_eq_zero` shows that it cannot be proved from batch coupling alone.
@@ -637,7 +673,7 @@ theorem popCrossCov_zero_right (X : Ω → Fin d → ℝ) :
 /-- **Approximate decoupling, with the remainder carried explicitly.** The paper writes
 `σ_Jac² ≈ 0` for reverse KL rather than `= 0`, because a real reverse-KL pipeline decouples the two
 channels only approximately. Rather than assume the approximation away, decompose the gradient
-fluctuation as `δg = δg₀ + r` with `δg₀` independent of the centred iterate fluctuation and `r` the
+fluctuation as `δg = δg₀ + r` with `δg₀` independent of the centered iterate fluctuation and `r` the
 residual coupling. Then the population cross-covariance is *exactly* the cross-covariance with the
 remainder alone:
 `E[δθ̃ δgᵀ] = E[δθ̃ rᵀ]`.
@@ -665,7 +701,7 @@ theorem sigmaJacSq_eq_remainder_of_indepFun {u v₀ r : Ω → Fin d → ℝ}
 
 /-- **A bound on the surviving channel, so that `σ_Jac² ≈ 0` is a quantitative statement.** The
 identity above says what the surviving channel *is*; it does not by itself say that the channel is
-small, and the paper's `≈` is a smallness claim. If the centred iterate fluctuation and the coupling
+small, and the draft's `≈` is a smallness claim. If the centered iterate fluctuation and the coupling
 remainder are bounded entrywise by `Mu` and `Mr` almost surely, then
 `|σ_Jac²| ≤ d · Mu · Mr`,
 so the trace is controlled by the product of the fluctuation scale and the remainder scale, and it
@@ -687,8 +723,8 @@ theorem abs_sigmaJacSq_le_of_bounded [IsProbabilityMeasure μ] {u r : Ω → Fin
     _ ≤ ∑ _i : Fin d, Mu * Mr := Finset.sum_le_sum fun i _ => hentry i
     _ = d * (Mu * Mr) := by simp [Finset.sum_const, nsmul_eq_mul]
 
-/-- **The paper's `σ_Jac² ≈ 0` for reverse KL, with both halves supplied.** Decompose the gradient
-fluctuation as `δg = δg₀ + r` with `δg₀` independent of the centred iterate fluctuation, and bound
+/-- **The draft's `σ_Jac² ≈ 0` for reverse KL, with both halves supplied.** Decompose the gradient
+fluctuation as `δg = δg₀ + r` with `δg₀` independent of the centered iterate fluctuation, and bound
 the fluctuation and the coupling remainder entrywise. Then the whole slack-channel trace is bounded
 by `d · Mu · Mr`: the independent part contributes exactly nothing, and what survives is controlled
 by the size of the residual coupling alone. Exact decoupling is `Mr = 0`, where the bound returns
@@ -706,7 +742,7 @@ end KL
 
 /-! ### The converse of the forward-KL clause fails
 
-The paper's forward-KL clause in `rem:moreau-scope` — that when the latent weight and the loss gradient
+The draft's forward-KL clause in its `rem:moreau-scope` — that when the latent weight and the loss gradient
 ride the same target batch, `σ_Jac²` is "generically nonzero" — is an empirical claim about trained
 networks, not a theorem, and this section shows that it cannot be upgraded into one *from batch
 coupling alone*. Batch coupling, however strong, does not force a nonzero cross-covariance: the
@@ -715,7 +751,7 @@ fluctuation, which is as coupled as two random vectors can be, and its cross-cov
 zero.
 
 The scope of that counterexample is stated precisely, because overstating it would be its own kind
-of dishonesty. The paper does not assert the forward-KL clause in a vacuum: assumption (A4) of
+of dishonesty. The draft did not assert the forward-KL clause in a vacuum: assumption (A4) of its
 `app:assumptions` posits that on the operative region the gradient fluctuation is the mean loss
 Hessian acting on the iterate fluctuation plus a remainder of order `‖δθ̃‖²`, and under (A4) the
 leading term of `σ_Jac²` is `tr(V H)` with `V` and `H` positive semidefinite, hence non-negative —
@@ -724,10 +760,10 @@ nothing here contradicts it. What `not_hessianChain_gradWitness` establishes is 
 below is *outside* (A4): its deterministic coupling admits no such representation, for any Hessian
 and any remainder obeying the quadratic budget. So the counterexample refutes the implication "the
 two channels ride the same draw, therefore `σ_Jac² ≠ 0`", and it refutes nothing about what follows
-once (A4) is in force. Neither statement is the paper's clause, which quantifies over trained
+once (A4) is in force. Neither statement is the draft's clause, which quantifies over trained
 networks and is measured rather than proved.
 
-The witness is carried on three atoms because two would not do — on a two-point space a centred pair
+The witness is carried on three atoms because two would not do — on a two-point space a centered pair
 with vanishing cross-covariance has a constant factor, and is then independent — but that minimality
 remark is motivation and is not itself formalized here. -/
 
@@ -763,16 +799,16 @@ noncomputable def fluctWitness : Fin 3 → Fin 1 → ℝ := fun ω _ => ![(1 : �
 noncomputable def gradWitness : Fin 3 → Fin 1 → ℝ := fun ω _ => ![(1 : ℝ), 1, -2] ω
 
 /-- **Batch coupling does not force a nonzero reading.** The two fluctuations below are integrable
-and centred, the gradient fluctuation is a deterministic function of the iterate fluctuation — so
+and centered, the gradient fluctuation is a deterministic function of the iterate fluctuation — so
 the two are driven by the same draw in the strongest sense available — and they are not independent,
 yet `σ_Jac² = tr E[δθ̃ δgᵀ] = 0` exactly.
 
-Consequently the paper's forward-KL clause of `rem:moreau-scope` is not a theorem and is not proved
+Consequently the draft's forward-KL clause of `rem:moreau-scope` is not a theorem and is not proved
 anywhere in this development: `not_indepFun_of_sigmaJacSq_ne_zero` gives the one implication that
 does follow, and this witness shows that its converse fails as a general implication from batch
-coupling alone. The clause remains what the paper's evidence makes it, an empirical regularity of
+coupling alone. The clause remains what the draft's evidence made it, an empirical regularity of
 trained networks measured by the four-cell ablation and the training-time traces. The witness does
-not satisfy the paper's assumption (A4), and `not_hessianChain_gradWitness` below proves that it
+not satisfy the draft's assumption (A4), and `not_hessianChain_gradWitness` below proves that it
 cannot be made to; the counterexample is therefore about batch coupling in general and not about the
 regime (A4) describes. -/
 theorem exists_batchCoupled_sigmaJacSq_eq_zero :
@@ -807,7 +843,7 @@ theorem exists_batchCoupled_sigmaJacSq_eq_zero :
     simp [fluctWitness, gradWitness]
 
 /-- **The witness lies outside (A4), and this bounds exactly what the counterexample refutes.**
-Assumption (A4) of `app:assumptions` writes the forward-KL gradient fluctuation as the mean loss
+Assumption (A4) of the ICLR draft's `app:assumptions` writes the forward-KL gradient fluctuation as the mean loss
 Hessian acting on the iterate fluctuation plus a remainder of order `‖δθ̃‖²`,
 `δg = H δθ̃ + r` with `‖r(ω)‖ ≤ C_r ‖δθ̃(ω)‖²`.
 No such representation exists for the pair above, for *any* Hessian `H`, *any* remainder field `r`
@@ -818,7 +854,7 @@ vanishing gradient fluctuation, whereas the witness's is `-2`.
 The reason to record this is scope. `exists_batchCoupled_sigmaJacSq_eq_zero` refutes the implication
 "the two channels ride the same draw, therefore `σ_Jac² ≠ 0`". It does not refute, and this file
 does not investigate, what follows under (A4), where `Assumptions.ForwardKLChain.trace_leading_nonneg`
-signs the leading term. Both statements leave the paper's clause where the paper leaves it: an
+signs the leading term. Both statements leave the draft's clause where the draft left it: an
 empirical regularity, evidenced by the four-cell ablation and the training-time traces. -/
 theorem not_hessianChain_gradWitness (H : Matrix (Fin 1) (Fin 1) ℝ) (rem : Fin 3 → Fin 1 → ℝ)
     (Cr : ℝ) (hchain : ∀ ω, gradWitness ω = H *ᵥ fluctWitness ω + rem ω)
@@ -843,8 +879,8 @@ section ConditionalKL
 variable {d : ℕ} {Ω : Type*} {m' : MeasurableSpace Ω} [mΩ : MeasurableSpace Ω]
   [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
 
-/-- **Reverse KL, in the conditional form Theorem 1 states.** Conditioning on the body parameters
-`φ` is modelled by a sub-σ-algebra `m'` and the disintegration kernel `condExpKernel μ m'`, exactly
+/-- **Reverse KL, in the conditional form Theorem 2 states.** Conditioning on the body parameters
+`φ` is modeled by a sub-σ-algebra `m'` and the disintegration kernel `condExpKernel μ m'`, exactly
 as in `CrossCovIndep.lean`. If reverse-KL training makes the latent weight and the loss gradient
 conditionally independent given `φ`, then `Σ_slack = E[δθ̃ δgᵀ | φ] = 0` almost surely. -/
 theorem reverseKL_popCrossCov_ae_eq_zero (hm' : m' ≤ mΩ) {θtil g : Ω → Fin d → ℝ}
@@ -876,7 +912,7 @@ theorem reverseKL_popSlackReading_ae_eq_zero (Jb : Matrix (Fin d) (Fin d) ℝ) (
 
 end ConditionalKL
 
-/-! ### The frozen anchor: the paper's own falsifiability boundary -/
+/-! ### The frozen anchor: the ICLR draft's falsifiability boundary -/
 
 section FrozenAnchor
 
@@ -886,10 +922,10 @@ variable {d : ℕ} {Ω : Type*}
 freezing is only ever needed on the window the estimator reads. This is a different hypothesis from
 the batch-independent-body deletion: the body `h` here is arbitrary, and it is the *batch sequence*
 that an external constraint has frozen. The window mean then coincides with every window value and
-the fluctuation of `eq:lift-batch-fluct` vanishes. Stating the hypothesis on the trailing window
+the fluctuation of `eq:fluct` vanishes. Stating the hypothesis on the trailing window
 rather than on all of time is the sharper statement, and it is what makes the frozen anchor a
 property of the measurement window rather than of the whole trajectory;
-`bodyFluct_eq_zero_of_frozen_batch` below is the globally frozen case the paper states. -/
+`bodyFluct_eq_zero_of_frozen_batch` below is the globally frozen case the draft states. -/
 theorem bodyFluct_eq_zero_of_frozen_window {h : Ω → Fin d → ℝ} {X : ℕ → Ω} {T t s : ℕ}
     (hT : T ≠ 0) (hs : ∀ s' ∈ range T, X (t - T + s') = X s) : bodyFluct h X T t s = 0 := by
   have hmean : ∑ s' ∈ range T, h (X (t - T + s')) = (T : ℝ) • h (X s) := by
@@ -922,7 +958,7 @@ theorem slackReading_eq_zero_of_frozen_window (Jb : Matrix (Fin d) (Fin d) ℝ) 
     (dg : ℕ → Fin d → ℝ) : slackReading Jb T t (bodyFluct h X T t) dg = 0 := by
   rw [slackReading, crossCovEstimator_eq_zero_of_frozen_window hT hX dg, Matrix.mul_zero]
 
-/-- The paper's own form of the falsifiability hypothesis: an external constraint freezes the
+/-- The draft's form of the falsifiability hypothesis: an external constraint freezes the
 conditioning set for the whole run, and the fluctuation vanishes at every step of every window. It
 is the globally frozen case of `bodyFluct_eq_zero_of_frozen_window`. -/
 theorem bodyFluct_eq_zero_of_frozen_batch {h : Ω → Fin d → ℝ} {X : ℕ → Ω}
@@ -951,7 +987,7 @@ variable {d : ℕ} {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
 /-- **A deterministic latent weight zeroes the population cross-covariance.** If the latent iterate
 takes a single value `c` almost surely — the frozen-anchor limit at the population level — then its
-centred fluctuation vanishes almost surely and `Σ_slack = E[δθ̃ Yᵀ] = 0` for *every* second factor
+centered fluctuation vanishes almost surely and `Σ_slack = E[δθ̃ Yᵀ] = 0` for *every* second factor
 `Y`, in particular for the gradient fluctuation and for the iterate fluctuation itself. The
 hypothesis is stated almost everywhere rather than pointwise, which is weaker and is what a
 population statement should ask for; a genuinely frozen anchor gives it pointwise. -/
@@ -968,7 +1004,7 @@ theorem popCrossCov_centered_eq_zero_of_deterministic [IsProbabilityMeasure μ]
   simp only [popCrossCov, Matrix.of_apply, Matrix.zero_apply]
   rw [integral_congr_ae hae, integral_zero]
 
-/-- Hence `σ_Jac² = 0` exactly: the paper's `σ_Jac² → 0` under a frozen anchor. -/
+/-- Hence `σ_Jac² = 0` exactly: the draft's `σ_Jac² → 0` under a frozen anchor. -/
 theorem sigmaJacSq_eq_zero_of_deterministic [IsProbabilityMeasure μ] {θtil : Ω → Fin d → ℝ}
     (c : Fin d → ℝ) (hc : ∀ᵐ ω ∂μ, θtil ω = c) (Y : Ω → Fin d → ℝ) :
     sigmaJacSq μ (fun ω => θtil ω - popMean μ θtil) Y = 0 := by
@@ -976,7 +1012,7 @@ theorem sigmaJacSq_eq_zero_of_deterministic [IsProbabilityMeasure μ] {θtil : �
 
 /-- The iterate-fluctuation covariance `V = E[δθ̃ δθ̃ᵀ]` vanishes with it. This is the second
 jitter-sourced ingredient of the corrected update-covariance decomposition of
-`docs/design/lemma1_rederivation.md` §2, and it has to be zeroed separately from `σ_Jac²`. -/
+§2 of the design note, and it has to be zeroed separately from `σ_Jac²`. -/
 theorem iterateFluctuationCovariance_eq_zero_of_deterministic [IsProbabilityMeasure μ]
     {θtil : Ω → Fin d → ℝ} (c : Fin d → ℝ) (hc : ∀ᵐ ω ∂μ, θtil ω = c) :
     popCrossCov μ (fun ω => θtil ω - popMean μ θtil) (fun ω => θtil ω - popMean μ θtil) = 0 :=
@@ -996,17 +1032,17 @@ end FrozenAnchorPopulation
 section MechanismSilent
 
 /-- **The corrected effective diffusion collapses onto the direct baseline's.** In the corrected
-route of `docs/design/lemma1_rederivation.md` §2 the bias-channel diffusion decomposes as
+route of §2 of the design note the bias-channel diffusion decomposes as
 `σ_eff² = s² σ_obj² + c₁ σ_Jac² |H_bb| + s² (H V H)_bb`,
 with the second and third terms sourced by the batch-induced jitter. Under a frozen anchor both of
 those vanish — `sigmaJacSq_eq_zero_of_deterministic` and `quadForm_conj_eq_zero_of_deterministic`
 supply exactly the two hypotheses — and the lift's effective diffusion is the direct baseline's
-`s² σ_obj²`. This is the paper's "the lift falls silent until batch stochasticity is restored",
+`s² σ_obj²`. This is the draft's "the lift falls silent until batch stochasticity is restored",
 stated on the object that the corrected route actually puts `σ_Jac²` into.
 
 The decomposition itself is not derived here; it belongs to `UpdateCovariance.lean`. What is proved
 here is that its two jitter-sourced terms drop out, which is the whole content of the corollary. The
-three coefficients are universally quantified, so the shipped paper's own additive form
+three coefficients are universally quantified, so the draft's additive form
 `σ_eff² = σ_s² σ_obj² + σ_Jac²` is the case `c₁ = 1`, `|H_bb| = 1`, `(H V H)_bb = 0` of the same
 statement: the corollary is neutral between the two routes rather than committed to the corrected
 one. -/
@@ -1028,7 +1064,7 @@ squeezed between two positive multiples of `σ_Jac² · scale`.
 
 This is the shape of two different claims in two different versions of the mechanism — the shipped
 Lemma 1's `μ_eff = Θ(σ_Jac²/(d κ²))`, whose Hessian derivation
-`docs/design/lemma1_rederivation.md` §1 refutes, and the corrected route's diffusion term
+§1 of the design note refutes, and the corrected route's diffusion term
 `c₁ σ_Jac² |H_bb|` — and this file asserts neither of them.
 
 A warning about this pointwise form, which `sigmaJacDominated_zero_iff` turns into a theorem so that
@@ -1063,7 +1099,7 @@ theorem eq_zero_of_sigmaJacDominated {sJac scale q : ℝ} (h : SigmaJacDominated
   rw [hJac] at h
   exact sigmaJacDominated_zero_iff.mp h
 
-/-- **The paper's `Θ(·)`, with the implied constants quantified where `Θ` quantifies them.** A
+/-- **The draft's `Θ(·)`, with the implied constants quantified where `Θ` quantifies them.** A
 modulus `q` — read as a function of `σ_Jac²`, which is how `μ_eff = Θ(σ_Jac²/(d κ²))` and the
 corrected route's `c₁ σ_Jac² |H_bb|` are both meant — is **two-sidedly proportional to `σ_Jac²`** on
 a set `S` of admissible values when there are two positive constants, *fixed once for the whole
@@ -1071,7 +1107,7 @@ family*, between whose multiples of `σ_Jac² · scale` it is squeezed at every 
 
 The uniformity is the entire content of the `Θ`. It is what makes the hypothesis a genuine
 constraint on the modulus rather than a restatement of the corollary at the one point where the
-corollary is applied, and it is what supports the paper's arrow `σ_Jac² → 0` implies `μ_eff → 0`,
+corollary is applied, and it is what supports the draft's arrow `σ_Jac² → 0` implies `μ_eff → 0`,
 which `tendsto_zero_of_sigmaJacDominatedOn` proves as an actual limit rather than as an evaluation
 at a point. This file still asserts neither of the two proportionality claims: the relation is a
 hypothesis, and `exists_sigmaJacDominatedOn_ne_zero` records that it is satisfiable by a modulus
@@ -1098,7 +1134,7 @@ theorem eq_zero_of_sigmaJacDominatedOn {scale : ℝ} {S : Set ℝ} {q : ℝ → 
   rw [zero_mul, mul_zero] at hlow hhigh
   exact le_antisymm hhigh hlow
 
-/-- **The paper's arrow, as an arrow.** `rem:moreau-scope` writes "`σ_Jac² → 0` and `μ_eff → 0`",
+/-- **The draft's arrow, as an arrow.** The draft's `rem:moreau-scope` writes "`σ_Jac² → 0` and `μ_eff → 0`",
 which is a limit statement and not an evaluation at a point. With the `Θ` constants uniform, it is a
 squeeze: along any net of configurations whose slack-channel trace tends to zero within the
 admissible range, the modulus tends to zero as well. -/
@@ -1132,7 +1168,7 @@ section FrozenAnchorSummary
 
 variable {d : ℕ} {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
-/-- **The falsifiability boundary of `rem:moreau-scope`, end to end.** Suppose an external
+/-- **The falsifiability boundary of the draft's `rem:moreau-scope`, end to end.** Suppose an external
 constraint freezes the conditioning set, so that the produced latent iterate `θ̃` is almost
 surely a single vector `c`. Then, simultaneously and with no further assumption:
 
@@ -1140,12 +1176,12 @@ surely a single vector `c`. Then, simultaneously and with no further assumption:
 * any modulus two-sidedly proportional to `σ_Jac²` — read, as `Θ` requires, as a function of
   `σ_Jac²` with the implied constants uniform over the non-negative admissible range — vanishes at
   that value, on either the shipped or the corrected route;
-* the corrected effective diffusion of `docs/design/lemma1_rederivation.md` §2 loses both of its
+* the corrected effective diffusion of §2 of the design note loses both of its
   jitter-sourced terms and collapses onto the direct baseline's `s² σ_obj²`, for every positivity-map
   prefactor, every objective-noise scale, every mean Hessian and every direction.
 
-The lift then carries no channel the direct softplus lacks, which is exactly the boundary the paper
-draws for its own claim.
+The lift then carries no channel the direct softplus lacks, which is exactly the boundary the draft
+drew for its own claim.
 
 The `Θ` relation is carried as the named hypothesis `hΘ` and is not asserted. It is deliberately the
 *uniform* relation `SigmaJacDominatedOn` and not the pointwise `SigmaJacDominated`: by

@@ -6,25 +6,30 @@ import DiffusionOrdering
 import MinibatchNoise
 import ShoulderAttenuation
 import PowerOfS
+import PgdBaseline
 
 /-!
 # The power of the positivity-map prefactor in the coupling term of `eq:sigma-eff`
 
-The v5 manuscript (`docs/paper/v5/paper_v5.tex`, Section 4.2) states the bias-channel effective
-diffusion of the lifted latent iterate as
+The paper states the projected diffusion of the lifted update
+along `e_b`, in `thm:main`(i) (§3.3) and `lem:diffusion`(ii) (Appendix A.3), as
 
   `σ²_eff = σ_s² σ²_obj + 2 e_bᵀ H_θ̃ Σ_ξ e_b + e_bᵀ H_θ̃ V H_θ̃ e_b + ϱ`   (`eq:sigma-eff`),
 
 with `H_θ̃ = E_X[∇²_θ̃ L]` the mean latent-weight Hessian, `Σ_ξ = E_X[δθ̃ ξᵀ]` the frozen coupling of
 the latent-weight fluctuation with the minibatch noise at the reference iterate, and `V = E_X[δθ̃ δθ̃ᵀ]`.
-It then says, beside Corollary 1, that the direct-softplus exponent is of order `σ_s⁻²` while the
-lift's is of order `σ_s⁻¹` "where the coupling keeps its single power of `σ_s`", citing
-`PowerOfS.liftExponent_isTheta_inv`. That theorem is about the additive form
-`s² σ_obj² + σ_Jac²`, in which the once-attenuated trace `σ_Jac² = Θ(s)` is added to the
-twice-attenuated objective term; the manuscript itself retired that form for adding
-incommensurable units, and `eq:sigma-eff` is its replacement. This file asks the question the
-retirement leaves open: **what power of the prefactor does the coupling term of `eq:sigma-eff`
-actually carry?** The answer is two, not one, and it changes the order claimed for the lift.
+(History: an earlier version of the manuscript said, beside Corollary 1, that the direct-softplus
+exponent is of order `σ_s⁻²` while the lift's is of order `σ_s⁻¹` "where the coupling keeps its
+single power of `σ_s`", citing `PowerOfS.liftExponent_isTheta_inv`. That theorem is about the
+additive form `s² σ_obj² + σ_Jac²`, in which the once-attenuated trace `σ_Jac² = Θ(s)` is added to
+the twice-attenuated objective term; the manuscript retired that form for adding
+incommensurable units, and `eq:sigma-eff` is its replacement.) This file asks the question the
+retirement left open: **what power of the prefactor does the coupling term of `eq:sigma-eff`
+actually carry?** The answer is two, not one, and it changed the order claimed for the lift. The
+current paper states this file's result in `rem:power` (Appendix A.4) — the coupling term is
+`O(σ_s²)` and never of order `σ_s`, and where the remainder's constant is below the leading
+coefficient both exponents are of order `σ_s⁻²` with a bounded ratio — and names no Lean
+theorem.
 
 **The computation.** The lifted iterate reaches the loss through the coordinatewise positivity map
 `θ = ψ(θ̃)`, so the mean latent-weight gradient map is `w ↦ ψ'(w) ⊙ ḡ(ψ(w))` and its Jacobian at the
@@ -81,16 +86,20 @@ diffusion of the conclusion of `PowerOfS.exponentRatio_tendsto_atTop`; where `ϱ
 limit `ϱ₀` the ratio converges to `(c₂ + ϱ₀)/σ_obj²` (`exponentRatio_sigmaEff_tendsto`). The
 leading coefficient is itself a variance, that of the projected once-attenuated gradient
 fluctuation `e_bᵀ ξ_θ + (ḡ ⊙ e_b)ᵀ δθ̃` (`leadingCoeff_eq_projDiffusion`), and its excess over the
-direct value is `2 b + j₀` with `j₀ ≥ 0`, so a nonnegative `b` — (A6) read at leading order in
-the prefactor — makes the lift's constant at least the direct one
+direct value is `2 b + j₀` with `j₀ ≥ 0`, so a nonnegative `b` — the sign of the coupling term
+at leading order in the prefactor (an earlier draft's (A6) read at that order; the current paper
+states the sign its orderings need as the condition `c > 0`) — makes the lift's constant at least
+the direct one
 (`leadingCoeff_ge_direct_of_gradCoupling_nonneg`).
 
-**What this decides for the paper.** On `eq:sigma-eff`, under the chain rule, (A2) and the refined
-chain of (A4), the lift lowers the shoulder exponent by a bounded factor and not by an order: both
+**What this decides for the paper.** On `eq:sigma-eff`, under the chain rule, (A2) and the chain
+`g = g₀ + H δθ̃ + r₂` of §3.1 (an earlier draft's refined (A4)), the lift lowers the shoulder exponent
+by a bounded factor and not by an order, which is what `rem:power` now states: both
 constructions have exponent `Θ(σ_s⁻²)` with the barrier held fixed (and both `Θ(σ_s⁻¹)` if the
 barrier is instead read in latent-weight units, since the barrier convention is common to the two).
-The sentence "the lift's exponent is of order `σ_s⁻¹` where the coupling keeps its single power of
-`σ_s`" is not available on `eq:sigma-eff`; the mechanism at leading order is the positivity map's second
+The earlier sentence "the lift's exponent is of order `σ_s⁻¹` where the coupling keeps its single
+power of `σ_s`" is not available on `eq:sigma-eff`, and the paper no longer makes it; the mechanism
+at leading order is the positivity map's second
 derivative multiplying the mean constrained gradient, `2 s² ḡ_b (Ξ_θ)_{bb}`, and the curvature
 route `2 s³ e_bᵀ Hθ Ξ_θ e_b` enters one order later. The constants are explicit throughout, and
 one-dimensional witnesses show that none of the headline statements is vacuous
@@ -128,7 +137,7 @@ one-dimensional witnesses show that none of the headline statements is vacuous
   exponents is bounded, does not diverge, and converges to `(c₂ + ϱ₀)/σ_obj²`.
 * `leadingCoeff_eq_projDiffusion`, `leadingCoeff_nonneg`, `leadingJitter_nonneg`,
   `leadingCoeff_ge_direct_of_gradCoupling_nonneg`, `gradCoupling_single` — the leading
-  coefficient is a variance, and (A6) at leading order.
+  coefficient is a variance, and the coupling term's sign at leading order.
 * `couplingTerm_witness`, `gradCoupling_witness_ne_zero`, `couplingPoly_witness_isTheta_sq`,
   `liftExponent_witness_isTheta_inv_sq`, `exponentRatio_witness_tendsto` — non-vacuity.
 * `abs_dotProduct_mulVec_le`, `abs_mulVec_apply_le`, `curvAbsSum`, `gradAbsSum`,
@@ -136,6 +145,18 @@ one-dimensional witnesses show that none of the headline statements is vacuous
   `gradAbsSum_nonneg`, `couplingTerm_isBigO_sq_of_relative`,
   `couplingTerm_not_isTheta_id_of_relative`, `softplus_second_derivative_bound` — the same
   conclusions under (A2) read with a tolerance.
+* `precondExponent_orders`, `directPrecondExponent_orders`, `liftPrecondExponent_orders`, with
+  `secondMoment_isTheta_sq`, `tendsto_secondMoment_zero`, `rpow_sq_div_sq`,
+  `precondExponent_powerChi_zero_isTheta`, `adamChi_zero_eq_powerChi`,
+  `precondExponent_adamChi_zero_isTheta`, `precondExponent_isTheta_inv_sq_of_tendsto`,
+  `precondExponent_div_arrhenius_tendsto`, `tendsto_powerChi_secondMoment`,
+  `tendsto_adamChi_secondMoment`, `directDiffusion_isTheta_sq`, `directDiffusion_eventually_pos`,
+  `directPrecondExponent_powerChi_eq`, `directPrecondExponent_adamChi_eq`,
+  `sigmaEffPoly_eventually_pos` — `rem:power-precond`: under a preconditioned
+  step `χ`, the two exponents are of order `s^(-2(1-γ))` (power family) and `s⁻¹` (Adam) at
+  `ε = 0`, and of order `s⁻²`, at the law of `cor:fpt` at step `η ε^(-γ)` (power family) or
+  `η ε⁻¹` (Adam), at a fixed `ε > 0`; the lift's half composes `sigmaEffPoly_isTheta_sq` with
+  `PgdBaseline.precondExponent`.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -149,17 +170,23 @@ relative tolerance `|ψ'(θ̃_ref)_i| ≤ (1 + ε) s` in Section 9, which is the
 `PowerOfS.lean` and `SoftplusBand.lean` argue is the defensible one. The second-derivative bound
 `|ψ''(θ̃_ref)_i| ≤ c s` is proved for the softplus positivity map with `c = 1` and holds for the
 exponential positivity map with `c = 1` by `ψ'' = ψ'`; it is a hypothesis for a general positivity map. The
-remainder bound `|ϱ(s)| ≤ τ s²` is (A4′-r) read at the positivity-map scale, and
+remainder bound `|ϱ(s)| ≤ τ s²` is the first half of the condition `rem:power` places on the
+remainder, "of order `σ_s²`" (an earlier draft's (A4′-r) read at the positivity-map scale), and
 `abs_remainderScalars_le_of_once_attenuated` derives it from the once-attenuated form of the
 remainder with an explicit `τ`; what is not proved is that the constrained-unit remainder scalars
-are bounded uniformly in `s`, a moment condition on the batch law. The gap `τ < c₂` is the
-(A6)-type condition under which the leading coefficient is not cancelled by the remainder, and
+are bounded uniformly in `s`, a moment condition on the batch law. The gap `τ < c₂` is the second
+half, "with a constant below the leading coefficient of `eq:sigma-eff`", under which the leading
+coefficient is not cancelled by the remainder, and
 `leadingCoeff_ge_direct_of_gradCoupling_nonneg` shows it is implied by `τ < σ_obj²` together with
 `b ≥ 0`. The barrier `α` is held fixed as the prefactor varies, as in `PowerOfS.lean`; a barrier
 read in latent-weight units would scale both exponents alike and leave every comparison here
-unchanged. Nothing in this file touches escape times, stochastic differential equations or the
-Adam normalization: `shoulderExponent` is the Arrhenius exponent as a function of the prefactor,
-and the statements are about that function.
+unchanged. Nothing in this file touches escape times or stochastic differential equations:
+`shoulderExponent` is the Arrhenius exponent as a function of the prefactor, and the statements
+are about that function. Section 10 reads the same function under a preconditioned step,
+`PgdBaseline.precondExponent` at the power family `powerChi` and at Adam's `adamChi`; the reading
+of the step's entry as `χ(m² + v)`, constant across the barrier, is the modeling input of
+`prop:precond-full` and is not derived here. Its two regimes are the limits `ε = 0` and fixed
+`ε > 0`; the crossover between them is not stated.
 -/
 
 open Matrix Finset MeasureTheory ProbabilityTheory Filter Topology Asymptotics
@@ -284,8 +311,8 @@ section FrozenCoupling
 variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
 /-- **The frozen coupling is attenuated once.** With the latent-weight noise `ξ = p ⊙ ξ_θ` at the
-reference iterate, `Cov[δθ̃, ξ] = Cov[δθ̃, ξ_θ] diag(p)`. The covariance centres its arguments, so
-the constrained gradient may be supplied uncentred. -/
+reference iterate, `Cov[δθ̃, ξ] = Cov[δθ̃, ξ_θ] diag(p)`. The covariance centers its arguments, so
+the constrained gradient may be supplied uncentered. -/
 theorem covMat_hadamard_right [IsFiniteMeasure μ] (p : Fin d → ℝ) {dth g : Ω → Fin d → ℝ}
     (hθ : SqIntegrableVec μ dth) (hg : SqIntegrableVec μ g) :
     covMat μ dth (fun ω i => p i * g ω i) = covMat μ dth g * diagonal p := by
@@ -619,8 +646,9 @@ noncomputable def remainderScalars (μ : Measure Ω) (H : Matrix (Fin d) (Fin d)
   2 * (e ⬝ᵥ (covMat μ g₀ r₂ *ᵥ e)) + 2 * (e ⬝ᵥ ((H * covMat μ dth r₂) *ᵥ e))
     + e ⬝ᵥ (covMat μ r₂ r₂ *ᵥ e)
 
-/-- **`eq:sigma-eff` on the latent-weight objects, in powers of the prefactor.** Take the refined
-chain of (A4) in the latent-weight coordinate at positivity-map level `s`: the per-probe gradient
+/-- **`eq:sigma-eff` on the latent-weight objects, in powers of the prefactor.** Take the chain
+of §3.1 (an earlier draft's refined (A4)) in the latent-weight coordinate at positivity-map level `s`:
+the per-probe gradient
 with respect to the latent weight is `g = s ⊙ g_θ + H_θ̃ δθ̃ + r₂`, with `g_θ` the frozen constrained gradient,
 `H_θ̃ = s² Hθ + s (1 − s) diag(ḡ)` the latent-weight Hessian of the softplus positivity map under (A2), and
 `r₂` the remainder. Then the projected diffusion of the lift is
@@ -694,8 +722,9 @@ theorem remainderScalars_once_attenuated (Hθ : Matrix (Fin d) (Fin d) ℝ)
 
 /-- Under the once-attenuated remainder of `remainderScalars_once_attenuated`, the remainder
 scalars are bounded by `τ s²` on the unit interval of prefactors, with `τ` the sum of the absolute
-values of the constrained-unit scalars: this is (A4′-r) read at the positivity-map scale, and it is the
-hypothesis `hϱ` of the asymptotic statements below. -/
+values of the constrained-unit scalars: this is the "of order `σ_s²`" half of the condition
+`rem:power` places on the remainder (an earlier draft's (A4′-r) read at the positivity-map scale), and
+it is the hypothesis `hϱ` of the asymptotic statements below. -/
 theorem abs_remainderScalars_le_of_once_attenuated
     (Hθ : Matrix (Fin d) (Fin d) ℝ) (gbar : Fin d → ℝ) {s : ℝ} (hs : 0 ≤ s) (hs1 : s ≤ 1)
     (gθ dth rt : Ω → Fin d → ℝ) (e : Fin d → ℝ) :
@@ -1051,7 +1080,8 @@ The `s²` coefficient of `eq:sigma-eff`, `c₂ = σ_obj² + 2 b + j₀`, is the 
 once-attenuated gradient fluctuation `e_bᵀ ξ_θ + (ḡ ⊙ e_b)ᵀ δθ̃`: the constrained noise plus the
 mean constrained gradient carried by the latent weight's fluctuation of the positivity-map slope. Its excess
 over the direct value, `2 b + j₀`, is nonnegative whenever the mean-gradient-weighted frozen
-coupling `b` is, which is (A6) read at leading order in the prefactor. -/
+coupling `b` is, which is the sign of the coupling term at leading order in the prefactor (an
+earlier draft's (A6) read at that order). -/
 
 section Leading
 
@@ -1093,7 +1123,8 @@ theorem leadingJitter_nonneg [IsFiniteMeasure μ] {dth : Ω → Fin d → ℝ}
   quadForm_conj_nonneg (covMat_self_posSemidef hθ)
     (isHermitian_of_transpose_eq (diagonal_transpose gbar)) e
 
-/-- **(A6) at leading order in the prefactor.** If the mean-gradient-weighted frozen coupling
+/-- **The coupling term's sign at leading order in the prefactor** (an earlier draft's (A6) read
+at that order). If the mean-gradient-weighted frozen coupling
 `b = e_bᵀ diag(ḡ) Ξ_θ e_b` is nonnegative, the leading coefficient of the lift's diffusion is at
 least the direct value `σ_obj²`; strictly greater if `b > 0`, or if the leading jitter `j₀` is
 positive. -/
@@ -1399,5 +1430,324 @@ theorem softplus_second_derivative_bound (w : ℝ) :
   nlinarith
 
 end Relative
+
+/-! ## 10. Under a preconditioned step: `rem:power-precond`
+
+`prop:precond-full`(iii) reads the step's entry along `e_b` as `p = χ(m² + v)`, so that the
+exponent of a method whose diffusion is `v` is `Ψ(v) = 2α/(η v χ(m² + v))`
+(`PgdBaseline.precondExponent`). `rem:power-precond`, "The power of the slope under a
+preconditioned step", reads it under `rem:power`: with `α` fixed and `ψ' = σ_s` at the mean latent
+weight, the mean gradient and the noise along `e_b` carry one factor of `σ_s` each, so
+`m = σ_s ḡ_θ`, `σ²_dir = σ_s² σ²_obj` and `m² + σ²_dir = σ_s² μ²` with `μ² = ḡ_θ² + σ²_obj`. Here
+`gb` is `ḡ_θ`, the mean gradient in constrained units along `e_b`, and `o` is `σ²_obj`; the mean
+gradient `s · gb` is shared by the two methods, as `prop:precond-full`(iii) has it.
+
+The remark names two regimes, "at `ε = 0`, the regime in which `σ_s²μ²` dominates `ε`" and "at a
+fixed `ε > 0`". They are proved here as those two limits `σ_s → 0⁺`: at `ε = 0` the second moment
+dominates at every slope, and at a fixed `ε > 0` the constant dominates as the slope flattens. The crossover
+between them, where the two are comparable, is a regime of neither order and is not stated.
+
+Every order is first proved for an arbitrary diffusion `V(s)` of order `s²` and positive near `0`
+(`precondExponent_orders`), and then instantiated twice: at the direct-softplus diffusion
+`s² σ²_obj` (`directPrecondExponent_orders`), and at the lift's `eq:sigma-eff` through
+`sigmaEffPoly_isTheta_sq` (`liftPrecondExponent_orders`), under the binder `hc` of that theorem,
+the remainder constant below the leading coefficient, which is the condition `rem:power` states.
+No condition on `γ` is used: the orders hold at every real `γ`, and the restriction to `[0, 1]`
+is the one under which `χ` is admissible for `prop:precond-full`(iii)
+(`PgdBaseline.powerChi_hypotheses`), not one these orders need. -/
+
+section Precond
+
+/-- The second moment along `e_b`, `m² + V` at `m = s ḡ_θ`, is of order `s²` when the diffusion
+`V` is: for the direct method this is `σ_s² μ²` of `rem:power-precond`. -/
+theorem secondMoment_isTheta_sq {V : ℝ → ℝ} (gb : ℝ)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) (hVpos : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < V s) :
+    (fun s => (s * gb) ^ 2 + V s) =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2 := by
+  refine ⟨?_, ?_⟩
+  · have h1 : (fun s : ℝ => (s * gb) ^ 2) =O[𝓝[>] (0:ℝ)] fun s => s ^ 2 := by
+      refine isBigO_of_le' (c := gb ^ 2) _ fun s => ?_
+      rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _),
+        abs_of_nonneg (sq_nonneg _), mul_pow, mul_comm]
+    exact h1.add hV.1
+  · refine hV.2.trans (IsBigO.of_bound 1 ?_)
+    filter_upwards [hVpos] with s hs
+    have hW : 0 ≤ (s * gb) ^ 2 + V s := add_nonneg (sq_nonneg _) hs.le
+    rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_pos hs, one_mul, abs_of_nonneg hW]
+    nlinarith [sq_nonneg (s * gb)]
+
+/-- The second moment tends to zero as the slope flattens, so at a fixed `ε > 0` it is `ε` that
+dominates. -/
+theorem tendsto_secondMoment_zero {V : ℝ → ℝ} (gb : ℝ)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) :
+    Tendsto (fun s => (s * gb) ^ 2 + V s) (𝓝[>] (0:ℝ)) (𝓝 0) := by
+  have hsq0 : Tendsto (fun s : ℝ => s ^ 2) (𝓝[>] (0:ℝ)) (𝓝 0) := by
+    have hc : Continuous (fun s : ℝ => s ^ 2) := by fun_prop
+    simpa using tendsto_nhdsWithin_of_tendsto_nhds (hc.tendsto 0)
+  have hm0 : Tendsto (fun s : ℝ => (s * gb) ^ 2) (𝓝[>] (0:ℝ)) (𝓝 0) := by
+    have hc : Continuous (fun s : ℝ => (s * gb) ^ 2) := by fun_prop
+    simpa using tendsto_nhdsWithin_of_tendsto_nhds (hc.tendsto 0)
+  simpa using hm0.add (hV.1.trans_tendsto hsq0)
+
+/-- `(s²)^γ / s² = s^(-2(1-γ))` at a positive slope. -/
+theorem rpow_sq_div_sq {s : ℝ} (hs : 0 < s) (γ : ℝ) :
+    (s ^ 2) ^ γ / s ^ 2 = s ^ (-2 * (1 - γ)) := by
+  rw [← Real.rpow_two, ← Real.rpow_mul hs.le, ← Real.rpow_sub hs]
+  congr 1
+  ring
+
+/-- **The power family while the second moment dominates `ε`**, the limit `ε = 0`: for
+`χ(v) = v^(-γ)` the exponent `2α (m² + V)^γ/(η V)` is of order `s^(-2(1-γ))`, for every diffusion
+`V` of order `s²`. -/
+theorem precondExponent_powerChi_zero_isTheta {V : ℝ → ℝ} {α η : ℝ} (gb γ : ℝ)
+    (hα : 0 < α) (hη : 0 < η)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) (hVpos : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < V s) :
+    (fun s => precondExponent α η (powerChi γ 0) (s * gb) (V s)) =Θ[𝓝[>] (0:ℝ)]
+      fun s => s ^ (-2 * (1 - γ)) := by
+  have hW := secondMoment_isTheta_sq gb hV hVpos
+  have hWnn : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 ≤ (s * gb) ^ 2 + V s :=
+    hVpos.mono fun s hs => add_nonneg (sq_nonneg _) hs.le
+  have hsq : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 ≤ s ^ 2 := Eventually.of_forall fun s => sq_nonneg s
+  have hc : 2 * α / η ≠ 0 := by positivity
+  have hmain := IsTheta.const_mul_left hc ((hW.rpow (r := γ) hWnn hsq).div hV)
+  refine (EventuallyEq.trans_isTheta ?_ hmain).trans_eventuallyEq ?_
+  · filter_upwards [hVpos] with s hs
+    have hW0 : 0 < (s * gb) ^ 2 + V s := add_pos_of_nonneg_of_pos (sq_nonneg _) hs
+    have hX : 0 < ((s * gb) ^ 2 + V s) ^ γ := Real.rpow_pos_of_pos hW0 γ
+    simp only [precondExponent, powerChi, add_zero]
+    rw [Real.rpow_neg hW0.le]
+    field_simp
+  · filter_upwards [self_mem_nhdsWithin] with s hs
+    exact rpow_sq_div_sq hs γ
+
+/-- At `ε = 0` Adam's normalization is the power family at `γ = 1/2`: `(√v)⁻¹ = v^(-1/2)`. This
+is why, in the first of the remark's two regimes, Adam's exponent has the power family's order at
+`γ = 1/2`: "Adam's normalization gives the same two regimes, of order `σ_s⁻¹` at `ε = 0` …". -/
+theorem adamChi_zero_eq_powerChi {x : ℝ} (hx : 0 ≤ x) : adamChi 0 x = powerChi (1 / 2) 0 x := by
+  rw [adamChi, powerChi, add_zero, add_zero, Real.sqrt_eq_rpow, Real.rpow_neg hx]
+
+/-- **Adam's normalization while `σ_s μ` dominates `ε`**, the limit `ε = 0`: the exponent is of
+order `s⁻¹`, for every diffusion `V` of order `s²`. -/
+theorem precondExponent_adamChi_zero_isTheta {V : ℝ → ℝ} {α η : ℝ} (gb : ℝ)
+    (hα : 0 < α) (hη : 0 < η)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) (hVpos : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < V s) :
+    (fun s => precondExponent α η (adamChi 0) (s * gb) (V s)) =Θ[𝓝[>] (0:ℝ)]
+      fun s => s⁻¹ := by
+  have h := precondExponent_powerChi_zero_isTheta gb (1 / 2) hα hη hV hVpos
+  refine (EventuallyEq.trans_isTheta ?_ h).trans_eventuallyEq ?_
+  · filter_upwards [hVpos] with s hs
+    simp only [precondExponent]
+    rw [adamChi_zero_eq_powerChi (add_nonneg (sq_nonneg _) hs.le)]
+  · refine Eventually.of_forall fun s => ?_
+    simp only
+    rw [show (-2 * (1 - 1 / 2) : ℝ) = -1 by norm_num, Real.rpow_neg_one]
+
+/-- **Once `ε` dominates**: if the step's entry `χ(m² + V)` tends to a nonzero constant `L` as the
+slope flattens, the exponent is of order `s⁻²`, for every diffusion `V` of order `s²`. -/
+theorem precondExponent_isTheta_inv_sq_of_tendsto {V : ℝ → ℝ} {α η L : ℝ} {chi : ℝ → ℝ}
+    (gb : ℝ) (hα : 0 < α) (hη : 0 < η) (hL : L ≠ 0)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2)
+    (hlim : Tendsto (fun s => chi ((s * gb) ^ 2 + V s)) (𝓝[>] (0:ℝ)) (𝓝 L)) :
+    (fun s => precondExponent α η chi (s * gb) (V s)) =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹ := by
+  have hq : (fun s => (chi ((s * gb) ^ 2 + V s))⁻¹) =Θ[𝓝[>] (0:ℝ)] fun _ => (1:ℝ) := by
+    refine isTheta_of_div_tendsto_nhds_ne_zero (c := L) ?_ hL
+    simpa using hlim
+  have hc : 2 * α / η ≠ 0 := by positivity
+  have hmain := IsTheta.const_mul_left hc (hV.inv.mul hq)
+  refine (EventuallyEq.trans_isTheta ?_ hmain).trans_eventuallyEq ?_
+  · refine Eventually.of_forall fun s => ?_
+    simp only [precondExponent]
+    rw [div_eq_mul_inv, div_eq_mul_inv, mul_inv, mul_inv]
+    ring
+  · refine Eventually.of_forall fun s => ?_
+    simp
+
+/-- **The law of `cor:fpt` at step `η L`.** Under the same limit, the exponent divided by the
+unpreconditioned exponent `2α/(η L V)` at step `η L` tends to one. -/
+theorem precondExponent_div_arrhenius_tendsto {V : ℝ → ℝ} {α η L : ℝ} {chi : ℝ → ℝ}
+    (gb : ℝ) (hα : 0 < α) (hη : 0 < η) (hL : L ≠ 0)
+    (hVpos : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < V s)
+    (hlim : Tendsto (fun s => chi ((s * gb) ^ 2 + V s)) (𝓝[>] (0:ℝ)) (𝓝 L)) :
+    Tendsto (fun s => precondExponent α η chi (s * gb) (V s) / arrheniusExponent α (η * L) (V s))
+      (𝓝[>] (0:ℝ)) (𝓝 1) := by
+  have h := (hlim.inv₀ hL).const_mul L
+  rw [mul_inv_cancel₀ hL] at h
+  refine h.congr' ?_
+  filter_upwards [hVpos, hlim.eventually_ne hL] with s hs hchi
+  simp only [precondExponent, arrheniusExponent]
+  field_simp
+
+/-- At a fixed `ε > 0` the power family's entry tends to `ε^(-γ)`. -/
+theorem tendsto_powerChi_secondMoment {V : ℝ → ℝ} {eps : ℝ} (gb γ : ℝ) (heps : 0 < eps)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) :
+    Tendsto (fun s => powerChi γ eps ((s * gb) ^ 2 + V s)) (𝓝[>] (0:ℝ)) (𝓝 (eps ^ (-γ))) := by
+  have h := ((tendsto_secondMoment_zero gb hV).add_const eps).rpow_const (p := -γ)
+    (Or.inl (by rw [zero_add]; exact heps.ne'))
+  simpa [powerChi] using h
+
+/-- At a fixed `ε > 0` Adam's entry `(√(m² + V) + ε)⁻¹` tends to `ε⁻¹`, not to the power
+family's `ε^(-1/2)`: the two agree at `ε = 0` only. -/
+theorem tendsto_adamChi_secondMoment {V : ℝ → ℝ} {eps : ℝ} (gb : ℝ) (heps : 0 < eps)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) :
+    Tendsto (fun s => adamChi eps ((s * gb) ^ 2 + V s)) (𝓝[>] (0:ℝ)) (𝓝 eps⁻¹) := by
+  have h := ((tendsto_secondMoment_zero gb hV).sqrt.add_const eps).inv₀
+    (by rw [Real.sqrt_zero, zero_add]; exact heps.ne')
+  simpa [adamChi] using h
+
+/-- **The two regimes of `rem:power-precond` for any diffusion of order `s²`.** For `V` of order
+`s²` and positive near `0`, as the slope flattens: (1) the power family at `ε = 0` gives order
+`s^(-2(1-γ))`; (2) Adam's normalization at `ε = 0` gives order `s⁻¹`; (3) the power family at a
+fixed `ε > 0` gives order `s⁻²`, and (5) is asymptotic to the law of `cor:fpt` at step
+`η ε^(-γ)`; (4) Adam's normalization at a fixed `ε > 0` gives order `s⁻²`, and (6) is asymptotic
+to the law of `cor:fpt` at step `η ε⁻¹`. -/
+theorem precondExponent_orders {V : ℝ → ℝ} {α η : ℝ} (gb : ℝ) (hα : 0 < α) (hη : 0 < η)
+    (hV : V =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2) (hVpos : ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < V s) :
+    (∀ γ : ℝ, (fun s => precondExponent α η (powerChi γ 0) (s * gb) (V s))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s ^ (-2 * (1 - γ))) ∧
+      ((fun s => precondExponent α η (adamChi 0) (s * gb) (V s))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (powerChi γ eps) (s * gb) (V s))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (adamChi eps) (s * gb) (V s))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (powerChi γ eps) (s * gb) (V s)
+          / arrheniusExponent α (η * eps ^ (-γ)) (V s)) (𝓝[>] (0:ℝ)) (𝓝 1)) ∧
+      (∀ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (adamChi eps) (s * gb) (V s)
+          / arrheniusExponent α (η * eps⁻¹) (V s)) (𝓝[>] (0:ℝ)) (𝓝 1)) := by
+  refine ⟨fun γ => precondExponent_powerChi_zero_isTheta gb γ hα hη hV hVpos,
+    precondExponent_adamChi_zero_isTheta gb hα hη hV hVpos,
+    fun γ eps heps => precondExponent_isTheta_inv_sq_of_tendsto gb hα hη
+      (Real.rpow_pos_of_pos heps _).ne' hV (tendsto_powerChi_secondMoment gb γ heps hV),
+    fun eps heps => precondExponent_isTheta_inv_sq_of_tendsto gb hα hη
+      (inv_pos.mpr heps).ne' hV (tendsto_adamChi_secondMoment gb heps hV),
+    fun γ eps heps => precondExponent_div_arrhenius_tendsto gb hα hη
+      (Real.rpow_pos_of_pos heps _).ne' hVpos (tendsto_powerChi_secondMoment gb γ heps hV),
+    fun eps heps => precondExponent_div_arrhenius_tendsto gb hα hη
+      (inv_pos.mpr heps).ne' hVpos (tendsto_adamChi_secondMoment gb heps hV)⟩
+
+/-- The direct-softplus diffusion `σ_s² σ²_obj` is of order `σ_s²`. -/
+theorem directDiffusion_isTheta_sq {o : ℝ} (ho : 0 < o) :
+    (fun s : ℝ => s ^ 2 * o) =Θ[𝓝[>] (0:ℝ)] fun s => s ^ 2 :=
+  isTheta_nhdsGT_zero_of_two_sided_near (c₁ := o) (c₂ := o) ho one_pos
+    (fun s _ _ => sq_nonneg s) (fun s _ _ => by rw [mul_comm]) (fun s _ _ => by rw [mul_comm])
+
+/-- The direct-softplus diffusion is positive at every positive slope. -/
+theorem directDiffusion_eventually_pos {o : ℝ} (ho : 0 < o) :
+    ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < s ^ 2 * o := by
+  filter_upwards [self_mem_nhdsWithin] with s hs
+  have hs' : (0:ℝ) < s := hs
+  positivity
+
+/-- "For `χ(v) = (v + ε)^(-γ)` the direct exponent is then
+`2α(σ_s²μ² + ε)^γ/(ησ_s²σ²_obj)`", with `μ² = ḡ_θ² + σ²_obj`. -/
+theorem directPrecondExponent_powerChi_eq {α η o gb γ eps s : ℝ} (hη : η ≠ 0) (ho : 0 < o)
+    (heps : 0 ≤ eps) (hs : 0 < s) :
+    precondExponent α η (powerChi γ eps) (s * gb) (s ^ 2 * o)
+      = 2 * α * (s ^ 2 * (gb ^ 2 + o) + eps) ^ γ / (η * s ^ 2 * o) := by
+  have hx : 0 < s ^ 2 * (gb ^ 2 + o) + eps := by positivity
+  have hX : 0 < (s ^ 2 * (gb ^ 2 + o) + eps) ^ γ := Real.rpow_pos_of_pos hx γ
+  simp only [precondExponent, powerChi]
+  rw [show (s * gb) ^ 2 + s ^ 2 * o + eps = s ^ 2 * (gb ^ 2 + o) + eps by ring,
+    Real.rpow_neg hx.le]
+  field_simp
+
+/-- Adam's direct exponent, `2α(σ_s μ + ε)/(ησ_s²σ²_obj)` with `μ = √(ḡ_θ² + σ²_obj)`. -/
+theorem directPrecondExponent_adamChi_eq {α η o gb eps s : ℝ} (hη : η ≠ 0) (ho : 0 < o)
+    (heps : 0 ≤ eps) (hs : 0 < s) :
+    precondExponent α η (adamChi eps) (s * gb) (s ^ 2 * o)
+      = 2 * α * (s * Real.sqrt (gb ^ 2 + o) + eps) / (η * s ^ 2 * o) := by
+  have hμ : 0 < Real.sqrt (gb ^ 2 + o) := Real.sqrt_pos.mpr (by positivity)
+  have hx : 0 < s * Real.sqrt (gb ^ 2 + o) + eps := by positivity
+  simp only [precondExponent, adamChi]
+  rw [show (s * gb) ^ 2 + s ^ 2 * o = s ^ 2 * (gb ^ 2 + o) by ring,
+    Real.sqrt_mul (sq_nonneg s), Real.sqrt_sq hs.le]
+  field_simp
+
+/-- **`rem:power-precond`, the direct-softplus half.** "For `χ(v) = (v + ε)^(-γ)` the direct
+exponent is then `2α(σ_s²μ² + ε)^γ/(ησ_s²σ²_obj)`, as `σ_s → 0` of order `σ_s^(-2(1-γ))` at
+`ε = 0`, the regime in which `σ_s²μ²` dominates `ε`, and of order `σ_s⁻²` at a fixed `ε > 0`, the
+law of `cor:fpt` at step `ηε^(-γ)`. Adam's normalization gives the same two regimes, of order
+`σ_s⁻¹` at `ε = 0` and of order `σ_s⁻²` at a fixed `ε > 0`, the law of `cor:fpt` at step
+`ηε⁻¹`."
+
+The two regimes are the limits `ε = 0` (conjuncts 1–2) and fixed `ε > 0` (conjuncts 3–6) as
+`σ_s → 0⁺`, with `α, η, σ²_obj > 0` and `ḡ_θ` fixed, at every real `γ`. Adam's `ε`-dominant law
+is at step `η ε⁻¹` (conjunct 6), since its `ε` is added to `√v` and not to `v`. -/
+theorem directPrecondExponent_orders {α η o : ℝ} (gb : ℝ) (hα : 0 < α) (hη : 0 < η)
+    (ho : 0 < o) :
+    (∀ γ : ℝ, (fun s => precondExponent α η (powerChi γ 0) (s * gb) (s ^ 2 * o))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s ^ (-2 * (1 - γ))) ∧
+      ((fun s => precondExponent α η (adamChi 0) (s * gb) (s ^ 2 * o))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (powerChi γ eps) (s * gb) (s ^ 2 * o))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (adamChi eps) (s * gb) (s ^ 2 * o))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (powerChi γ eps) (s * gb) (s ^ 2 * o)
+          / arrheniusExponent α (η * eps ^ (-γ)) (s ^ 2 * o)) (𝓝[>] (0:ℝ)) (𝓝 1)) ∧
+      (∀ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (adamChi eps) (s * gb) (s ^ 2 * o)
+          / arrheniusExponent α (η * eps⁻¹) (s ^ 2 * o)) (𝓝[>] (0:ℝ)) (𝓝 1)) :=
+  precondExponent_orders (V := fun s => s ^ 2 * o) gb hα hη (directDiffusion_isTheta_sq ho)
+    (directDiffusion_eventually_pos ho)
+
+/-- The lift's diffusion `eq:sigma-eff` is positive near a flat positivity map, under the
+hypotheses of `sigmaEffPoly_isTheta_sq`. -/
+theorem sigmaEffPoly_eventually_pos {o a b j₀ m j₂ τ s₀ : ℝ} {ϱ : ℝ → ℝ}
+    (hc : τ < leadingCoeff o b j₀) (hs₀ : 0 < s₀)
+    (hϱ : ∀ s, 0 < s → s ≤ s₀ → |ϱ s| ≤ τ * s ^ 2) :
+    ∀ᶠ s in 𝓝[>] (0:ℝ), 0 < sigmaEffPoly o a b j₀ m j₂ ϱ s := by
+  obtain ⟨s₁, hs₁, hb⟩ := sigmaEffPoly_two_sided_near (a := a) (m := m) (j₂ := j₂) hc hs₀ hϱ
+  have hmem : Set.Ioi (0:ℝ) ∩ Set.Iic s₁ ∈ 𝓝[>] (0:ℝ) :=
+    Filter.inter_mem self_mem_nhdsWithin (nhdsWithin_le_nhds (Iic_mem_nhds hs₁))
+  filter_upwards [hmem] with s hs
+  obtain ⟨hs0, hs1⟩ := hs
+  have hs0' : (0:ℝ) < s := hs0
+  have hgap : 0 < (leadingCoeff o b j₀ - τ) / 2 := by linarith
+  exact lt_of_lt_of_le (by positivity) (hb s hs0' hs1).1
+
+/-- **`rem:power-precond`, the lift's half.** "The lift's exponent has the same orders where its
+remainder meets the condition of `rem:power`, and the ratio of the two is bounded by
+`eq:precond-ratio`." The six conclusions of
+`directPrecondExponent_orders`, with the lift's `eq:sigma-eff` in place of `σ_s² σ²_obj` and the
+same mean gradient `σ_s ḡ_θ`, under the hypotheses of `sigmaEffPoly_isTheta_sq`: the remainder
+bounded by `τ s²` near a flat positivity map, with `τ` below the leading coefficient (`hc`), the
+condition under which `rem:power` makes the lift's diffusion of order `σ_s²`. No positivity of
+`σ²_obj` is needed beyond `hc`. -/
+theorem liftPrecondExponent_orders {o a b j₀ m j₂ τ s₀ α η : ℝ} {ϱ : ℝ → ℝ} (gb : ℝ)
+    (hα : 0 < α) (hη : 0 < η) (hc : τ < leadingCoeff o b j₀) (hs₀ : 0 < s₀)
+    (hϱ : ∀ s, 0 < s → s ≤ s₀ → |ϱ s| ≤ τ * s ^ 2) :
+    (∀ γ : ℝ, (fun s => precondExponent α η (powerChi γ 0) (s * gb)
+          (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s ^ (-2 * (1 - γ))) ∧
+      ((fun s => precondExponent α η (adamChi 0) (s * gb) (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+        =Θ[𝓝[>] (0:ℝ)] fun s => s⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (powerChi γ eps) (s * gb)
+            (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ eps : ℝ, 0 < eps →
+        (fun s => precondExponent α η (adamChi eps) (s * gb) (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+          =Θ[𝓝[>] (0:ℝ)] fun s => (s ^ 2)⁻¹) ∧
+      (∀ γ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (powerChi γ eps) (s * gb)
+            (sigmaEffPoly o a b j₀ m j₂ ϱ s)
+          / arrheniusExponent α (η * eps ^ (-γ)) (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+          (𝓝[>] (0:ℝ)) (𝓝 1)) ∧
+      (∀ eps : ℝ, 0 < eps →
+        Tendsto (fun s => precondExponent α η (adamChi eps) (s * gb)
+            (sigmaEffPoly o a b j₀ m j₂ ϱ s)
+          / arrheniusExponent α (η * eps⁻¹) (sigmaEffPoly o a b j₀ m j₂ ϱ s))
+          (𝓝[>] (0:ℝ)) (𝓝 1)) :=
+  precondExponent_orders gb hα hη (sigmaEffPoly_isTheta_sq hc hs₀ hϱ)
+    (sigmaEffPoly_eventually_pos hc hs₀ hϱ)
+
+end Precond
 
 end IcnnLift

@@ -1034,8 +1034,7 @@ def main() -> None:
              "compute risks OOM on the host (the full hypernet pickle + "
              "per-grid-point functional_call create-graph evaluations "
              "can climb to multi-GB CPU RAM; a partial-OOM kills the "
-             "controlling shell, including any Claude session that "
-             "launched the render).",
+             "controlling shell).",
     )
     parser.add_argument(
         "--grid-n-lifted-1d", type=int, default=25,

@@ -56,8 +56,10 @@ import time
 
 import numpy as np
 
+from projorg import gitdir
+
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(_THIS_DIR)
+_REPO_ROOT = gitdir()
 for p in (_REPO_ROOT, _THIS_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -73,16 +75,9 @@ PGD_COLOR = "#2ca02c"
 _CKPT = os.path.join(_REPO_ROOT, "data", "checkpoints")
 _CACHE = os.path.join(_REPO_ROOT, "checkpoints", "landscape_composite")
 
-# The 2-D gamma-mode EBM checkpoints were never copied into this repo; they
-# live in the sibling ``lcmm`` repo and are read from there, read-only.
-_FALLBACK_CKPT_ROOTS = [
-    os.path.join(os.path.expanduser("~"), "Codes", "lcmm", "data",
-                 "checkpoints"),
-]
-
 
 def _resolve_ckpt_dir(prefix: str, hash_substr: str = "") -> str:
-    """Newest ckpt dir matching ``prefix`` across the repo + fallback roots.
+    """Newest ckpt dir under ``data/checkpoints`` matching ``prefix``.
 
     Mirrors ``render_landscape_two_spaces._find_ckpt_dir`` so the composite
     resolves the same directory the shipped figure did.  Returns a
@@ -90,11 +85,9 @@ def _resolve_ckpt_dir(prefix: str, hash_substr: str = "") -> str:
     matches, so a missing column degrades to an annotated empty cell.
     """
     best: tuple[float, str] | None = None
-    for root in [_CKPT, *_FALLBACK_CKPT_ROOTS]:
-        if not os.path.isdir(root):
-            continue
-        for name in os.listdir(root):
-            full = os.path.join(root, name)
+    if os.path.isdir(_CKPT):
+        for name in os.listdir(_CKPT):
+            full = os.path.join(_CKPT, name)
             if not os.path.isdir(full) or not name.startswith(prefix):
                 continue
             if hash_substr and hash_substr not in name:
@@ -158,9 +151,7 @@ _HEPMASS_DIR = os.path.join(
 # rebuilt with this lift at the origin.
 _DARCY_LIFT_DIR = _resolve_ckpt_dir("landscape_darcy_fanin_lift_")
 
-_OUT_PDF = os.path.join(
-    _REPO_ROOT, "figures", "figures", "landscape_composite.pdf",
-)
+_OUT_PDF = os.path.join(_REPO_ROOT, "figures", "landscape_composite.pdf")
 
 # See the seed-choice comment on the 1-D Gumbel column below.
 _GUMBEL_SEED = 0
@@ -174,7 +165,7 @@ _GUMBEL_SEED = 0
 
 COLUMNS = [
     dict(
-        label="CPFlow 2-D\n(8-Gaussians)",
+        label="convex flow\n(8 Gaussians)",
         constrained=dict(
             path=os.path.join(
                 _CPFLOW2D_DIR, "seed0_landscape_constrained_121.npz"),
@@ -190,7 +181,7 @@ COLUMNS = [
         # Seed 0, the default: its lift has converged by the last iterate
         # and its frame is the canonical r = 1.35, with both endpoints in
         # place.
-        label="1-D Gumbel\n(ICNN-EBM)",
+        label="1-D Gumbel\n(energy-based)",
         constrained=dict(
             path=os.path.join(_GUMBEL_DIR, f"seed{_GUMBEL_SEED}_landscape.npz"),
             arms={"hypernet": "coords_hyper", "direct": "coords_direct"},
@@ -743,11 +734,10 @@ def main() -> None:
     # Wrapped by hand: an auto-wrapped line would overflow the 5.5 in canvas.
     fig.text(
         0.5, 0.055 / H,
-        "Axes are the slice coordinates $(\\alpha,\\beta)$ in per-problem "
-        "frame units. Each panel is shifted to its own minimum and\ncolored "
-        "on its own log$_{10}$ scale, so shade reads within a panel and "
-        "never across panels; per-panel colorbars are omitted.",
-        ha="center", va="bottom", fontsize=7, color="0.35",
+        "Axes are the two slice directions. Each panel is shifted to its own "
+        "minimum and colored on its own log$_{10}$ scale,\nso shades compare "
+        "within a panel only.",
+        ha="center", va="bottom", fontsize=7, color="0.15",
         linespacing=1.35,
     )
 

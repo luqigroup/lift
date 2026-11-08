@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Type-check ONE Lean file against the prebuilt mathlib, without taking lake's
-# build lock -- so several agents can check their own files in parallel.
+# build lock -- so several files can be checked in parallel.
 #   ./check.sh Foo.lean
 # Exit 0 = the Lean kernel accepted the file.
 set -uo pipefail

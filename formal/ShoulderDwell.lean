@@ -5,20 +5,23 @@ import KramersBridge
 /-!
 # The shoulder dwell: the occupation-time corollary `cor:dwell`
 
-Corollary `cor:dwell` of the paper (stated in Section 3.3 of `paper_v5.tex`, proved in
-`app_proofs.tex` at the end of `app:proof-fpt`) reads, under the hypotheses of
-`thm:main`(iii):
+Corollary `cor:dwell` of the paper (stated and proved in Appendix A.4,
+`app:proof-fpt`; its two limits are the second half of `thm:main`(iii)) reads, under the
+hypotheses of `cor:fpt` and under Dynkin's formula at the indicator of `[a, w_s]` at every step
+size, with the occupation time continuous up to the closed interval and continuously
+differentiable on `(a, b)`:
 
 > let `τ` be the first passage of `w` to `b` and let `D(x) = E_x[∫₀^τ 1_{[a,w_s]}(w_t) dt]` be
 > the mean time the diffusion spends below the barrier top before escape. Then
-> `ησ²_eff log D(x) → 2α` and `ησ²_eff log (T(x)/D(x)) → 0` as `ησ²_eff → 0⁺`. The dwell
-> therefore carries the exponent of `thm:main`(iii) and is strictly the shorter under the lift
-> for every sufficiently small step size, while the fraction `D(x)/T(x)` of the time before
-> escape spent below the barrier top carries none of that ordering.
+> `ησ²_eff log D(x) → 2α` and `ησ²_eff log (T(x)/D(x)) → 0` as `ησ²_eff → 0⁺`. This time
+> therefore carries the exponent of `cor:fpt` and is strictly the shorter under the lift
+> whenever `c > 0`, for every sufficiently small step size, while the fraction `D(x)/T(x)` of
+> the time before escape spent below the barrier top is subexponential in `ησ²_eff`.
 
 This file is its machine-checked counterpart, and it is built exactly the way `KramersExitTime`
-builds the exit time: the paper's proof says the exit-time argument "applies verbatim to a
-bounded measurable right-hand side", and that is what is done here — the boundary-value problem,
+builds the exit time: the paper's proof says the two differentiations and the uniqueness argument
+of the exit time "otherwise apply verbatim to this right-hand side, bounded and continuous off
+`w_s`", and that is what is done here — the boundary-value problem,
 its closed form, its uniqueness, the two Arrhenius bounds and the exponent limit are
 **generalized** from the constant right-hand side to an arbitrary one, and then instantiated at
 the band indicator. Nothing already proved is weakened: the exit-time statements of
@@ -43,13 +46,16 @@ for the generator `A = (σ²/2) ∂² - U' ∂` applied to the occupation functi
 modeling input that `MeanExitTimeBVP` is for the exit time — not a second one — and it is
 carried as a named hypothesis of the paper-facing theorems and never as an axiom.
 
-**The one place where the indicator costs something.** The paper says the two differentiations
-and the uniqueness argument apply verbatim to a bounded measurable right-hand side. The second
-differentiation does not, quite: at the jump `w_s` of the indicator, the closed form's first
-derivative has a corner and `D''(w_s)` does not exist. `OccupationTimeBVP` therefore asks for
+**The one place where the indicator costs something.** At the jump `w_s` of the indicator, the
+closed form's first derivative has a corner and `D''(w_s)` does not exist. The paper therefore
+states the equation at every point of `(a, b)` other than `w_s`, with `D'` continuous across
+`w_s` by the corollary's hypothesis, "which is what the uniqueness argument consumes", and
+`OccupationTimeBVP` does the same: it asks for
 the interior equation only at the points where the right-hand side is continuous, which for the
 band indicator is every point of `(a, b)` except `w_s` itself (`continuousAt_bandIndicator`,
-`not_continuousAt_bandIndicator`). That is the honest form, and it is not a weakening in
+`not_continuousAt_bandIndicator`). (History: an earlier draft said the argument applied
+verbatim to a bounded measurable right-hand side, which the second differentiation does not
+survive at the jump.) This is not a weakening in
 substance: uniqueness still holds (`eq_of_occupationTimeBVP`, through
 `constant_of_hasDerivAt_zero_off_point`, which glues the two sides of the jump by continuity),
 so the Dynkin hypothesis still pins its solution, and the closed form still satisfies the
@@ -126,6 +132,10 @@ and the pieces they are built from:
   non-vacuity, on the cubic barrier of `KramersExitTime` with band
   `[-3/2, 1]`: the hypothesis stack is inhabited and the exponent runs to `8/3 = 2α`, the same
   number the exit time's does.
+* `occupationTimeBVP_precond`, `occupationTimeBVP_precond_div`, `eq_dwellTime_div_of_precond`,
+  `mean_dwell_kramers_exponent_precond_of_dynkin`, `mean_dwell_ratio_precond_of_dynkin`,
+  `eventually_mean_dwell_precond_lift_lt_direct` — `prop:precond-full`(ii)–(iii)
+  for the dwell: `D_p = D^{(ηp)}/p`, its exponent and ratio limits, and the small-step ordering.
 
 ## Honesty
 
@@ -140,13 +150,14 @@ statement and the LaTeX one differ:
   `eq:pf-bvp` is"). Discharging it needs an Itô integral and an optional-stopping argument,
   neither of which exists in this mathlib. It is not vacuous: `dwellTime_satisfies_bvp` exhibits
   a solution and `dwell_hypotheses_satisfiable` exhibits the whole stack.
-* **The interior equation is required only off the jump.** The LaTeX says `D` solves
-  `½σ²D'' - L̃'D' = -1_{[a,w_s]}` on `(a,b)`; the Lean asks for it at every point of `(a,b)` at
-  which the right-hand side is continuous, that is at every point except `w_s`. At `w_s` the
-  closed form has no second derivative, so the LaTeX reading is the one no function satisfies
-  and the Lean one is the one the paper's own `eq:pf-dwell` satisfies. This is the single
-  substantive gap between the two statements, and it cuts in the direction of the Lean being
-  satisfiable rather than of its being stronger.
+* **The interior equation is required only off the jump, as in the paper.** The LaTeX states
+  that `D` solves `½σ²D'' - L̃'D' = -1_{[a,w_s]}` at every point of `(a,b)` other than `w_s`,
+  with `D'` continuous across `w_s`; the Lean asks for it at every point of `(a,b)` at which the
+  right-hand side is continuous, which is the same set, and carries the continuity of `D'` as
+  `continuousOn_fst`. At `w_s` the closed form has no second derivative, and the paper's own
+  `eq:pf-dwell` satisfies both readings. (History: an earlier draft stated the equation on all
+  of `(a,b)`, which no function satisfies; that was the one substantive gap between the two
+  statements, and the current paper has closed it.)
 * **Constant diffusion coefficient.** `σ²` is a real number and not a function, in every
   definition and theorem, exactly as in `KramersExitTime`; the paper's `σ_eff(w̃)` is read as
   constant across the barrier band, which is the reduction `lem:diffusion`(v) brackets. Built
@@ -155,11 +166,12 @@ statement and the LaTeX one differ:
   `σ² → 0⁺` along a single real parameter, which is the paper's `ησ²_eff → 0⁺`; the Lean carries
   no `η` and no `σ²_eff` separately.
 * **Two couplings, and only one of them is the corollary's clause.** The paper says "strictly
-  the shorter under the lift for every sufficiently small step size", which is one shared
-  learning rate going to zero at two *fixed* effective variances: the pair `(η·sd, η·sl)` with
+  the shorter under the lift whenever `c > 0`, for every sufficiently small step size", which is
+  one shared learning rate going to zero at two *fixed* effective variances, `sd < sl` being
+  what `c > 0` gives: the pair `(η·sd, η·sl)` with
   `sd < sl`, multiplicatively coupled, as in `thm:main`(iii) and Step 3 of `app:proof-fpt`. That
-  is `eventually_dwellTime_lift_lt_direct_smallLearningRate` and its Dynkin form, added
-  2026-09-13, mirroring `KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`,
+  is `eventually_dwellTime_lift_lt_direct_smallLearningRate` and its Dynkin form,
+  mirroring `KramersBridge.eventually_meanExitTime_lift_lt_direct_smallLearningRate`,
   which draws the same distinction for the exit time.
   `eventually_dwellTime_additive_lift_lt_direct` is a **different** statement, kept as a
   companion: there the small parameter is itself the direct arm's diffusion and the lift's is
@@ -168,12 +180,12 @@ statement and the LaTeX one differ:
   threshold is produced — "sufficiently small" is a filter statement, exactly as in
   `KramersExitTime` — and no claim is made at a prescribed pair of diffusions.
 * **`D(x)/T(x) → 1` is not claimed**, and neither is any lower bound on the ratio beyond the
-  exponent statement. The paper's `rem:dwell-band` says the same, and names the condition
-  (`inf_{(w_s,b]} L̃ > L̃(w_b)`) that would be needed; that condition appears nowhere here.
-* **The general band of `rem:dwell-band` is not formalized.** The remark's exponent
-  `2(L̃(w_s) - inf_B L̃)` for an arbitrary sub-interval `B` is not stated. What is stated is the
-  band `[a, w_s]` of the corollary, through `BandRHS`, whose clause `one_le_on_band` is exactly
-  the containment the remark names as the extra condition a general band would need.
+  exponent statement; the paper claims only that the fraction is subexponential in `ησ²_eff`,
+  which is the ratio limit. (History: an earlier draft's remark `rem:dwell-band`, not in the
+  current paper, named the condition `inf_{(w_s,b]} L̃ > L̃(w_b)` that `D/T → 1` would need, and
+  an exponent `2(L̃(w_s) - inf_B L̃)` for an arbitrary sub-interval `B`; neither is formalized
+  here.) What is stated is the band `[a, w_s]` of the corollary, through `BandRHS`, whose clause
+  `one_le_on_band` is the containment a general band would need.
 * **The sharp Kramers prefactor** is not controlled, here as in `KramersExitTime`: the lower
   constant degenerates as the Laplace tolerance `δ → 0`, so at a fixed `σ²` the two bounds do not
   close, and they close only at the level of exponents in the small-noise limit.
@@ -764,7 +776,7 @@ theorem occupationTime_le_meanExitTime {sigma2 : ℝ} {U f : ℝ → ℝ} {a b x
 /-! ### The lower bound: the Laplace windows lie inside the band
 
 This is the only step of the escape-time argument that the indicator touches. The inner window
-of the exit-time lower bound is a neighbourhood of the basin bottom `w_b`, and the ordering
+of the exit-time lower bound is a neighborhood of the basin bottom `w_b`, and the ordering
 `a < w_b < w_s` of (A2) puts it inside the band `[a, w_s]`, where the indicator is one; the
 bound is then the same bound. -/
 
@@ -1149,9 +1161,12 @@ theorem meanExitTime_additive_upper_ceiling {U : ℝ → ℝ} {a b x wb ws jac2 
   have hnn : (0 : ℝ) ≤ 2 / jac2 * ((b - x) * (b - a)) := mul_nonneg (by positivity) hAnn
   exact mul_le_mul hstep1 hexple (Real.exp_pos _).le hnn
 
-/-- **The dwell is strictly the shorter under the lift, for every sufficiently small step
-size.** The paper's own coupled family: the direct process at effective variance `sd`, the
-lifted one at `sd + σ_Jac²` with `σ_Jac² > 0` fixed. The proof is the exit time's, with the
+/-- **The dwell is strictly the shorter under the lift, for every sufficiently small shared
+variance: the additively coupled companion.** The direct process at effective variance `sd`, the
+lifted one at `sd + σ_Jac²` with `σ_Jac² > 0` fixed. This is not the paper's family, which is the
+multiplicative pair at one shared step size `η → 0⁺`
+(`eventually_occupationTime_lift_lt_direct_smallLearningRate` below); neither implies the other.
+The proof is the exit time's, with the
 lower bound taken at the band right-hand side and the upper bound routed through `D ≤ T`. -/
 theorem eventually_occupationTime_additive_lift_lt_direct {U f : ℝ → ℝ} {a b x wb ws jac2 : ℝ}
     (hjac : 0 < jac2) (hU : ContinuousOn U (Set.Icc a b)) (hf : BandRHS f a ws) (hax : a ≤ x)
@@ -1341,9 +1356,11 @@ theorem tendsto_mul_log_meanExitTime_div_dwellTime {U : ℝ → ℝ} {a b x wb w
   tendsto_mul_log_meanExitTime_div_occupationTime hU (bandRHS_bandIndicator a ws) hax hawb
     hwbws hwsb hxws hbarrier hmax hmin
 
-/-- **`cor:dwell`, third clause, for the closed forms**: the dwell is strictly the shorter under
-the lift for every sufficiently small shared variance, on the paper's own additively coupled
-family `σ²` versus `σ² + σ_Jac²`. -/
+/-- **A companion to `cor:dwell`'s ordering clause, for the closed forms**: the dwell is strictly
+the shorter under the lift for every sufficiently small shared variance, on the additively
+coupled family `σ²` versus `σ² + σ_Jac²`. This is not the corollary's clause, which is the
+multiplicative pair at a shared step size
+(`eventually_dwellTime_lift_lt_direct_smallLearningRate` below). -/
 theorem eventually_dwellTime_additive_lift_lt_direct {U : ℝ → ℝ} {a b x wb ws jac2 : ℝ}
     (hjac : 0 < jac2) (hU : ContinuousOn U (Set.Icc a b)) (hax : a ≤ x)
     (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
@@ -1354,8 +1371,8 @@ theorem eventually_dwellTime_additive_lift_lt_direct {U : ℝ → ℝ} {a b x wb
   eventually_occupationTime_additive_lift_lt_direct hjac hU (bandRHS_bandIndicator a ws) hax
     hawb hwbws hwsb hxws hbarrier hmax hmin
 
-/-- **`cor:dwell`, third clause, for the closed forms: "strictly the shorter under the lift for
-every sufficiently small step size".** One shared step size `eta → 0⁺`, two fixed effective
+/-- **`cor:dwell`, third clause, for the closed forms: "strictly the shorter under the lift
+whenever `c > 0`, for every sufficiently small step size".** One shared step size `eta → 0⁺`, two fixed effective
 variances `sd < sl` — the multiplicatively coupled pair of `thm:main`(iii) and of Step 3 of
 `app:proof-fpt`, in which the diffusion coefficient of the boundary-value problem is
 `η σ²_eff`. This is the theorem that discharges the corollary's clause as the corollary states
@@ -1436,8 +1453,10 @@ theorem mean_dwell_ratio_of_dynkin {U U' : ℝ → ℝ} {a b x wb ws : ℝ}
     (dwellTime_satisfies_bvp hspos hab hU hU')
   rw [h1 x ⟨hax, hxb⟩, h2 x ⟨hax, hxb⟩]
 
-/-- **`cor:dwell`, third clause.** Given Dynkin's formula for the additively coupled family, the
-lift's dwell is strictly below the direct one for every sufficiently small shared variance. -/
+/-- **A companion to `cor:dwell`'s ordering clause, given Dynkin's formula.** For the additively
+coupled family, the lift's dwell is strictly below the direct one for every sufficiently small
+shared variance. The corollary's clause itself is the multiplicative pair at a shared step size,
+`eventually_mean_dwell_lift_lt_direct_smallLearningRate` below. -/
 theorem eventually_mean_dwell_additive_lift_lt_direct {U U' : ℝ → ℝ} {a b x wb ws jac2 : ℝ}
     (Dd DDd DDDd Dl DDl DDDl : ℝ → ℝ → ℝ)
     (hDynkinD : ∀ s : ℝ, 0 < s →
@@ -1508,6 +1527,153 @@ theorem eventually_mean_dwell_lift_lt_direct_smallLearningRate {U U' : ℝ → �
   rw [hd x ⟨hax, hxb⟩, hl x ⟨hax, hxb⟩]
   exact h1
 
+/-! ### A preconditioned step (`prop:precond-full`(ii)–(iii))
+
+The dwell half of what `KramersExitTime` and `KramersBridge` prove for the exit time under a
+step multiplied by a constant `p > 0` along `e_b`: the preconditioned occupation problem is
+`OccupationTimeBVP` at slope `p U'` and diffusion coefficient `p² s`, `s = η σ_eff²`, its solution
+is `D^{(ηp)}/p`, and the two generic lemmas of `KramersBridge` carry the exponent limits and the
+small-step ordering across. -/
+
+/-- **The generator identity, for the occupation problem.** As `meanExitTimeBVP_precond`, at any
+right-hand side `f`. -/
+theorem occupationTimeBVP_precond {p s : ℝ} {U' f : ℝ → ℝ} {a b : ℝ} {T DT DDT : ℝ → ℝ}
+    (h : OccupationTimeBVP (p ^ 2 * s) (fun y => p * U' y) f a b T DT DDT) :
+    OccupationTimeBVP (p * s) U' f a b (fun x => p * T x) (fun x => p * DT x)
+      (fun x => p * DDT x) where
+  hasDerivAt_fst x hx := (h.hasDerivAt_fst x hx).const_mul p
+  continuousOn_fst := continuousOn_const.mul h.continuousOn_fst
+  hasDerivAt_snd x hx hfc := (h.hasDerivAt_snd x hx hfc).const_mul p
+  generator x hx hfc := by
+    have e := h.generator x hx hfc
+    beta_reduce at e ⊢
+    linear_combination e
+  absorbing := by simp [h.absorbing]
+  reflecting := by simpa using h.reflecting.const_mul p
+
+/-- The converse, which makes the preconditioned Dynkin hypothesis satisfiable, as
+`meanExitTimeBVP_precond_div`: `dwellTime (p s) / p` solves the preconditioned problem. -/
+theorem occupationTimeBVP_precond_div {p s : ℝ} {U' f : ℝ → ℝ} {a b : ℝ} {T DT DDT : ℝ → ℝ}
+    (hp : p ≠ 0) (h : OccupationTimeBVP (p * s) U' f a b T DT DDT) :
+    OccupationTimeBVP (p ^ 2 * s) (fun y => p * U' y) f a b (fun x => T x / p)
+      (fun x => DT x / p) (fun x => DDT x / p) where
+  hasDerivAt_fst x hx := (h.hasDerivAt_fst x hx).div_const p
+  continuousOn_fst := h.continuousOn_fst.div_const p
+  hasDerivAt_snd x hx hfc := (h.hasDerivAt_snd x hx hfc).div_const p
+  generator x hx hfc := by
+    have e := h.generator x hx hfc
+    rw [← e]
+    field_simp
+  absorbing := by simp [h.absorbing]
+  reflecting := by simpa using h.reflecting.div_const p
+
+/-- **`prop:precond-full`(ii): `D_p = D^{(ηp)}/p`**, by the uniqueness of
+`eq_of_occupationTimeBVP` across the jump at `w_s`. -/
+theorem eq_dwellTime_div_of_precond {U U' : ℝ → ℝ} {a b ws p s : ℝ} {D DD DDD : ℝ → ℝ}
+    (hp : 0 < p) (hs : 0 < s) (hab : a < b) (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hDcont : ContinuousOn D (Set.Icc a b))
+    (hD : OccupationTimeBVP (p ^ 2 * s) (fun y => p * U' y) (bandIndicator a ws) a b D DD DDD) :
+    ∀ x ∈ Set.Icc a b, D x = dwellTime (p * s) U a ws b x / p := by
+  intro x hx
+  rw [eq_div_iff hp.ne', mul_comm]
+  exact eq_of_occupationTimeBVP (c := ws) (mul_pos hp hs) hab hU hU'
+    (fun y hy hyws => continuousAt_bandIndicator hy hyws) (continuousOn_const.mul hDcont)
+    (continuousOn_dwellTime hab.le hU) (occupationTimeBVP_precond hD)
+    (dwellTime_satisfies_bvp (mul_pos hp hs) hab hU hU') x hx
+
+/-- **`prop:precond-full`(ii), the dwell exponent**: `η p σ_eff² log D_p(x) → 2α` at fixed
+`p > 0`, given Dynkin's formula for the preconditioned occupation functional. -/
+theorem mean_dwell_kramers_exponent_precond_of_dynkin {U U' : ℝ → ℝ} {a b x wb ws p : ℝ}
+    (hp : 0 < p) (D DD DDD : ℝ → ℝ → ℝ)
+    (hDynkin : ∀ s : ℝ, 0 < s → OccupationTimeBVP (p ^ 2 * s) (fun y => p * U' y)
+      (bandIndicator a ws) a b (D s) (DD s) (DDD s))
+    (hD : ∀ s : ℝ, 0 < s → ContinuousOn (D s) (Set.Icc a b))
+    (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hax : a ≤ x)
+    (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
+    (hbarrier : U wb < U ws)
+    (hmax : ∀ y ∈ Set.Icc a b, U y ≤ U ws) (hmin : ∀ z ∈ Set.Icc a b, U wb ≤ U z) :
+    Filter.Tendsto (fun s => p * s * Real.log (D s x)) (𝓝[>] (0 : ℝ))
+      (𝓝 (2 * (U ws - U wb))) := by
+  have hab : a < b := hawb.trans (hwbws.trans hwsb)
+  have hxb : x ≤ b := hxws.le.trans hwsb.le
+  refine (tendsto_mul_log_div_precond (A := fun s => dwellTime s U a ws b x) hp
+    (tendsto_mul_log_dwellTime hU hax hawb hwbws hwsb hxws hbarrier hmax hmin)
+    (fun s hs => occupationTime_pos hs hU (bandRHS_bandIndicator a ws) hax hawb hwbws hwsb
+      hxws)).congr' ?_
+  filter_upwards [self_mem_nhdsWithin] with s hs
+  have hspos : (0 : ℝ) < s := hs
+  rw [eq_dwellTime_div_of_precond hp hspos hab hU hU' (hD s hspos) (hDynkin s hspos) x
+    ⟨hax, hxb⟩]
+
+/-- **`prop:precond-full`(ii), the ratio**: `η p σ_eff² log (T_p(x)/D_p(x)) → 0` at fixed
+`p > 0`. The factors `1/p` cancel in the ratio. -/
+theorem mean_dwell_ratio_precond_of_dynkin {U U' : ℝ → ℝ} {a b x wb ws p : ℝ} (hp : 0 < p)
+    (tau Dtau DDtau D DD DDD : ℝ → ℝ → ℝ)
+    (hDynkinTau : ∀ s : ℝ, 0 < s →
+      MeanExitTimeBVP (p ^ 2 * s) (fun y => p * U' y) a b (tau s) (Dtau s) (DDtau s))
+    (hDynkinD : ∀ s : ℝ, 0 < s → OccupationTimeBVP (p ^ 2 * s) (fun y => p * U' y)
+      (bandIndicator a ws) a b (D s) (DD s) (DDD s))
+    (htau : ∀ s : ℝ, 0 < s → ContinuousOn (tau s) (Set.Icc a b))
+    (hD : ∀ s : ℝ, 0 < s → ContinuousOn (D s) (Set.Icc a b))
+    (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hax : a ≤ x)
+    (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
+    (hbarrier : U wb < U ws)
+    (hmax : ∀ y ∈ Set.Icc a b, U y ≤ U ws) (hmin : ∀ z ∈ Set.Icc a b, U wb ≤ U z) :
+    Filter.Tendsto (fun s => p * s * Real.log (tau s x / D s x)) (𝓝[>] (0 : ℝ)) (𝓝 0) := by
+  have hab : a < b := hawb.trans (hwbws.trans hwsb)
+  have hxb : x ≤ b := hxws.le.trans hwsb.le
+  refine ((tendsto_mul_log_meanExitTime_div_dwellTime hU hax hawb hwbws hwsb hxws hbarrier hmax
+    hmin).comp (tendsto_nhdsGT_mul_const hp)).congr' ?_
+  filter_upwards [self_mem_nhdsWithin] with s hs
+  have hspos : (0 : ℝ) < s := hs
+  simp only [Function.comp_apply]
+  rw [eq_meanExitTime_div_of_precond hp hspos hab hU hU' (htau s hspos) (hDynkinTau s hspos) x
+      ⟨hax, hxb⟩,
+    eq_dwellTime_div_of_precond hp hspos hab hU hU' (hD s hspos) (hDynkinD s hspos) x
+      ⟨hax, hxb⟩,
+    div_div_div_cancel_right₀ hp.ne', mul_comm s p]
+
+/-- **`prop:precond-full`(iii), the dwell clause.** As
+`KramersBridge.eventually_mean_first_passage_precond_lift_lt_direct`, for the mean time below the
+barrier top: if `pd sd < pl sl`, the lift's is strictly the smaller for every sufficiently small
+`η`, the unequal prefactors `1/pd`, `1/pl` notwithstanding. -/
+theorem eventually_mean_dwell_precond_lift_lt_direct {U U' : ℝ → ℝ}
+    {a b x wb ws sd sl pd pl : ℝ}
+    (Dd DDd DDDd Dl DDl DDDl : ℝ → ℝ → ℝ)
+    (hDynkinD : ∀ eta : ℝ, 0 < eta → OccupationTimeBVP (pd ^ 2 * (eta * sd))
+      (fun y => pd * U' y) (bandIndicator a ws) a b (Dd eta) (DDd eta) (DDDd eta))
+    (hDynkinL : ∀ eta : ℝ, 0 < eta → OccupationTimeBVP (pl ^ 2 * (eta * sl))
+      (fun y => pl * U' y) (bandIndicator a ws) a b (Dl eta) (DDl eta) (DDDl eta))
+    (hDd : ∀ eta : ℝ, 0 < eta → ContinuousOn (Dd eta) (Set.Icc a b))
+    (hDl : ∀ eta : ℝ, 0 < eta → ContinuousOn (Dl eta) (Set.Icc a b))
+    (hsd : 0 < sd) (hpd : 0 < pd) (hpl : 0 < pl) (hprod : pd * sd < pl * sl)
+    (hU : ContinuousOn U (Set.Icc a b))
+    (hU' : ∀ y ∈ Set.Ioo a b, HasDerivAt U (U' y) y) (hax : a ≤ x)
+    (hawb : a < wb) (hwbws : wb < ws) (hwsb : ws < b) (hxws : x < ws)
+    (hbarrier : U wb < U ws)
+    (hmax : ∀ y ∈ Set.Icc a b, U y ≤ U ws) (hmin : ∀ z ∈ Set.Icc a b, U wb ≤ U z) :
+    ∀ᶠ eta in 𝓝[>] (0 : ℝ), Dl eta x < Dd eta x := by
+  have hab : a < b := hawb.trans (hwbws.trans hwsb)
+  have hxb : x ≤ b := hxws.le.trans hwsb.le
+  have hsl : 0 < sl := pos_of_mul_pos_right ((mul_pos hpd hsd).trans hprod) hpl.le
+  filter_upwards [eventually_const_mul_lt_of_tendsto_mul_log
+      (A := fun s => dwellTime s U a ws b x) (by linarith) (div_pos hpd hpl) (mul_pos hpd hsd)
+      hprod (tendsto_mul_log_dwellTime hU hax hawb hwbws hwsb hxws hbarrier hmax hmin)
+      (fun s hs => occupationTime_pos hs hU (bandRHS_bandIndicator a ws) hax hawb hwbws hwsb
+        hxws),
+    self_mem_nhdsWithin] with eta h1 h2
+  have heta : (0 : ℝ) < eta := h2
+  rw [eq_dwellTime_div_of_precond hpl (mul_pos heta hsl) hab hU hU' (hDl eta heta)
+      (hDynkinL eta heta) x ⟨hax, hxb⟩,
+    eq_dwellTime_div_of_precond hpd (mul_pos heta hsd) hab hU hU' (hDd eta heta)
+      (hDynkinD eta heta) x ⟨hax, hxb⟩,
+    show pl * (eta * sl) = eta * (pl * sl) by ring, show pd * (eta * sd) = eta * (pd * sd) by ring,
+    div_lt_div_iff₀ hpl hpd]
+  rw [div_mul_eq_mul_div, div_lt_iff₀ hpl] at h1
+  linarith
+
 /-! ### Non-vacuity
 
 The cubic witness that discharges the exit-time stack in `KramersExitTime` discharges this one,
@@ -1540,7 +1706,7 @@ theorem dwell_hypotheses_satisfiable :
 
 /-- **The Kramers exponent of the dwell, evaluated on the witness**: `σ² log D(x) → 8/3 = 2α`,
 the same exponent as the exit time's (`KramersExitTime.cubicBarrier_kramers_exponent`), which is
-the corollary's "the dwell carries the exponent of `thm:main`(iii)" on an instance. -/
+the corollary's "this time therefore carries the exponent of `cor:fpt`" on an instance. -/
 theorem cubicBarrier_dwell_kramers_exponent :
     Filter.Tendsto
       (fun s => s * Real.log (dwellTime s cubicBarrier (-(3 / 2)) 1 (3 / 2) (-1)))

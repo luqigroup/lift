@@ -170,11 +170,14 @@ def apply_init_mode(inner, pos_names, mode: str, latent: bool) -> None:
                     m.bias.zero_()
 
 
+_RAW_WEIGHT_MODES = ("pgd", "pgd_floor", "exp_post")
+
+
 class DirectParamModule(nn.Module):
     """Drop-in replacement for ``hyper_E`` that exposes the EBM's own params.
 
     Holds a ``LogConcaveEBM`` whose positivity-tagged weights are
-    materialized in one of four modes set by ``pos_constraint_mode``:
+    materialized in one of six modes set by ``pos_constraint_mode``:
 
     * ``"softplus"`` (default): raw weights are unconstrained and
       ``forward(x)`` emits ``F.softplus(p)`` for the positivity-tagged
@@ -189,6 +192,14 @@ class DirectParamModule(nn.Module):
       being absorbed at zero.
     * ``"noise"``: softplus plus isotropic noise on the positivity-tagged
       pre-readout parameters, the matched-noise control.
+    * ``"exp_post"``: the post-update rule of Sivaprasad et al. (2021),
+      Algorithm 1. Raw weights as in ``"pgd"``; after each optimizer step
+      every negative constrained coordinate becomes ``exp(w - exp_eps)``
+      and the rest are left alone. ``exp_eps = 5`` is their constant, so a
+      crossed coordinate re-enters the orthant below ``exp(-5)``.
+    * ``"exp"``: the exponential map ``W = exp(W_raw)`` of Sill (1998).
+      The latent is initialized as ``log(softplus(w_0))``, so the
+      constrained weight at step zero is the softplus path's.
 
     ``forward(x)`` returns the same dict shape ``hyper_E`` produces
     (keys = the EBM template's ``named_parameters()``); the ``x``
@@ -210,21 +221,28 @@ class DirectParamModule(nn.Module):
         conv_kernel_size: int = 3,
         noise_sigma: float = 0.0,
         pos_floor: float = 0.0,
+        exp_eps: float = 5.0,
         init_mode: str = "ours",
         inner_module: Optional[nn.Module] = None,
         pos_names: Optional[set[str]] = None,
     ) -> None:
         super().__init__()
         if pos_constraint_mode not in ("softplus", "pgd", "pgd_floor",
-                                       "noise"):
+                                       "noise", "exp_post", "exp"):
             raise ValueError(
                 f"DirectParamModule pos_constraint_mode must be "
-                f"'softplus', 'pgd', 'pgd_floor' or 'noise', got "
-                f"{pos_constraint_mode!r}.",
+                f"'softplus', 'pgd', 'pgd_floor', 'noise', 'exp_post' or "
+                f"'exp', got {pos_constraint_mode!r}.",
+            )
+        if not math.isfinite(float(exp_eps)) or float(exp_eps) < 0.0:
+            raise ValueError(
+                "DirectParamModule exp_eps must be finite and non-negative, "
+                f"got {exp_eps!r}.",
             )
         # Projection target for ``pgd_floor``; unused in every other mode,
         # and 0.0 there degenerates ``pgd_floor`` back onto plain ``pgd``.
         self.pos_floor = float(pos_floor)
+        self.exp_eps = float(exp_eps)
         # Per-iteration N(0, noise_sigma^2) for ``noise`` mode. It is
         # injected only while gradients are enabled, so every no-grad path
         # (TV/loss eval, snapshots) sees the mean iterate.
@@ -232,10 +250,10 @@ class DirectParamModule(nn.Module):
         self.K = K
         self.nlayers = nlayers
         self.pos_constraint_mode = pos_constraint_mode
-        # In PGD mode the inner EBM stores raw weights and non-negativity
-        # comes from ``project_positive()`` after each Adam step.
+        # In the post-update modes the inner EBM stores raw weights and
+        # non-negativity comes from ``project_positive()`` after each step.
         inner_pos_mode = (
-            "clamp" if pos_constraint_mode in ("pgd", "pgd_floor")
+            "clamp" if pos_constraint_mode in _RAW_WEIGHT_MODES
             else "softplus"
         )
         _kwargs = dict(
@@ -281,14 +299,23 @@ class DirectParamModule(nn.Module):
                 )
         self.init_mode = str(init_mode)
         apply_init_mode(self._inner, self._pos_names, self.init_mode,
-                        latent=(pos_constraint_mode != "pgd"
-                                and pos_constraint_mode != "pgd_floor"))
+                        latent=pos_constraint_mode not in _RAW_WEIGHT_MODES)
+        if pos_constraint_mode == "exp":
+            with torch.no_grad():
+                for name, prm in self._inner.named_parameters():
+                    if name in self._pos_names:
+                        prm.copy_(torch.log(F.softplus(prm)))
+                        if not bool(torch.isfinite(prm).all()):
+                            raise ValueError(
+                                f"exp-mode latent for {name!r} is not "
+                                "finite: softplus(w_0) underflowed to zero.",
+                            )
 
     def forward(self, x: torch.Tensor):
         out = {}
-        if self.pos_constraint_mode in ("pgd", "pgd_floor"):
-            # PGD emits raw weights; ``project_positive()`` enforces
-            # non-negativity after the optimizer step.
+        if self.pos_constraint_mode in _RAW_WEIGHT_MODES:
+            # Raw weights; ``project_positive()`` enforces non-negativity
+            # after the optimizer step.
             for name, p in self._inner.named_parameters():
                 out[name] = p
             return out
@@ -302,7 +329,10 @@ class DirectParamModule(nn.Module):
                 pre = p
                 if inject:
                     pre = p + torch.randn_like(p) * self.noise_sigma
-                out[name] = F.softplus(pre)
+                if self.pos_constraint_mode == "exp":
+                    out[name] = torch.exp(pre)
+                else:
+                    out[name] = F.softplus(pre)
             else:
                 out[name] = p
         return out
@@ -320,16 +350,24 @@ class DirectParamModule(nn.Module):
                 {"params": rest, "lr": float(lr)}]
 
     def project_positive(self) -> None:
-        """In-place projection of the positivity-tagged raw parameters onto
-        the non-negative orthant; a no-op outside the PGD modes.
+        """In-place post-step map of the positivity-tagged raw parameters
+        onto the non-negative orthant; a no-op in the reparameterized modes.
 
-        Called by the trainer after each ``opt_E.step()``. In ``pgd_floor``
-        mode the clamp target is ``self.pos_floor`` rather than zero.
+        Called by the trainer after each ``opt_E.step()``. ``pgd`` clamps at
+        zero, ``pgd_floor`` at ``self.pos_floor``, and ``exp_post`` replaces
+        every negative coordinate by ``exp(w - self.exp_eps)``.
         """
-        if self.pos_constraint_mode not in ("pgd", "pgd_floor"):
+        if self.pos_constraint_mode not in _RAW_WEIGHT_MODES:
             return
-        lo = 0.0 if self.pos_constraint_mode == "pgd" else self.pos_floor
         with torch.no_grad():
+            if self.pos_constraint_mode == "exp_post":
+                for name, p in self._inner.named_parameters():
+                    if name in self._pos_names:
+                        # The clamp keeps the unselected branch finite.
+                        below = torch.exp(p.clamp(max=0.0) - self.exp_eps)
+                        p.copy_(torch.where(p < 0, below, p))
+                return
+            lo = 0.0 if self.pos_constraint_mode == "pgd" else self.pos_floor
             for name, p in self._inner.named_parameters():
                 if name in self._pos_names:
                     p.data.clamp_(min=lo)
@@ -377,6 +415,24 @@ def _floor_of(name: str) -> float | None:
     """
     m = _FLOOR_BACKEND_RE.match(str(name))
     return None if m is None else 10.0 ** (-int(m.group(1)))
+
+
+_EXPPOST_BACKEND_RE = re.compile(r"^direct_exppost([0-9.]+)?$")
+_EXPPOST_EPS_DEFAULT = 5.0
+
+
+def _exppost_eps(name: str) -> float | None:
+    """``direct_exppost`` -> 5.0; ``direct_exppost<E>`` -> ``E``; else None.
+
+    The backend that trains raw weights and applies ``w <- exp(w - E)`` to
+    every negative constrained coordinate after each optimizer step
+    (Sivaprasad et al. 2021, Algorithm 1). The bare name takes their
+    constant, 5.
+    """
+    m = _EXPPOST_BACKEND_RE.match(str(name))
+    if m is None:
+        return None
+    return _EXPPOST_EPS_DEFAULT if m.group(1) is None else float(m.group(1))
 
 
 _DIRECT_MULT_RE = re.compile(r"^direct_m([0-9.]+)$")
@@ -742,13 +798,17 @@ class HypernetVsDirect1D:
         kwargs = _train_kwargs(self.args)
         torch.manual_seed(int(seed))
         np.random.seed(int(seed))
-        if (backend in ("direct", "pgd", "direct_noise")
+        if (backend in ("direct", "pgd", "direct_noise", "direct_exp")
                 or _floor_of(backend) is not None
+                or _exppost_eps(backend) is not None
                 or _direct_mult(backend) is not None):
-            _mode = {"pgd": "pgd", "direct_noise": "noise"}.get(
-                backend, "softplus")
+            _mode = {"pgd": "pgd", "direct_noise": "noise",
+                     "direct_exp": "exp"}.get(backend, "softplus")
             if _floor_of(backend) is not None:
                 _mode = "pgd_floor"
+            _eps = _exppost_eps(backend)
+            if _eps is not None:
+                _mode = "exp_post"
             direct_hyper_E = DirectParamModule(
                 K=self.K, D=int(getattr(target, "D", 1)),
                 hidden_dim=int(self.args.hidden_dim),
@@ -757,6 +817,8 @@ class HypernetVsDirect1D:
                 pos_constraint_mode=_mode,
                 noise_sigma=float(getattr(self.args, "noise_sigma", 0.0)),
                 pos_floor=float(_floor_of(backend) or 0.0),
+                exp_eps=(_EXPPOST_EPS_DEFAULT if _eps is None
+                         else float(_eps)),
                 init_mode=str(getattr(self.args, "init_mode", "ours")),
             )
             tmpl_ebm, _hyper_unused = build_hypernet_ebm(
@@ -813,6 +875,8 @@ class HypernetVsDirect1D:
             cond = _cond_of(backend)
             if cond is not None:
                 kwargs["cond_source"], kwargs["n_batch_cond"] = cond
+        elif backend == "hypernet_exp":
+            kwargs["hyper_pos_constraint_mode"] = "exp"
 
         # One data stream for every backend. Construction consumes a
         # backend-dependent amount of RNG, so without these reseeds the
@@ -974,16 +1038,20 @@ class HypernetVsDirect1D:
             for backend in backends:
                 if (
                     backend not in ("hypernet", "direct", "pgd",
-                                    "direct_noise")
+                                    "direct_noise", "direct_exp",
+                                    "hypernet_exp")
                     and _parse_lift_backend(backend) is None
                     and _floor_of(backend) is None
+                    and _exppost_eps(backend) is None
                     and _direct_mult(backend) is None
                 ):
                     raise ValueError(
                         f"unknown backend {backend!r}; expected one of "
-                        "{'hypernet', 'direct', 'pgd', 'direct_noise'}, "
-                        "pgd_floor<E>, or lift_moments | lift_tiny<K> | "
-                        "lift_const<K> (optional _fs suffix)",
+                        "{'hypernet', 'direct', 'pgd', 'direct_noise', "
+                        "'direct_exp', 'hypernet_exp'}, pgd_floor<E>, "
+                        "direct_exppost[<eps>], direct_m<M>, or "
+                        "lift_moments | lift_tiny<K> | lift_const<K> "
+                        "(optional _fs suffix)",
                     )
                 # ``--resume 1`` skips any backend whose checkpoint is
                 # already on disk. Checkpoints are saved one backend at a
@@ -1059,6 +1127,7 @@ class HypernetVsDirect1D:
                     logp_fn(x_grid_np) if D <= 2
                     else np.zeros(1, dtype=np.float32)
                 )
+                arm_tmp = arm_path + ".tmp"
                 torch.save(
                     {
                         "ebm_state": ebm.state_dict(),
@@ -1073,8 +1142,9 @@ class HypernetVsDirect1D:
                         "snap_x": _snap_x.detach().cpu().clone(),
                         "seed": s,
                     },
-                    os.path.join(ckpt_dir, f"seed{s}_{backend}.pt"),
+                    arm_tmp,
                 )
+                os.replace(arm_tmp, arm_path)
                 seed_metrics[backend] = {
                     k: float(v) for k, v in metrics.items()
                 }

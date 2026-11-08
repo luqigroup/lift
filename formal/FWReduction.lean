@@ -3,7 +3,7 @@ import Mathlib
 /-!
 # (FW-4) The multi-dimensional Freidlin–Wentzell action projects onto the scalar statement
 
-This file machine-checks (FW-4) of `docs/design/lemma1_rederivation.md` §7, the *reduction check*
+This file machine-checks (FW-4) of the design note, §7, the *reduction check*
 of the corrected mechanism: the claim that projecting the multi-dimensional Freidlin–Wentzell
 action onto the bias-channel direction recovers the one-dimensional statement (L2') of §3
 exactly, so that the paper's scalar barrier-rescaling result is the projection of the
@@ -11,6 +11,16 @@ multi-dimensional programme and not a separate theorem about a different object.
 same note records (FW-4) as the last item of the chain and calls it "mechanical given FW-1's
 consistency check". This file is what that word has to mean if it is to mean anything: the
 reduction is carried out as an exact computation, with every hypothesis it needs named.
+
+**Against the current paper.** FW-1 to FW-4, (L2'), (A2) and the section numbers are the design
+note's labels, and "the corrected Corollary 1" is the note's; the module records that history.
+In the current paper the reduction is Step 1 of the proof of
+Corollary 1 (`cor:fpt`, Appendix A.4, `eq:pf-fw`): it states the inequality
+`fwActionScalar_le_fwActionMulti_alongLine` with its equality case exactly when `e_b` is an
+eigendirection of `Σ` (`fwActionMulti_alongLine`), says that the scalar understates the escape
+cost off an eigendirection, and states its comparison on the scalar. The scalar barrier result
+is Lemma 1(v) (`lem:diffusion`), and the lift's diffusion is `eq:sigma-eff`, not the note's
+`s² σ_obj² + c₁ σ_Jac² |H| + s² (HVH)` quoted near the end of this file.
 
 **The setting.** The corrected route replaces the shipped Hessian decomposition, which §1 of the
 note refutes, by a statement about the *diffusion* of the pullback dynamics. The multi-dimensional
@@ -22,7 +32,7 @@ action is defined here in the standard form
 for a drift field `μ` and a diffusion matrix field `D`, and in the scalar form
 `(1/2) ∫₀ᵀ (q̇(t) - m(q(t)))² / d(q(t)) dt` in one dimension.
 
-**mathlib supplies no large-deviations theory**, and the audit of this version is unambiguous
+**mathlib supplies no large-deviations theory**, and a search of this version is unambiguous
 about it: there is no Itô integral, no stochastic differential equation, no Fokker–Planck
 equation, no exit-time theory and no Freidlin–Wentzell rate function anywhere in mathlib v4.31.0.
 Nothing below therefore *derives* the action from the diffusion; the file computes with the
@@ -268,7 +278,7 @@ variable {n : Type*} [Fintype n] [DecidableEq n]
 /-- The **diffusion coefficient of `D` along the direction `e`**, the Rayleigh quotient
 `eᵀ D e`. For a unit vector `e` this is the variance the diffusion matrix `D` assigns to the
 coordinate along `e`, and it is the scalar `σ_eff²` that the one-dimensional statement (L2') of
-`docs/design/lemma1_rederivation.md` §3 uses once `e` is the bias-channel direction `e_b`. -/
+the design note, §3, uses once `e` is the bias-channel direction `e_b`. -/
 def diffusionAlong (D : Matrix n n ℝ) (e : n → ℝ) : ℝ := e ⬝ᵥ (D *ᵥ e)
 
 /-- `D` **acts on the line `ℝ e` as the scalar `eᵀ D e`**, that is, `e` is an eigenvector of `D`
@@ -589,7 +599,7 @@ noncomputable def fwIntegrandMulti (D : (n → ℝ) → Matrix n n ℝ) (mu : (n
 
 This is a definition, not a derivation: mathlib v4.31.0 contains no large-deviations theory, so
 the identification of this functional as the rate function of `dφ = μ(φ) dt + √η D(φ)^{1/2} dB` is
-the citation to Freidlin and Wentzell that `docs/design/lemma1_rederivation.md` §7 already carries,
+the citation to Freidlin and Wentzell that §7 of the design note already carries,
 and it is an input to this file rather than one of its results. The constant is `1/2`, the
 constant belonging to that normalization of the noise; see the file docstring on §7's `1/4`.
 
@@ -907,7 +917,7 @@ theorem fwActionScalar_eq_two_mul_barrier_div (hc : c ≠ 0)
   ring
 
 /-- **The normalization constant of §7, checked rather than argued.** §7 of
-`docs/design/lemma1_rederivation.md` writes the Freidlin–Wentzell action with the constant `1/4`
+the design note writes the Freidlin–Wentzell action with the constant `1/4`
 and the exit asymptotic with `E[τ] ≍ exp(V*/η)`. Halving the action of this file — which carries
 `1/2` — gives the quarter-normalized action, and on the reversed relaxation across a
 constant-diffusion band its value is
@@ -983,8 +993,9 @@ theorem fwActionMulti_alongLine_barrier (he : e ⬝ᵥ e = 1) (hc : c ≠ 0)
 
 /-- **(FW-4) in Arrhenius form.** Dividing the action of `fwActionMulti_alongLine_barrier` by the
 learning rate `η` gives `2 α / (η c)`, which is `BarrierRescaling.arrheniusExponent α η c`
-verbatim: the exponent in which the corrected Corollary 1 compares the direct baseline's effective
-diffusion `s² σ_obj²` against the lift's `s² σ_obj² + c₁ σ_Jac² |H| + s² (HVH)`.
+verbatim: the exponent in which the design note's corrected Corollary 1 compares the direct
+baseline's effective diffusion `s² σ_obj²` against the lift's `s² σ_obj² + c₁ σ_Jac² |H| + s² (HVH)`
+(the current paper's `cor:fpt` compares the same exponent at `eq:sigma-eff`).
 
 This is an identity between the projected action and the exponent, and nothing more. It does not
 prove the Freidlin–Wentzell exit asymptotic `E[τ] ≍ exp(V*/η)` that would turn the exponent into a

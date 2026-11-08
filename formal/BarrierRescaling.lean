@@ -4,9 +4,19 @@ import TraceLemmas
 /-!
 # (L2') Barrier rescaling by the effective diffusion, and the corrected Kramers exponent
 
-This file machine-checks claim (L2') of `docs/design/lemma1_rederivation.md` §3 — the claim the
+This file machine-checks claim (L2') of the design note, §3 — the claim the
 note itself calls "the result that actually matters" — and with it the corrected replacement for
 the paper's Corollary 1.
+
+**Against the current paper.** The section numbers, (A4'), (A6), FW-0 and "the corrected
+Corollary 1" below are the design note's vocabulary and are kept as history. In the current
+paper the quasipotential identity and its two-sided bracket are
+Lemma 1(iv)–(v) (`lem:diffusion`, Appendix A.3), proved in its Step 5 with the same
+monotone-climb restriction this file adds, and the exponent comparison is Step 3 of the proof of
+Corollary 1 (`cor:fpt`, Appendix A.4). The paper's lift diffusion is `eq:sigma-eff`, the direct
+value plus a coupling term, a fluctuation term and a remainder, and the sign this file carries
+as `hcoupling` appears there as the stated condition `c > 0` on the coupling term plus the
+remainder, not as an assumption label.
 
 The corrected mechanism replaces the shipped Hessian decomposition, which §1 of the same note
 refutes (differentiation commutes with the batch expectation, so the pullback Hessian carries no
@@ -201,8 +211,9 @@ discharge:
   flagged here for that reason. Wherever the two methods are compared across one barrier
   (`barrier_exponent_lift_lt_direct_of_const_bands`, `_of_pointwise`, `_of_bands`, `_of_channels`)
   a single `Ltilde` and a single `dL`, hence a single barrier action `alpha`, serve both methods.
-  §8's FW-0 states this as a modeling convention and not a theorem, mirroring the paper's
-  `rem:fpt-scope`; it is carried in the shape of the statements themselves, and a reader who
+  §8's FW-0 states this as a modeling convention and not a theorem; the current paper does the
+  same in Step 3 of the proof of `cor:fpt` ("the action `α` belongs to the one expected loss
+  fixed across the comparison"). It is carried in the shape of the statements themselves, and a reader who
   rejects the convention rejects the comparison rather than one of its hypotheses.
 -/
 
@@ -305,7 +316,7 @@ theorem quasipotential_gap_bounds {cmin cmax : ℝ} (hwb : wb ≤ ws) (hcmin : 0
 
 /-- The two-sided barrier rescaling with the two interval-integrability hypotheses discharged
 from continuity of `Ltilde'` and of `sigma_eff^2` on the band, which is the regularity the paper
-assumes anyway in (A1). -/
+assumes anyway for Lemma 1(iv)–(v) (the regularity rows of `tab:hyp`). -/
 theorem quasipotential_gap_bounds_of_continuousOn {cmin cmax : ℝ} (hwb : wb ≤ ws)
     (hcmin : 0 < cmin)
     (hlower : ∀ u ∈ Icc wb ws, cmin ≤ sigma2 u)
@@ -563,8 +574,9 @@ end Comparison
 
 /-! ### The escape-time ratio -/
 
-/-- The predicted **ratio of escape times**, direct over lift, in the form the paper's figures are
-compared against: `exp (2 alpha (1/sigma2_dir - 1/sigma2_lift) / eta)`. -/
+/-- The predicted **ratio of escape times**, direct over lift, at the level of exponents:
+`exp (2 alpha (1/sigma2_dir - 1/sigma2_lift) / eta)`. (The current paper plots no predicted
+ratio; its `cor:fpt` states the exponent limit of this ratio.) -/
 noncomputable def escapeTimeRatio (alpha eta sigma2dir sigma2lift : ℝ) : ℝ :=
   Real.exp (2 * alpha * (1 / sigma2dir - 1 / sigma2lift) / eta)
 
@@ -593,8 +605,7 @@ theorem one_lt_escapeTimeRatio (halpha : 0 < alpha) (heta : 0 < eta) (hd : 0 < s
   exact div_pos hnum heta
 
 /-- The ratio **grows strictly as the excess diffusion grows**: holding the direct baseline fixed,
-a strictly larger lift diffusion gives a strictly larger predicted separation. This is the
-quantitative shape the paper's escape-time figures are read against. -/
+a strictly larger lift diffusion gives a strictly larger predicted separation. -/
 theorem escapeTimeRatio_strictMono_lift {sl₁ sl₂ : ℝ} (halpha : 0 < alpha) (heta : 0 < eta)
     (hl₁ : 0 < sl₁) (h₁₂ : sl₁ < sl₂) :
     escapeTimeRatio alpha eta sd sl₁ < escapeTimeRatio alpha eta sd sl₂ := by
@@ -614,9 +625,10 @@ no Fokker-Planck equation and no mean first-passage-time formula, so the Arrheni
 derived here. Discharging
 `hkramers` requires the one-dimensional mean-first-passage-time formula for a diffusion with
 state-dependent noise, which is `KramersExitTime.lean`'s business. Note also that the hypothesis
-assumes a *common* prefactor across the two methods, which is the paper's own "exponents only, no
-prefactors" convention; the Eyring-Kramers prefactor differs between the two diffusions and is
-nowhere estimated here. -/
+assumes a *common* prefactor across the two methods, which was an earlier draft's "exponents
+only, no prefactors" convention (history: the current paper's `cor:fpt` orders the times
+themselves through a two-sided bracket and leaves the sharp prefactor unaddressed); the
+Eyring-Kramers prefactor differs between the two diffusions and is nowhere estimated here. -/
 theorem escapeTime_ratio_of_kramers {tau : ℝ → ℝ} {C : ℝ} (hC : C ≠ 0) (heta : eta ≠ 0)
     (hd : 0 < sd) (hl : 0 < sl)
     (hkramers : ∀ x, 0 < x → tau x = C * Real.exp (arrheniusExponent alpha eta x)) :
@@ -655,9 +667,8 @@ Assembling `directDiffusion_lt_liftDiffusion` with `one_lt_escapeTimeRatio`: und
 barrier action, a positive learning rate, a positive direct baseline diffusion, a non-negative
 coupling channel (assumption (A6) of §11.3, an assumption and not a theorem — see
 `CouplingSign.lean`), a non-negative quadratic channel and non-degeneracy
-of one of the two, the predicted escape-time ratio direct-over-lift exceeds one. This is the
-statement the paper's escape-time figures are compared against; it is an exponent ratio, with no
-prefactor. -/
+of one of the two, the predicted escape-time ratio direct-over-lift exceeds one. It is an
+exponent ratio, with no prefactor. -/
 theorem one_lt_escapeTimeRatio_lift {s sigmaObj coupling quadratic : ℝ} (halpha : 0 < alpha)
     (heta : 0 < eta) (hdirect : 0 < directDiffusion s sigmaObj) (hcoupling : 0 ≤ coupling)
     (hquadratic : 0 ≤ quadratic) (hnondeg : 0 < coupling ∨ 0 < quadratic) :
@@ -740,7 +751,7 @@ strictly below the direct baseline's:
 The barrier `alpha` — one `Ltilde`, one `dL` for both methods — is common to the two methods by
 FW-0's ceteris-paribus convention, which the note states as a modeling convention and not a
 theorem: the comparison is run at a common reference iterate with the barrier of the reference
-potential held fixed, exactly as the paper's `rem:fpt-scope` holds `alpha` fixed. Within that
+potential held fixed, exactly as Step 3 of the paper's proof of `cor:fpt` holds `alpha` fixed. Within that
 convention §2's fact (i) gives the common drift, so only the diffusion differs. This is the
 exponent statement the corrected Corollary 1 makes; it is an inequality between exponents, and
 the prefactors are not addressed. -/

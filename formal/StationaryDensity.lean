@@ -3,7 +3,7 @@ import Mathlib
 /-!
 # The stationary density of a one-dimensional Itô diffusion with state-dependent noise
 
-This file machine-checks equation `(*)` of `docs/design/lemma1_rederivation.md`, section 3 — the
+This file machine-checks equation `(*)` of the design note, section 3 — the
 analytic core of the corrected Lemma 1. The design note replaces the refuted Hessian
 decomposition of the shipped proof (its section 1 establishes that differentiation commutes with
 the batch expectation, so the pullback Hessian carries no cross-covariance term) with a
@@ -18,11 +18,16 @@ stationary density
 
   `π(w) ∝ (1 / σ_eff²(w)) · exp(-(2/η) U_eff(w))`,  `U_eff(w) = ∫^w L̃'(u) / σ_eff²(u) du`.
 
+In the current paper this is Lemma 1(iv) (`lem:diffusion`,
+Appendix A.3), proved in Step 4 of its proof, under the regularity row of `tab:hyp`: `L̃'` and
+`σ_eff²` continuous on `ℝ` and `σ_eff² > 0`. (L1'), (L2'), (A2)/(FW-3) and the section numbers
+below are the design note's labels.
+
 ## The register, and what is and is not proved here
 
 mathlib v4.31.0 contains no stochastic calculus whatsoever: no Itô integral, no stochastic
 differential equation, no Fokker–Planck equation, no notion of an invariant measure of a
-diffusion, and no exit-time theory. (This was verified by a whole-tree audit, not assumed.) The
+diffusion, and no exit-time theory. (This was verified by a search of mathlib, not assumed.) The
 passage from the displayed Itô SDE to a partial differential equation for its stationary law is
 therefore not available as a mathlib theorem, and it is not proved here. That passage is the
 modelling register the paper adopts, following Li et al. (2017) for the step from discrete
@@ -153,6 +158,8 @@ this file is vacuously true.
   `-L̃'`.
 * `stationaryDensity_zeroFlux_deriv` — the same statement written with `deriv`.
 * `stationaryDensity_zeroFlux_of_continuous` — `(*)` with `U_eff` the actual integral.
+* `stationaryDensity_zeroFlux_precond`, `eq_stationaryDensity_of_zeroFlux_precond` — Lemma 1(iv)
+  at step `ηp` for a preconditioned step (`prop:precond-full`(i)): existence and uniqueness.
 * `eq_stationaryDensity_of_zeroFlux`, `exists_eq_stationaryDensity_of_zeroFlux`,
   `pos_const_of_zeroFlux` — converse: every zero-flux density is `(*)`, with the proportionality
   constant identified, and that constant is positive whenever the density is.
@@ -184,6 +191,8 @@ this file is vacuously true.
   `eq_stationaryDensity_of_constant_current_example` — worked instances witnessing that every
   hypothesis set above is satisfiable, with the state-dependent example computed in closed form
   and the derived boundary condition instantiated at it, not only at constant noise.
+* `stationaryDensity_zeroFlux_precond` — `prop:precond-full`(i): under a
+  step preconditioned by the constant `p` the density `(*)` at step `ηp` is zero-flux stationary.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -193,14 +202,15 @@ The explicit hypotheses carried, and what it would take to discharge each:
 
 * `hη : η ≠ 0` — the learning rate is nonzero. Not dischargeable: it is a modelling parameter.
 * `hσ : ∀ w, 0 < σ2 w` — strict positivity of the effective diffusion `σ_eff²`. In the paper this
-  is uniform ellipticity on the shoulder band, assumption (A2)/(FW-3) of the design note; it is a
-  hypothesis because a diffusion that degenerates has no density of this form.
+  is the condition `σ_eff² > 0` of Lemma 1(iv) (uniform ellipticity, (A2)/(FW-3) of the design
+  note); it is a hypothesis because a diffusion that degenerates has no density of this form.
 * `hU : ∀ w, HasDerivAt U (L' w / σ2 w) w` — that `U_eff` is an antiderivative of
   `L̃'/σ_eff²`. `hasDerivAt_effectivePotential` discharges it whenever `L̃'` and `σ_eff²` are
   continuous and `σ_eff²` is positive, so it is not a real assumption; it is stated separately
   only so that the main theorem does not force a continuity assumption it does not need.
 * `hσd : ∀ w, HasDerivAt σ2 (σ2' w) w` — differentiability of `σ_eff²`, used only for the score
-  `hasDerivAt_stationaryDensity`. This is assumption (A1)'s regularity clause.
+  `hasDerivAt_stationaryDensity`. The current paper does not use the score and asks `σ_eff²` only
+  to be continuous, so this hypothesis has no counterpart there.
 * `hint : Integrable (stationaryDensity C η σ2 U)` — normalizability. This is a genuine
   restriction: `(*)` defines a positive solution of (ZF) whether or not it is integrable, and
   integrability is exactly the condition under which the diffusion is positive recurrent rather
@@ -231,8 +241,8 @@ SDE has *any* stationary law, and that a stationary law must satisfy the station
 Fokker–Planck equation. Both require an Itô calculus and a generator/adjoint theory that
 mathlib v4.31.0 does not have. They are the modelling step the paper cites rather than proves,
 and no hypothesis in this file silently stands in for them: the file's statements are about the
-partial differential equation, which is the object the paper's Lemma 1 and its consequences
-(L1') and (L2') actually manipulate. What the file does *not* leave open, and what an earlier
+partial differential equation, which is the object the paper's Lemma 1(iv)–(v) and the design
+note's (L1') and (L2') actually manipulate. What the file does *not* leave open, and what an earlier
 draft of this module did leave open, is the boundary condition: that is now a theorem with
 stated and satisfiable hypotheses, not a phrase.
 -/
@@ -395,8 +405,9 @@ theorem stationaryDensity_shift (C η k : ℝ) (σ2 U : ℝ → ℝ) (w : ℝ) :
 
 /-- The fundamental theorem of calculus supplies the antiderivative that equation `(*)` writes as
 an indefinite integral: if `L̃'` is continuous and `σ_eff²` is continuous and everywhere positive,
-then `U_eff` really is differentiable with derivative `L̃'/σ_eff²`. Continuity of `L̃'` is
-assumption (A1) of the paper; positivity of `σ_eff²` is the non-degeneracy of the diffusion. -/
+then `U_eff` really is differentiable with derivative `L̃'/σ_eff²`. Continuity of `L̃'` and the
+positivity of `σ_eff²`, the non-degeneracy of the diffusion, are the paper's regularity row for
+Lemma 1(iv). -/
 theorem hasDerivAt_effectivePotential {L' σ2 : ℝ → ℝ} (hL' : Continuous L') (hσc : Continuous σ2)
     (hσ : ∀ w, 0 < σ2 w) (a w : ℝ) :
     HasDerivAt (effectivePotential a L' σ2) (L' w / σ2 w) w := by
@@ -420,7 +431,7 @@ theorem diffusion_mul_stationaryDensity (C η : ℝ) {σ2 : ℝ → ℝ} (U : �
   simp only [fokkerPlanckDiffusion, stationaryDensity]
   field_simp
 
-/-- **Equation `(*)` of `docs/design/lemma1_rederivation.md` §3, machine-checked.**
+/-- **Equation `(*)` of the design note, §3, machine-checked.**
 
 For the one-dimensional Itô diffusion `dw = -L̃'(w) dt + √η σ_eff(w) dB_t`, whose Fokker–Planck
 drift is `-L̃'` and whose diffusion coefficient is `D = (η/2) σ_eff²`, the density
@@ -472,6 +483,30 @@ theorem stationaryDensity_zeroFlux_of_continuous {η C : ℝ} (hη : η ≠ 0) {
     IsZeroFluxStationary (fun w => -L' w) (fokkerPlanckDiffusion η σ2)
       (stationaryDensity C η σ2 (effectivePotential a L' σ2)) :=
   stationaryDensity_zeroFlux hη hσ fun w => hasDerivAt_effectivePotential hL' hσc hσ a w
+
+/-- **`prop:precond-full`(i): Lemma 1(iv) at step `ηp`.** A preconditioned step whose entry
+along `e_b` is the constant `p` projects to `dw = -p L̃'(w) dt + √η p σ_eff(w) dB_t`, with drift
+`-p L̃'` and diffusion coefficient `η p² σ_eff²`, and the density `(*)` at step `ηp`,
+`σ_eff⁻² exp(-(2/(ηp)) U_eff)`, is zero-flux stationary for it. Drift and diffusion coefficient
+are `p` times those of `stationaryDensity_zeroFlux` at step `ηp`, and the zero-flux equation is
+homogeneous in that factor. -/
+theorem stationaryDensity_zeroFlux_precond {η p C : ℝ} (hη : η ≠ 0) (hp : p ≠ 0)
+    {σ2 U L' : ℝ → ℝ} (hσ : ∀ w, 0 < σ2 w) (hU : ∀ w, HasDerivAt U (L' w / σ2 w) w) :
+    IsZeroFluxStationary (fun w => -(p * L' w)) (fokkerPlanckDiffusion (η * p ^ 2) σ2)
+      (stationaryDensity C (η * p) σ2 U) := by
+  intro w
+  have h := (stationaryDensity_zeroFlux (C := C) (mul_ne_zero hη hp) hσ hU w).const_mul p
+  have hfun : (fun u => fokkerPlanckDiffusion (η * p ^ 2) σ2 u
+        * stationaryDensity C (η * p) σ2 U u)
+      = fun u => p * (fokkerPlanckDiffusion (η * p) σ2 u
+        * stationaryDensity C (η * p) σ2 U u) := by
+    funext u
+    simp only [fokkerPlanckDiffusion]
+    ring
+  rw [hfun]
+  refine h.congr_deriv ?_
+  beta_reduce
+  ring
 
 /-! ## The converse: `(*)` is the only zero-flux solution -/
 
@@ -526,6 +561,26 @@ theorem eq_stationaryDensity_of_zeroFlux {η : ℝ} (hη : η ≠ 0) {σ2 U L' �
     linear_combination hh
   simp only [stationaryDensity, hexpneg]
   exact halg _ _ hexpw hkey
+
+/-- **`prop:precond-full`(i): Lemma 1(iv) at step `ηp`, the uniqueness half.** Every zero-flux
+stationary density for the preconditioned drift `-p L̃'` and diffusion coefficient `η p² σ_eff²`
+is exactly the density `(*)` at step `ηp`, `σ_eff⁻² exp(-(2/(ηp)) U_eff)`, with the constant
+identified. It is `eq_stationaryDensity_of_zeroFlux` at step `ηp²` for the slope `p L̃'` and the
+potential `p U_eff`, rewritten. -/
+theorem eq_stationaryDensity_of_zeroFlux_precond {η p : ℝ} (hη : η ≠ 0) (hp : p ≠ 0)
+    {σ2 U L' ρ : ℝ → ℝ} (hσ : ∀ w, 0 < σ2 w) (hU : ∀ w, HasDerivAt U (L' w / σ2 w) w)
+    (hρ : IsZeroFluxStationary (fun w => -(p * L' w)) (fokkerPlanckDiffusion (η * p ^ 2) σ2) ρ)
+    (w : ℝ) :
+    ρ w = stationaryDensity (σ2 0 * ρ 0 * Real.exp (2 / (η * p) * U 0)) (η * p) σ2 U w := by
+  have hpU : ∀ w, HasDerivAt (fun u => p * U u) (p * L' w / σ2 w) w := fun w => by
+    have := (hU w).const_mul p
+    rwa [mul_div_assoc]
+  have h := eq_stationaryDensity_of_zeroFlux (mul_ne_zero hη (pow_ne_zero 2 hp)) hσ hpU hρ w
+  rw [h]
+  simp only [stationaryDensity]
+  have e1 : 2 / (η * p ^ 2) * (p * U 0) = 2 / (η * p) * U 0 := by field_simp
+  have e2 : -(2 / (η * p ^ 2)) * (p * U w) = -(2 / (η * p)) * U w := by field_simp
+  rw [e1, e2]
 
 /-- **Uniqueness up to a constant**, in the form the design note's `∝` asserts: every zero-flux
 stationary density is the density `(*)` for some proportionality constant. -/
@@ -746,8 +801,8 @@ theorem stationaryDensity_pos {η C : ℝ} (hC : 0 < C) {σ2 U : ℝ → ℝ} (h
   simp only [stationaryDensity]
   positivity
 
-/-- **The score of the stationary density.** When `σ_eff²` is differentiable — assumption (A1)'s
-regularity clause, and the *only* place in this file where that is needed — the density of `(*)`
+/-- **The score of the stationary density.** When `σ_eff²` is differentiable — a hypothesis the
+current paper does not make, and the *only* place in this file where it is needed — the density of `(*)`
 satisfies
 
   `π'(w) = -( σ_eff²'(w)/σ_eff²(w) + (2/η) L̃'(w)/σ_eff²(w) ) π(w)`,

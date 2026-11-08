@@ -16,6 +16,8 @@ defaultTargets = [
   "TaylorChain", "SoftplusBand", "QuasipotentialFTC", "KramersBridge",
   "WitnessInstance", "PgdBaseline", "CrossCovProbe", "MinibatchNoise",
   "CouplingPower", "ShoulderDwell", "ProjectionClamp",
+  "SpitzerCyclic", "SpitzerIdentity", "SpitzerGaussian", "LindleyStationary",
+  "LindleyClamped",
 ]
 
 [[require]]
@@ -29,11 +31,11 @@ rev = "v4.31.0"
 [[lean_lib]]
 name = "TraceLemmas"
 # The cross-covariance estimator, its slack-channel reading, and the two
-# finite-sample deletions of Theorem 1 (cases (i) and (ii)).
+# finite-sample substitutions after Theorem 2 (the two cases printed after it).
 [[lean_lib]]
 name = "CrossCov"
 
-# --- Theorem 1 (thm:joint-necessity) ----------------------------------------
+# --- Theorem 2 (thm:joint-necessity) ----------------------------------------
 # Case (iii): conditional independence zeroes the population cross-covariance.
 [[lean_lib]]
 name = "CrossCovIndep"
@@ -41,7 +43,7 @@ name = "CrossCovIndep"
 [[lean_lib]]
 name = "CrossCovSLLN"
 
-# --- the corrected mechanism (docs/design/lemma1_rederivation.md) ------------
+# --- the corrected mechanism -------------------------------------------------
 # The exact pullback Hessian, and the refutation of the shipped decomposition.
 [[lean_lib]]
 name = "PullbackHessian"
@@ -102,7 +104,7 @@ name = "FWReduction"
 [[lean_lib]]
 name = "Assumptions"
 
-# --- hypothesis discharge (2026-09-02) -------------------------------------
+# --- hypothesis discharge --------------------------------------------------
 # (A4)'s chain and remainder bound reduced to a Hessian-Lipschitz smoothness
 # condition, and PSD-ness of the expected Hessian proved at a local minimum.
 [[lean_lib]]
@@ -134,7 +136,7 @@ name = "PgdBaseline"
 [[lean_lib]]
 name = "MinibatchNoise"
 
-# Theorem 1 over the fixed-iterate probe (Bessel divisor), and the divisor-indifference theorem.
+# Theorem 2 over the fixed-iterate probe (Bessel divisor), and the divisor-indifference theorem.
 [[lean_lib]]
 name = "CrossCovProbe"
 
@@ -153,8 +155,27 @@ name = "CouplingPower"
 [[lean_lib]]
 name = "ShoulderDwell"
 
-# prop:clamp, in part: the geometric dwell of one projected coordinate at the
-# boundary, with mean 1/Phi(-rho), and the eta*sigma homogeneity of the Lindley
-# recursion. The Spitzer ladder-epoch identity is NOT formalized.
+# prop:clamp: the geometric dwell of one projected coordinate at the boundary,
+# with mean 1/Phi(-rho), the reversal identity, the walk's supremum and its mean,
+# and the eta*sigma homogeneity of the Lindley recursion. The stationary law and
+# the Spitzer identity are in the Lindley* and Spitzer* modules below.
 [[lean_lib]]
 name = "ProjectionClamp"
+
+# prop:clamp, the stationary law's clamped fraction: the cyclic lemma behind
+# Spitzer's identity, Spitzer's ladder-epoch identity for an i.i.d. real walk,
+# and the Gaussian series exp(-sum_k Phi(-rho sqrt k)/k) with its limits in rho.
+[[lean_lib]]
+name = "SpitzerCyclic"
+[[lean_lib]]
+name = "SpitzerIdentity"
+[[lean_lib]]
+name = "SpitzerGaussian"
+# prop:clamp, the stationary law: the law of the walk's supremum is the unique
+# stationary law of the Lindley recursion, reached from every starting law.
+[[lean_lib]]
+name = "LindleyStationary"
+# prop:clamp, the last clause joined: the stationary atom at 0 equals
+# exp(-sum_k Phi(-rho sqrt k)/k), with its limits in rho.
+[[lean_lib]]
+name = "LindleyClamped"

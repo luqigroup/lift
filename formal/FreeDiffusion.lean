@@ -3,14 +3,24 @@ import Mathlib
 /-!
 # The driftless free-diffusion exit time, and the crossover out of the Arrhenius regime
 
-The paper's `cor:fpt` states the Kramers (Arrhenius) mean first-passage time
-`E[τ] ≍ exp(2α/σ_eff²)` under assumption (A5), which asks that the effective noise be small
-relative to the barrier. `rem:fpt-scope` and the closing paragraph of `app:proof-fpt` then say
-what happens when (A5) fails: "once the unattenuated `σ_Jac²` grows comparable to the barrier
-`2α` … the escape leaves the Arrhenius regime and is governed instead by free diffusion over the
-escape distance, with mean first-passage time the polynomial `Θ(σ_Jac^{-2})` of the standard
-Brownian hitting-time identity." The design note records the same item as (FW-5). This file
-machine-checks that free-diffusion law and the crossover statement attached to it.
+**Status against the current paper.** The current paper backs
+no statement with this module. It has no free-diffusion regime, no crossover remark and no
+diffusive probe: assumption (A5), `rem:fpt-scope`, the closing paragraph of `app:proof-fpt` on
+free diffusion, `sec:exp-e6` and `fig:e6` belong to an earlier draft and none of them exists
+now. Its `cor:fpt` (Appendix A.4) states the escape time under A2(b), which asks only that the
+expected loss be continuous on `[a,b]` and differentiable inside, with no small-noise
+assumption. Every reference below to those labels, and every "the paper says" attached to
+them, describes that earlier draft and is kept as history; the results themselves are
+self-contained statements about the driftless exit time and stand on their own.
+
+History. The earlier draft's `cor:fpt` stated the Kramers (Arrhenius) mean first-passage time
+`E[τ] ≍ exp(2α/σ_eff²)` under assumption (A5), which asked that the effective noise be small
+relative to the barrier. Its `rem:fpt-scope` and the closing paragraph of its `app:proof-fpt`
+then said what happens when (A5) fails: "once the unattenuated `σ_Jac²` grows comparable to the
+barrier `2α` … the escape leaves the Arrhenius regime and is governed instead by free diffusion
+over the escape distance, with mean first-passage time the polynomial `Θ(σ_Jac^{-2})` of the
+standard Brownian hitting-time identity." The design note recorded the same item as (FW-5).
+This file machine-checks that free-diffusion law and the crossover statement attached to it.
 
 **The modelling inputs.** Two are carried, and the `## Honesty` section states both. The second
 is recorded here at the outset because it is the one a reader is likeliest to miss: the
@@ -28,7 +38,7 @@ driftless scalar Itô process `dX = σ dB` started at `x`, Dynkin's formula appl
 time `τ` from an interval `(a,b)` gives that `T(x) = E_x[τ]` solves the Dirichlet problem for the
 generator `A = (σ²/2) d²/dx²`, namely `(σ²/2) T'' = -1` on `(a,b)` with `T(a) = T(b) = 0`. This
 mathlib has no Itô integral, no stochastic differential equation, no diffusion generator and no
-exit time — the whole of stochastic analysis relevant here is absent, as the API audit records
+exit time — the whole of stochastic analysis relevant here is absent, as a search of the library shows
 (`Mathlib/Probability/BrownianMotion` supplies only the *predicates* `IsPreBrownianReal` and
 `IsBrownianReal`, with no existence theorem, and a case-insensitive search of the tree for
 `exit time`, `first passage`, `Fokker`, `Kramers`, `Ito` returns nothing). So the passage from
@@ -80,8 +90,7 @@ probe does not have, and the two-sided reading in which it is supplied, with the
 `L` as the half-width and the same value `L²/σ²`, is `freeExitTime_symmetric_interval`. Nothing
 here contradicts the paper's `Θ(σ_Jac^{-2})`; it locates the escape domain that claim needs.
 
-**On "the two laws cross exactly once".** The brief for this file asked for a proof that the
-free-diffusion time `(b-a)²/(4σ²)` is smaller than the Arrhenius time `exp(2α/σ²)` for large
+**On "the two laws cross exactly once".** A natural claim is that the free-diffusion time `(b-a)²/(4σ²)` is smaller than the Arrhenius time `exp(2α/σ²)` for large
 `σ²` and larger for small `σ²`, so that the two cross exactly once. The second half of that is
 false, and the file proves the true statement instead. Writing `u = 1/σ²`, the comparison is
 between the line `(b-a)²u/4` and the exponential `exp(2αu)`, which starts at `1 > 0` and
@@ -121,7 +130,7 @@ Arrhenius **exponent**, not about the two times: `2α/σ²` is strictly antitone
 the value one exactly at `σ² = 2α`, so `{σ² > 0 : 2α/σ² > 1} = (0, 2α)` exactly
 (`metastable_window`, `metastable_window_eq_Ioo`). That single crossing point `σ² = 2α` is the
 formal content of the paper's "once `σ_Jac²` grows comparable to the barrier `2α`", and it is
-what `rem:fpt-scope` currently gestures at without a statement. That the two regimes are
+what the earlier draft's `rem:fpt-scope` gestured at without a statement. That the two regimes are
 genuinely different laws — and not one law written two ways — is
 `arrheniusTime_not_isBigO_inv`: the Arrhenius time is not `O(σ^{-2})` as `σ² ↓ 0`, so no
 constant multiple of the free-diffusion law bounds it in the metastable regime.
@@ -1015,11 +1024,12 @@ theorem lift_leaves_metastable_window {α σobj σJac : ℝ} (hα : 0 < α) (hob
 /-- **The per-method scoping of (FW-5), stated.** If the attenuated objective channel alone is
 below the barrier while the two channels together are not, then the direct parametrization sits
 inside the metastable window of (A5) — its Arrhenius exponent exceeds one — and the lift sits
-outside it. This is the paper's own reading of the scope of `cor:fpt`: the Arrhenius asymptotic
+outside it. This was the earlier draft's reading of the scope of its `cor:fpt` (history; the
+current paper has no crossover regime): the Arrhenius asymptotic
 is where the direct baseline lives, and the lift, precisely because `σ_Jac²` is added
 unattenuated, can be carried past the crossover into the free-diffusion regime of
 `freeExitTime`. Nothing here asserts that the lift always crosses over; the crossing of the two
-channels is a hypothesis of the theorem, exactly as it is a regime assumption in the paper. -/
+channels is a hypothesis of the theorem, exactly as it was a regime assumption in that draft. -/
 theorem direct_metastable_lift_past_crossover {α σobj σJac : ℝ} (hobj : 0 < σobj)
     (hdirect : σobj < 2 * α) (hlift : 2 * α ≤ σobj + σJac) :
     1 < 2 * α / σobj ∧ ¬ (1 < 2 * α / (σobj + σJac)) := by

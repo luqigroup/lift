@@ -25,6 +25,9 @@ Extensions on top of vanilla torchhyper:
       positivity is structural. Default ``r = 4``.
     - ``'cone'``: ``W = clamp(u, min=0)``. Hard cone projection; the
       subgradient on the negative half-space is exactly zero.
+    - ``'exp'``: ``W = exp(u)``, the exponential map of Sill (1998). The
+      readout bias starts at ``log(softplus(head_init_pos_bias))``, so the
+      emitted weight at step zero is the softplus readout's.
 
 * ``activation_noise_std``: Gaussian noise on the pooled hidden activations
   during training, scaled by ``set_noise_scale(scale)``. The trainer anneals
@@ -77,7 +80,7 @@ from lift.models.conv_emitter import (
 from lift.models.conv_summary import ConvSummaryEncoder
 
 
-_POS_MODES = ("softplus", "square", "qform", "cone")
+_POS_MODES = ("softplus", "square", "qform", "cone", "exp")
 _SUMMARY_KINDS = ("mlp", "conv", "moments")
 _EMITTER_KINDS = ("dense", "conv")
 
@@ -144,7 +147,7 @@ class HyperNetwork(nn.Module):
         pos_param_names: target-parameter names whose predicted tensor
             must be non-negative element-wise. The positivity recipe
             is selected by ``pos_constraint_mode``.
-        pos_constraint_mode: one of ``softplus / square / qform /
+        pos_constraint_mode: one of ``softplus / exp / square / qform /
             cone``. See module docstring for the math behind each.
         head_init_pos_bias: when a parameter is in ``pos_param_names``
             **and** ``pos_constraint_mode == 'softplus'``, initialize
@@ -619,6 +622,9 @@ class HyperNetwork(nn.Module):
                     continue
                 if self.pos_constraint_mode == "softplus":
                     layer.bias.fill_(float(head_init_pos_bias))
+                elif self.pos_constraint_mode == "exp":
+                    layer.bias.fill_(float(np.log(np.log1p(
+                        np.exp(float(head_init_pos_bias))))))
                 else:
                     # square, qform, cone: a zero bias keeps the
                     # post-positivity output near zero at init.
@@ -732,6 +738,8 @@ class HyperNetwork(nn.Module):
             return flat.view(flat.shape[0], n_out, r).pow(2).sum(dim=-1)
         if self.pos_constraint_mode == "cone":
             return flat.clamp(min=0.0)
+        if self.pos_constraint_mode == "exp":
+            return torch.exp(flat)
         raise RuntimeError(
             f"unhandled pos_constraint_mode: {self.pos_constraint_mode}"
         )

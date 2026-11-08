@@ -4,6 +4,22 @@ import TraceLemmas
 /-!
 # FW-3b: the slack channel is attenuated once, not zero times
 
+**Against the current paper.** This module counts prefactors in the v4-era additive diffusion
+`σ_eff² = s² σ_obj² + σ_Jac²`, and its labels ((A1), (A2) in the v4 form `ψ'(θ̃) ≈ s I_d`, (A4),
+(A4'-q), FW-0, FW-3b) are that draft's and the design note's; the module
+records that history. The current paper does not use the additive
+form. Its diffusion is `eq:sigma-eff`, the direct value plus the coupling term
+`2 e_bᵀ H Σ_ξ e_b`, a fluctuation term and a remainder, and its `rem:power` (Appendix A.4) shows
+that the coupling term is `O(σ_s²)` and never of order `σ_s`, so both exponents are of order
+`σ_s⁻²` and their ratio is bounded. The paper names the `σ_s² σ_obj² + σ_s q` shape this file
+studies only to say that the coupling term does not take it. So the conclusions below that the
+lift's exponent is `Θ(1/s)` and that the ratio of the two exponents diverges hold of the
+additive form and are not claims of the current paper; `CouplingPower.lean` carries the count
+the paper states. What carries over unchanged is the once-attenuation of the trace
+`σ_Jac² = tr Σ_slack` (`jacChannel_eq`), which `CouplingPower.lean` imports as the factor
+`Σ_ξ = Ξ_θ diag(ψ')`, and the slack cancellation `batchFluct_slack_plus_body`, which is the
+current paper's `eq:fluct`.
+
 The paper's mechanism section characterizes the shoulder by two scalars. The
 **objective channel** is the variance of an already attenuated gradient: with
 `σ_obj² ≡ tr Var_X[∇_θ L]` taken on the *constrained* coordinate, before the positivity-map prefactor
@@ -11,9 +27,9 @@ is applied, the objective noise entering the bias-channel diffusion is `s² σ_o
 `s = ψ'(θ̃)` is the shoulder prefactor. The **slack channel** is the trace of the
 cross-covariance between the latent iterate jitter and the gradient fluctuation,
 `σ_Jac² ≡ tr E_X[δθ̃ δgᵀ]` (`eq:cross-cov`). The shipped text calls the second of these
-*unattenuated*, or *unmodulated* — that is, `Θ(1)` in the prefactor — and the authors' own
-design note settles that this is wrong
-(`docs/design/lemma1_rederivation.md` §11.2, "FW-3b — the power-of-s discrepancy"). The chain
+*unattenuated*, or *unmodulated* — that is, `Θ(1)` in the prefactor — and the design note
+settles that this is wrong
+(§11.2, "FW-3b — the power-of-s discrepancy"). The chain
 rule `g = ψ'(θ̃) ⊙ ∇_θ L` already carries one factor of the prefactor — under the single-prefactor
 idealization (A2) the fluctuation is `δg = s · δ(∇_θ L)`, and because `ψ'(θ̃)` is itself
 batch-dependent that identity is an idealization whose defect is carried explicitly in the later
@@ -46,7 +62,7 @@ latent iterate is `θ̃_s = b_s + h_φ(X)` with the slack *allowed* to move with
 since different prefactor values are different locations on the shoulder and it is the slack that
 puts the iterate there; only the body is required to be prefactor-free, and that is a statement
 about the architecture, namely that the body is evaluated before `ψ` is applied. What then makes
-`E_X‖δθ̃‖²` constant in `s` is the slack cancellation of `eq:lift-batch-fluct`, not the shape of
+`E_X‖δθ̃‖²` constant in `s` is the slack cancellation of `eq:fluct`, not the shape of
 the hypothesis: the iterate itself does depend on the prefactor and only its fluctuation does
 not. Both halves of `unattenuated_jitter_but_once_attenuated_channel` are stated about the same
 field `θ̃_s`. The word is true of the jitter and false of the channel.
@@ -100,20 +116,9 @@ is the whole of the power-of-`s` question. Equally, that `σ_eff²` *is* the pro
 covariance of the lifted SGD iterate is not proved here: this file takes the two channels as
 its starting definitions, in the form the paper gives them, and counts prefactors in them.
 
-The occurrences to be corrected are, in `iclr/paper_icnn_lift_iclr.tex`, seven in number as of
-this writing: the regime-scalar paragraph of the mechanism section, the intuition line and the
-two in the scope remark attached to the first-passage corollary, the escape-diagnostic
-paragraph, and the crossover remark of the appendix — six of the seven, each attaching the word
-to `σ_Jac²` — together with one in the appendix walk-through's Step 3 that is **correct as
-written**, because there the word describes the batch-resampling part of the diffusion, that is
-the jitter itself, and not its cross-covariance. The same defect recurs in the longer
-`paper_icnn_lift.tex`, where the word occurs nine times on nine lines: the Step 3 occurrence of
-the appendix walk-through is again the correct one, the figure caption calling the slack channel
-"the unmodulated escape route" is ambiguous rather than plainly wrong — read of `δθ̃` it is true,
-read of `σ_Jac²` it is false — and the remaining seven attach the word to `σ_Jac²` and are wrong.
-`unattenuated_jitter_but_once_attenuated_channel` below is the statement
-that separates the two cases, and it is what makes the edit safe to perform mechanically: the
-word survives where it qualifies `δθ̃` and must go where it qualifies `σ_Jac²`.
+`unattenuated_jitter_but_once_attenuated_channel` below is the statement that separates the
+two readings of the word "unattenuated": it is true of the jitter `δθ̃` itself, the
+batch-resampling part of the diffusion, and false of its cross-covariance `σ_Jac²`.
 
 ## Results
 * `trace_crossMomentMatrix` — the trace of `E_X[a bᵀ]` is the diagonal pairing `∑ᵢ E_X[aᵢ bᵢ]`.
@@ -131,7 +136,7 @@ word survives where it qualifies `δθ̃` and must go where it qualifies `σ_Jac
 * `couplingRatio_eq`, `couplingRatio_two_sided`, `couplingRatio_isTheta_inv` — `ϱ = q/(σ_obj² s)`
   and `ϱ =Θ[𝓝[>] 0] 1/s`.
 * `couplingRatio_tendsto_atTop` — `ϱ → ∞` as `s → 0⁺`: the correction is a wording fix.
-* `batchFluct_slack_plus_body` — `eq:lift-batch-fluct`: the slack cancels out of the fluctuation.
+* `batchFluct_slack_plus_body` — `eq:fluct`: the slack cancels out of the fluctuation.
 * `jitterPower_const`, `jitterPower_isTheta_one` — `E_X‖δθ̃‖²` does not depend on the prefactor
   and is `Θ(1)`: "unattenuated" is true of the jitter.
 * `jacChannel_pre_readout` — the channel computed on the latent iterate `θ̃_s` itself agrees
@@ -213,7 +218,7 @@ than a theorem. What is a hypothesis is exactly the decomposition `θ̃_s = b_s 
 the body `h_φ` independent of the prefactor, and the hypothesis is deliberately weaker than it
 could have been — the slack `b_s` is allowed to depend on the prefactor, so the iterate itself
 varies with `s` and only its fluctuation does not. That the fluctuation does not is then the
-slack cancellation of `eq:lift-batch-fluct`, which is proved. Had `b` been held fixed as well,
+slack cancellation of `eq:fluct`, which is proved. Had `b` been held fixed as well,
 `jitterPower_const` would have been a restatement of its own hypothesis.
 
 *Integrability*, in the form of (A1)'s moment bounds. The scaling lemmas need none — mathlib's
@@ -343,7 +348,7 @@ theorem objChannel_eq (μ : Measure Ω) (u : Ω → Fin d → ℝ) (s : ℝ) :
 gradient; the first carries the latent iterate jitter, which is a re-evaluation of the
 latent weight and passes through no `ψ'`. The channel is therefore `s · q` with
 `q = tr E_X[δθ̃ δ(∇_θL)ᵀ]` the prefactor-free coupling functional. This is the correction of
-`docs/design/lemma1_rederivation.md` §11.2. -/
+§11.2 of the design note. -/
 theorem jacChannel_eq (μ : Measure Ω) (dth u : Ω → Fin d → ℝ) (s : ℝ) :
     jacChannel μ dth u s = s * couplingCore μ dth u := by
   rw [jacChannel, batchFluct_chainRuleGrad, traceCrossMoment_chainRuleGrad_right, couplingCore]
@@ -470,7 +475,8 @@ theorem couplingRatio_isTheta_inv {μ : Measure Ω} {dth u : Ω → Fin d → �
     (fun _s hs => (couplingRatio_two_sided le_rfl le_rfl ho hs).1)
     (fun _s hs => (couplingRatio_two_sided le_rfl le_rfl ho hs).2)
 
-/-- **The consequence that saves the paper.** Even at the corrected power the dimensionless
+/-- **The consequence that saved the v4 draft** (history; see the module note: the current
+paper's `rem:power` bounds the ratio of the exponents instead). Even at the corrected power the dimensionless
 control diverges as the positivity map flattens, so every downstream conclusion that consumes only
 `ϱ → ∞` — the crossover discussion, the ordering of the two channels, the reading of the
 diffusive probe — survives the correction unchanged. This is the machine-checked statement that
@@ -486,7 +492,7 @@ theorem couplingRatio_tendsto_atTop {μ : Measure Ω} {dth u : Ω → Fin d → 
 
 /-! ### The contrast: the jitter really is unattenuated -/
 
-/-- `eq:lift-batch-fluct`: the slack cancels out of the fluctuation. The latent iterate is
+/-- `eq:fluct`: the slack cancels out of the fluctuation. The latent iterate is
 `θ̃ = b + h_φ(X)` with the slack `b` constant across the window over which the fluctuation is
 taken, so `δθ̃ = δh_φ(X)`, and the body carries the batch-induced fluctuation entirely. This is
 the step from which the prefactor-freedom of the jitter follows: what survives the centring is
@@ -1228,8 +1234,7 @@ theorem jacChannel_two_sided_uniform_on_band {B : Type*} (band : Set B) {μ : Me
 /-- **The whole of FW-3b in one statement.** Under the non-degeneracy hypothesis and a positive
 objective-noise variance: the objective channel carries the prefactor twice and the slack channel
 once, the slack channel is trapped between `q₁ s` and `q₂ s` and is `Θ(s)` but not `Θ(1)`, and
-the dimensionless control is `Θ(1/s)` and diverges. This is the statement the author needs in
-hand before editing the misplaced occurrences of the word — the count is corrected and every
+the dimensionless control is `Θ(1/s)` and diverges. The count is corrected and every
 downstream conclusion is preserved. -/
 theorem power_of_s_correction {μ : Measure Ω} {dth u : Ω → Fin d → ℝ} {q₁ q₂ : ℝ}
     (hq₁ : 0 < q₁) (hlo : q₁ ≤ couplingCore μ dth u) (hhi : couplingCore μ dth u ≤ q₂)

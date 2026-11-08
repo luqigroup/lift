@@ -6,13 +6,22 @@ import CouplingSign
 /-!
 # (FW-1) Diffusion ordering on the shoulder band, and the coupling/magnitude excess split
 
-This file machine-checks FW-1 of `docs/design/lemma1_rederivation.md` §8 ("FW-1 — diffusion
+This file machine-checks FW-1 of the design note, §8 ("FW-1 — diffusion
 ordering on the shoulder band"), the excess split of §10 (`eq:excess-split`), and the
 direct-baseline endpoint of §2. It belongs to the **corrected** mechanism. The shipped Lemma 1
 put a cross-covariance term inside the pullback Hessian; §1 of the same note establishes that
 this is false, because differentiation commutes with the batch expectation. Nothing here uses
 that refuted decomposition. The cross-covariance enters where it actually lives, in the
 covariance of the per-step update, hence in the diffusion coefficient.
+
+**Against the current paper.** FW-0, FW-1, FW-2', (A4'-q), (A6), `eq:excess-split` and the
+section numbers below are the design note's labels (and "the shipped Lemma 1" is the v4 lemma);
+the module records that history. In the current paper FW-1a is
+Step 2 of the proof of Lemma 1 (`lem:diffusion`, Appendix A.3), written with the prefactor set
+to one; this file's `Σ_slack = covMat μ δθ̃ g`, with `g` the gradient at the reference iterate,
+is the paper's coupling `Σ_ξ` up to that prefactor; and the sign the file carries as (A6) is the
+paper's stated condition `c > 0` on the coupling term plus the remainder, not an assumption
+label. The paper places no operator-norm control such as (A4'-q) on the remainder.
 
 The file is deliberately built on the two modules that already exist rather than restating them.
 `UpdateCovariance.lean` supplies the **exact** decomposition of `Cov[G]` for an update expanding

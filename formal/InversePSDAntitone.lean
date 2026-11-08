@@ -3,7 +3,7 @@ import Mathlib
 /-!
 # Inverse anti-monotonicity in the positive-semidefinite order (the FW-2 auxiliary lemma)
 
-The corrected mechanism of the paper introduces, in `docs/design/lemma1_rederivation.md` §8
+The corrected mechanism of the paper introduces, in §8 of the design note,
 between FW-1 and FW-2, an auxiliary lemma about the Loewner order: *if `A ≥ B > 0` then
 `B⁻¹ ≥ A⁻¹`*. It is the step that turns FW-1's conclusion — the lift's diffusion matrix
 dominates the direct method's — into the pointwise integrand comparison on which FW-2 rests: the
@@ -143,7 +143,8 @@ Two further scope limits, stated for accuracy. First, everything is proved for r
 no complex-matrix or general-operator version is claimed. Second, `posDef_inv_gap` derives the
 note's constant `δ = η / (Λ (Λ + η))` from the note's own §11.3 hypotheses (`A + η I ≤ B` and
 `A ≤ Λ I`); it does not establish those hypotheses, which is the content of FW-1 together with
-assumption (A6) and belongs to `DiffusionOrdering.lean` and `CouplingSign.lean`.
+the design note's assumption (A6) (in the current paper, the stated condition `c > 0`) and
+belongs to `DiffusionOrdering.lean` and `CouplingSign.lean`.
 -/
 
 open Matrix
@@ -300,7 +301,7 @@ theorem posDef_inv_le_one_of_one_le {M : Matrix n n ℝ} (h1 : (1 : Matrix n n �
   rw [hTMT, Matrix.mul_one, hTT] at hkey
   exact hkey
 
-/-- **The FW-2 auxiliary lemma** (`docs/design/lemma1_rederivation.md` §8): inversion is
+/-- **The FW-2 auxiliary lemma** (the design note, §8): inversion is
 anti-monotone on positive-definite matrices. If `A` is positive definite and `A ≤ B` in the
 Loewner order, then `B⁻¹ ≤ A⁻¹`. This is the note's `A ≥ B > 0 ⟹ B⁻¹ ≥ A⁻¹` with the two
 matrix names interchanged; the positivity hypothesis is placed on the smaller matrix, which is
@@ -544,7 +545,7 @@ theorem inv_sub_inv_shift {A : Matrix n n ℝ} {eta : ℝ} (hA : A.PosDef)
       Matrix.one_mul]
   rw [← key, hCA, Matrix.mul_inv_rev, Matrix.mul_smul, Matrix.smul_mul, Matrix.mul_one]
 
-/-- **The quantitative gap of `docs/design/lemma1_rederivation.md` §11.3 (FW-2').** If `A` is
+/-- **The quantitative gap of the design note, §11.3 (FW-2').** If `A` is
 positive definite with `A ≤ Λ I`, and `B` exceeds `A` by at least `η I`, then
 
   `A⁻¹ - B⁻¹ ≥ (η / (Λ (Λ + η))) I`.

@@ -3,7 +3,7 @@ import Mathlib
 /-!
 # (FW-3a) Band occupancy: the deterministic transit-time core
 
-The corrected mechanism of the paper is developed in `docs/design/lemma1_rederivation.md`. Its
+The corrected mechanism of the paper is developed in the design note. Its
 Freidlin–Wentzell step (FW-2) compares the quasipotential of two diffusions that differ only on
 the shoulder band, and its **strictness clause** needs one geometric input: that a path cannot
 evade the band. Section 11.1 of that note, labelled **FW-3a (band occupancy)**, supplies the
@@ -78,8 +78,8 @@ lie outside this development, and each is carried as an **explicit, named hypoth
 assumed away or axiomatised.
 
 1. *From bounded action to the energy inequality.* The Freidlin–Wentzell rate functional
-   `S[γ] = ¼ ∫ (γ̇ + ∇U(γ))ᵀ Σ(γ)⁻¹ (γ̇ + ∇U(γ)) dt` is not definable in this mathlib: the audit
-   of `v4.31.0` records zero declarations for Itô integrals, stochastic differential equations,
+   `S[γ] = ¼ ∫ (γ̇ + ∇U(γ))ᵀ Σ(γ)⁻¹ (γ̇ + ∇U(γ)) dt` is not definable in this mathlib: a search
+   of `v4.31.0` finds zero declarations for Itô integrals, stochastic differential equations,
    diffusion generators, Fokker–Planck, exit times or large deviations, so there is no object
    `S[γ]` to quantify over and no theorem relating it to `γ̇`. The note's derivation — `Σ ≤ Λ I`
    gives `Σ⁻¹ ≥ Λ⁻¹ I`, hence `∫_B ‖u‖² ≤ 4 Λ S̄` for `u = γ̇ + ∇U(γ)`, and then

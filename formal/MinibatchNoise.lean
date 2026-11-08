@@ -6,16 +6,27 @@ import DiffusionOrdering
 import TaylorChain
 
 /-!
-# The frozen-iterate minibatch noise in (A4), and the coupling channel it turns out to be
+# The frozen-iterate minibatch noise in the chain, and the coupling it turns out to be
 
-Assumption (A4) of the paper (`docs/paper/v4/A1_proofs.tex`, "Regularity assumptions") writes the
-fluctuation of the per-probe forward-KL gradient as `δg = H δθ̃ + r`, with `H = E_X[∇²L]` the mean
-Hessian at the reference iterate and `r` a remainder budgeted as `‖r‖ ≤ C_r ‖δθ̃‖²`. The clause
-(A4'-q) that the appendix adopts then asks the remainder's share of the cross-covariance,
-`R = E[δθ̃ rᵀ]`, to be dominated by the magnitude channel, `2β ≤ 3λ`. This file records that the
-chain as written omits a term that is not a remainder at all, works out what the omission does to
-every downstream statement, and states the clause that the strict diffusion ordering actually
-needs.
+Assumption (A4) of the v4 draft (its appendix, "Regularity assumptions") wrote
+the fluctuation of the per-probe forward-KL gradient as `δg = H δθ̃ + r`, with `H = E_X[∇²L]` the
+mean Hessian at the reference iterate and `r` a remainder budgeted as `‖r‖ ≤ C_r ‖δθ̃‖²`. The
+clause (A4'-q) that its appendix adopted then asked the remainder's share of the
+cross-covariance, `R = E[δθ̃ rᵀ]`, to be dominated by the magnitude channel, `2β ≤ 3λ`. This file
+records that the chain as written omits a term that is not a remainder at all, works out what the
+omission does to every downstream statement, and states the clause that the strict diffusion
+ordering actually needs.
+
+**Against the current paper.** (A3), (A4), (A4'-q), (A4'-r) and (A6) are the v4 draft's labels,
+now retired, and this file keeps them as history. The current paper
+has adopted the refined chain below: `g = g₀ + H δθ̃ + r₂` of
+Section 3.1 (`sec:mechanism`) is an identity that defines the remainder `r₂`, and Appendix A.1
+notes that `ξ` is of order one in the fluctuation. The paper's coupling `Σ_ξ = E[δθ̃ ξᵀ]` is this
+file's frozen coupling `Ξ`, its `V` and `H` are this file's, and its remainder `ϱ` along `e_b` is
+this file's `ϱ₂(e_b)` with the slope `s` set to one, because the paper's gradient already includes
+`ψ'`. The one sign the paper assumes where a statement consumes it is `c > 0`, with
+`c = 2 e_bᵀ H Σ_ξ e_b + ϱ` the coupling term plus the remainder (`thm:main`(i)), at one iterate
+and one direction; it states no alignment on a band and no remainder control.
 
 **The omitted term.** Fix the reference iterate `θ̄` and draw a batch `X`. The gradient the probe
 returns is evaluated at the probe's own iterate `θ̄ + δθ̃(X)` on the batch `X`, so a first-order
@@ -25,28 +36,27 @@ expansion in the iterate reads
 
 where `g₀` is the gradient of the *same* batch at the *frozen* iterate `θ̄`, and `r₂` collects the
 pairing of the per-batch Hessian fluctuation `H(X) − H` with the jitter and the genuine second-order
-Taylor term. Centring, `δg = ξ + H δθ̃ + (r₂ − E r₂)` with `ξ = g₀ − E g₀` the minibatch noise at the
-frozen iterate. The old chain therefore holds only with `r = ξ + r₂ − E r₂`, and `ξ` is of order one
-in the jitter: along the family that scales the latent-weight fluctuation to zero at fixed batch law the
-bound `‖r‖ ≤ C_r ‖δθ̃‖²` forces `ξ ≡ 0` (`noise_eq_zero_of_quadratic_bound`), that is, it is
-compatible only with a vanishing objective noise. This is the file's first finding, and it is the
-one the hypothesis audit raised.
+Taylor term. Centering, `δg = ξ + H δθ̃ + (r₂ − E r₂)` with `ξ = g₀ − E g₀` the minibatch noise at
+the frozen iterate. The old chain therefore holds only with `r = ξ + r₂ − E r₂`, and `ξ` is of order
+one in the jitter: along the family that scales the latent-weight fluctuation to zero at fixed batch
+law the bound `‖r‖ ≤ C_r ‖δθ̃‖²` forces `ξ ≡ 0` (`noise_eq_zero_of_quadratic_bound`), that is, it is
+compatible only with a vanishing objective noise. This is the file's first finding.
 
 **The three-term decomposition.** For the real covariances of `UpdateCovariance.lean`, the
 slack-channel cross-covariance the estimator of `eq:cross-cov` targets splits exactly as
 
   `Σ_slack = E[δθ̃ δgᵀ] = Ξ + V H + R₂`,   `Ξ = E[δθ̃ ξᵀ]`,  `V = E[δθ̃ δθ̃ᵀ]`,  `R₂ = E[δθ̃ r₂ᵀ]`
 
-(`covMat_slack_refined`). The middle term is the latent weight's self-coupling through the curvature;
-the first is the covariance of the latent weight with the frozen-iterate minibatch noise, both drawn
-from the same batch. `Ξ` vanishes for every latent weight that reads the batch through a given statistic
-exactly when the noise has zero conditional mean on the fibers of that statistic
-(`outerMoment_eq_zero_of_fiberMeanZero`, with the split-batch and the independent-noise cases as
-corollaries), and that condition is sharp in the quantified sense: a nonzero fiber mean is detected
-by some latent weight reading the batch through that statistic
-(`exists_body_coupling_ne_zero_of_fiberMean_ne_zero`), although a particular latent weight may have
-`Ξ = 0` by cancellation. Two four-point and two-point witnesses show `Ξ ≠ 0` with both signs for
-values of the latent weight and noises that are different functions of one batch.
+(`covMat_slack_refined`), which is `lem:diffusion`(i) of the current paper. The middle term is the
+latent weight's self-coupling through the curvature; the first is the covariance of the latent
+weight with the frozen-iterate minibatch noise, both drawn from the same batch. `Ξ` vanishes for
+every latent weight that reads the batch through a given statistic exactly when the noise has zero
+conditional mean on the fibers of that statistic (`outerMoment_eq_zero_of_fiberMeanZero`, with the
+split-batch and the independent-noise cases as corollaries), and that condition is sharp in the
+quantified sense: a nonzero fiber mean is detected by some latent weight reading the batch through
+that statistic (`exists_body_coupling_ne_zero_of_fiberMean_ne_zero`), although a particular latent
+weight may have `Ξ = 0` by cancellation. Two four-point and two-point witnesses show `Ξ ≠ 0` with
+both signs for values of the latent weight and noises that are different functions of one batch.
 
 **Mechanism, not nuisance.** Substituting the refined chain into the exact update-covariance
 decomposition gives the projected diffusion of the lifted update as
@@ -54,25 +64,32 @@ decomposition gives the projected diffusion of the lifted update as
   `σ²_lift = σ²_dir + s² (eᵀ (H Ξ + Ξᵀ H) e + eᵀ H V H e) + s² ϱ₂(e)`
 
 (`projDiffusion_lift_eq_frozen_form`), where `ϱ₂` collects the three scalars the genuine remainder
-`r₂` contributes. So `Ξ` is the object the coupling channel `C = H Σ + Σᵀ H` of `CouplingSign.lean`
-and `DiffusionOrdering.lean` is built on: those modules write their `Σ_slack` as `Cov[δθ̃, g]` with
-`g` the frozen-iterate gradient of the expansion `G = s g + s H δθ̃ + R`, which is `Ξ`, and every
-ordering theorem there is a theorem about `Ξ` and needs no change. What does change is the reading
-of the displayed lemma. Written on the full cross-covariance the same identity is
+`r₂` contributes. At `s = 1` this is `eq:sigma-eff` of the current paper (`thm:main`(i),
+`lem:diffusion`(ii)). So `Ξ` is the object the coupling channel `C = H Σ + Σᵀ H` of
+`CouplingSign.lean` and `DiffusionOrdering.lean` is built on: those modules write their `Σ_slack` as
+`Cov[δθ̃, g]` with `g` the frozen-iterate gradient of the expansion `G = s g + s H δθ̃ + R`, which
+is `Ξ`, and every ordering theorem there is a theorem about `Ξ` and needs no change. What does
+change is the reading of the lemma the v4 draft displayed. Written on the full cross-covariance the
+same identity is
 
   `σ²_lift = σ²_dir + s² (eᵀ C_full e − eᵀ H V H e) + s² ϱ'(e)`
 
 (`projDiffusion_lift_eq_full_form`), with the jitter term entering with a **minus** sign, because
 `C_full` already counts it twice; the display with `+ eᵀ H V H e` exceeds the true value by
 `2 s² eᵀ H V H e` up to the remainder scalars (`display_sub_projDiffusion_lift`). The display is
-exact when its `Σ_slack` is read as `Ξ`, and that is the reading the paper must adopt.
+exact when its `Σ_slack` is read as `Ξ`, and that is the reading the paper has adopted:
+`eq:sigma-eff` is written on `Σ_ξ`, and Step 2 of the proof of `lem:diffusion` substitutes the
+split of part (i) to show that on `Σ_slack` the self-coupling counts the fluctuation term twice.
 
 **The corrected regime statement.** The strict ordering `σ²_dir < σ²_lift` follows from positive
 alignment of the frozen coupling, `κ ‖e‖² ≤ eᵀ (H Ξ + Ξᵀ H) e`, together with control of the
 remainder scalars `|ϱ₂(e)| ≤ τ ‖e‖²` at `τ < κ` (`projDiffusion_direct_lt_lift_of_frozenAlignment`);
-the jitter term is a free non-negative summand. This replaces (A4'-q). The clause it replaces is
-not merely unnecessary but false in the operating regime: under (A4'-q) applied to the chain the
-appendix writes, the frozen coupling is capped by five halves of the jitter term,
+the jitter term is a free non-negative summand. This replaced (A4'-q) in the v4 draft. The paper
+has since merged the pair into the single condition `c > 0` on the coupling term plus the
+remainder (`projDiffusion_direct_lt_lift_of_netAlignment`), which the pair implies
+(`netAlignment_of_frozenAlignment_and_remainder`). The retired clause (A4'-q) is not merely
+unnecessary but false in the operating regime: applied to the chain the v4 appendix wrote, it caps
+the frozen coupling by five halves of the jitter term,
 `eᵀ H Ξ e ≤ (5/2) eᵀ H V H e` (`remainderControl_caps_frozen_coupling`), and along the family
 `δθ̃ = t u` at fixed batch law the left side is first order in `t` while the right side is second
 order, so the cap fails for every sufficiently small `t` whenever the frozen coupling is positive
@@ -81,26 +98,32 @@ in `t` whose linear coefficient is the frozen coupling plus the first-order rema
 (`projDiffusion_excess_small_jitter`); a positive linear coefficient gives the strict ordering at
 every small scale (`projDiffusion_direct_lt_lift_small_jitter`), a negative one reverses it
 (`projDiffusion_lift_lt_direct_small_jitter`), and the jitter term, being second order, decides
-nothing at small scale. That last point is the scaling reading of the matched-magnitude control:
-a latent weight independent of the batch has `Ξ = 0` (`covMat_eq_zero_of_indepFun`) and, in the
-finite-sample model, no first-order remainder pairing either
-(`outerMoment_prod_hessianFluct_eq_zero`), so its excess starts at second order
-(`projDiffusion_excess_small_jitter_of_no_frozen_coupling`).
+nothing at small scale; this is `lem:diffusion`(vi), which is `thm:main`(ii). That last point is
+the scaling reading of the matched-magnitude control (`rem:matched-cell`): a centered perturbation
+independent of the batch has `Ξ = 0` and no first-order remainder pairing either, for any batch
+law with square-integrable `g₀` and `H(X)` (`covMat_prod_perturbation_batch_eq_zero`,
+`covMat_prod_batch_hessianFluct_eq_zero`), so its excess starts at second order
+(`projDiffusion_excess_small_jitter_of_independent_perturbation`, discharging both hypotheses of
+`projDiffusion_excess_small_jitter_of_no_frozen_coupling`); this is the independent-batch sentence
+of `lem:diffusion`(vi) and `thm:main`(ii). `covMat_eq_zero_of_indepFun` gives the first
+vanishing for any independent pair, and `outerMoment_prod_hessianFluct_eq_zero` is the
+finite-sample companion of the second.
 
 **Where the refined chain comes from.** The chain is not an assumption. For a per-batch gradient map
 differentiable in the iterate it is the first-order expansion at the frozen iterate, batch by batch,
 with the frozen gradient appearing by construction
 (`probeGrad_eq_frozen_add_hessian_add_remainder`), and the Taylor part of `r₂` is quadratic in the
 jitter with the per-batch Hessian-Lipschitz constant (`l2Norm_perBatch_remainder_le`), by the
-mean-value bound of `TaylorChain.lean`. What `TaylorChain.lean` discharges under the name (A4) is the
-expansion of the gradient of the *expected* loss, which carries neither `ξ` nor the Hessian
-fluctuation; that object is a third one, and the paper's `δg` is not it.
+mean-value bound of `TaylorChain.lean`. What `TaylorChain.lean` discharged under the v4 name (A4)
+is the expansion of the gradient of the *expected* loss, which carries neither `ξ` nor the Hessian
+fluctuation; that object is a third one, and the paper's chain `g = g₀ + H δθ̃ + r₂` is not about
+it.
 
 ## Results
 * `refinedRemainder`, `refinedChain_of_remainder` — the refined chain, with the remainder defined as
   the discrepancy so that the chain is an identity.
 * `oldChain_remainder_eq_noise_add_refined` — the old remainder is the frozen gradient plus the
-  refined remainder: (A4)'s `r` contains `ξ`.
+  refined remainder: the v4 draft's (A4) remainder `r` contains `ξ`.
 * `noise_eq_zero_of_quadratic_bound` — the old quadratic bound along the small-jitter family forces
   the minibatch noise to vanish.
 * `FiberMeanZero`, `outerMoment_eq_zero_of_fiberMeanZero` — the vanishing theorem for `Ξ`: zero
@@ -108,9 +131,10 @@ fluctuation; that object is a third one, and the paper's `δg` is not it.
 * `fiberMeanZero_of_product`, `outerMoment_prod_eq_zero_of_noise_mean_zero` — the split-batch and
   independent-noise cases as instances.
 * `fiberMeanZero_hessianFluct_of_product`, `outerMoment_prod_hessianFluct_eq_zero` — a perturbation
-  independent of the batch has no first-order remainder pairing either, which discharges the second
-  hypothesis of `projDiffusion_excess_small_jitter_of_no_frozen_coupling` in the finite-sample
-  model.
+  independent of the batch has no first-order remainder pairing either, in the finite-sample model:
+  the `outerMoment` companion of `covMat_prod_batch_hessianFluct_eq_zero`, which discharges the
+  second hypothesis of `projDiffusion_excess_small_jitter_of_no_frozen_coupling` for any batch
+  law.
 * `exists_body_coupling_ne_zero_of_fiberMean_ne_zero` — sharpness of the condition.
 * `SameBatchWitness.coupling_ne_zero`, `LocationWitness.coupling_neg`, `LocationWitness.coupling_pos`
   — `Ξ ≠ 0`, with either sign, for two different functions of one batch.
@@ -122,14 +146,29 @@ fluctuation; that object is a third one, and the paper's `δg` is not it.
 * `projDiffusion_lift_eq_frozen_form`, `projDiffusion_lift_eq_full_form`,
   `display_sub_projDiffusion_lift` — the projected identity with the `ξ` cross-term explicit, in
   both readings, and the over-count of the display on the full reading.
-* `projDiffusion_direct_lt_lift_of_frozenAlignment` — the corrected regime statement.
-* `remainderControl_caps_frozen_coupling`, `remainderControl_fails_small_jitter` — (A4'-q) caps the
-  mechanism by the magnitude channel and fails along the small-jitter family.
+* `projDiffusion_direct_lt_lift_of_frozenAlignment` — the corrected regime statement, on the v4
+  draft's pair of hypotheses.
+* `projDiffusion_lift_ge_direct_add_of_netAlignment`,
+  `projDiffusion_direct_lt_lift_of_netAlignment`, `netAlignment_of_frozenAlignment_and_remainder` —
+  the ordering under the one condition the paper now states, `c > 0` on the coupling term plus the
+  remainder (`thm:main`(i), `lem:diffusion`(iii)), and that the v4 pair implies it.
+* `remainderControl_caps_frozen_coupling`, `remainderControl_fails_small_jitter` — the v4 draft's
+  (A4'-q), now retired, caps the mechanism by the magnitude channel and fails along the
+  small-jitter family.
 * `projDiffusion_excess_small_jitter`, `projDiffusion_direct_lt_lift_small_jitter`,
   `projDiffusion_lift_lt_direct_small_jitter`,
-  `projDiffusion_excess_small_jitter_of_no_frozen_coupling` — the scaling reading.
+  `projDiffusion_excess_small_jitter_of_no_frozen_coupling` — the scaling reading,
+  `lem:diffusion`(vi) and `thm:main`(ii).
 * `probeGrad_eq_frozen_add_hessian_add_remainder`, `l2Norm_perBatch_remainder_le` — the refined
   chain from per-batch Taylor expansion, with the Taylor part bounded.
+* `memLp_two_mul_prod`, `covMat_prod_perturbation_batch_eq_zero`,
+  `covMat_prod_batch_hessianFluct_eq_zero`,
+  `projDiffusion_excess_small_jitter_of_independent_perturbation` — the
+  independent-perturbation clause of `lem:diffusion`(vi) in the `covMat` vocabulary: on a product
+  space with the batch on one factor and a centered perturbation on the other, `Σ_ξ = 0` and
+  `Cov[g₀, w₁] = 0` for every batch law with square-integrable `g₀` and `H(X)`, so both covariance
+  hypotheses of `projDiffusion_excess_small_jitter_of_no_frozen_coupling` are discharged and the
+  excess starts at second order.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -138,21 +177,23 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 The hypotheses this file carries, and what would discharge each. The refined chain `hchain` is an
 identity once `r₂` is read as the discrepancy, and `probeGrad_eq_frozen_add_hessian_add_remainder`
 derives it from differentiability; what is not proved is the size of `r₂` beyond its Taylor part,
-which is the pairing of the per-batch Hessian fluctuation with the jitter and depends on the
-batch law. The alignment hypothesis `hA6` on the frozen coupling is assumption (A6) of the paper
-read on `Ξ`; `CouplingSign.lean` shows that no chain-plus-remainder-control hypothesis implies it,
+which is the pairing of the per-batch Hessian fluctuation with the jitter and depends on the batch
+law. The alignment hypothesis `hA6` on the frozen coupling is the v4 draft's assumption (A6) read on
+`Ξ` (history); `CouplingSign.lean` shows that no chain-plus-remainder-control hypothesis implies it,
 and the two-point witnesses here show that `Ξ` takes either sign, so it cannot be discharged. The
+same holds of `hnet`, the net hypothesis `κ ‖e‖² ≤ c` that stands for the current paper's condition
+`c > 0`, which the paper assumes where a statement consumes it and says the method does not fix. The
 remainder control `hrem` bounds three covariances involving `r₂`. Along the small-jitter family the
 first of them, the pairing of the frozen gradient with the Hessian-fluctuation part of `r₂`, is of
 first order in the scale, as is the alignment margin, while the other two are of order two and
 higher; `projDiffusion_excess_small_jitter` makes this explicit, its linear coefficient being the
 frozen coupling plus that pairing. At small scale the clause `τ < κ` therefore asks the pairing to
-fall below the margin, a hypothesis on third-order batch moments that nothing here computes, and
-not a consequence of the chain. The positivity-map slope enters as the scalar `s` of (A2) and the
-band geometry of (A2) is not modelled, exactly as in `DiffusionOrdering.lean`. The scaling family
+fall below the margin, a hypothesis on third-order batch moments that nothing here computes, and not
+a consequence of the chain. The positivity-map slope enters as the scalar `s` of (A2a) and the band
+geometry of (A2) is not modeled, exactly as in `DiffusionOrdering.lean`. The scaling family
 `δθ̃ = t u`, `r₂ = t w₁ + t² w₂` at fixed frozen gradient models a body whose output scale is turned
-down at fixed batch law, which is the matched-magnitude control's own parametrization; it is a
-model of the small-jitter limit and not a theorem about training. Nothing in this file touches the
+down at fixed batch law, which is the matched-magnitude control's own parametrization; it is a model
+of the small-jitter limit and not a theorem about training. Nothing in this file touches the
 stochastic-analysis side of the paper, and the integrability hypotheses are the minimal ones under
 which the covariances exist.
 -/
@@ -173,8 +214,10 @@ variable {n : Type*} [Fintype n] {Ω : Type*}
 
 /-- **The refined remainder**: the discrepancy between the per-probe gradient and its expansion
 `g₀ + H δθ̃` about the frozen iterate, with the frozen-iterate gradient `g₀` kept as a separate
-summand. In the paper's vocabulary this is `(H(X) − H) δθ̃ + r_T`, the Hessian-fluctuation pairing
-plus the second-order Taylor term; nothing is asserted about its size by the definition. -/
+summand. In the paper's vocabulary this is the remainder `r₂` of the chain of Section 3.1, which
+the paper likewise defines as the discrepancy; by `probeGrad_eq_frozen_add_hessian_add_remainder`
+it is `(H(X) − H) δθ̃ + r_T`, the Hessian-fluctuation pairing plus the second-order Taylor term.
+Nothing is asserted about its size by the definition. -/
 def refinedRemainder (H : Matrix n n ℝ) (g g₀ dth : Ω → n → ℝ) (ω : Ω) : n → ℝ :=
   g ω - g₀ ω - H *ᵥ dth ω
 
@@ -183,7 +226,8 @@ theorem refinedChain_of_remainder (H : Matrix n n ℝ) (g g₀ dth : Ω → n �
     g ω = g₀ ω + H *ᵥ dth ω + refinedRemainder H g g₀ dth ω := by
   rw [refinedRemainder]; abel
 
-/-- **(A4)'s remainder contains the frozen-iterate gradient.** If the old chain `g = H δθ̃ + r` is
+/-- **The v4 draft's (A4) remainder contains the frozen-iterate gradient.** If the old chain
+`g = H δθ̃ + r` is
 imposed on the per-probe gradient, its remainder is the frozen gradient plus the refined remainder,
 so it carries the whole of the minibatch noise `ξ = g₀ − E g₀` in addition to the second-order
 terms. -/
@@ -265,7 +309,7 @@ theorem vecMulVec_sum_smul {ι : Type*} (s : Finset ι) (a : n → ℝ) (c : ι 
   exact Finset.sum_congr rfl fun k _ => by ring
 
 /-- **The vanishing theorem for the frozen coupling.** A body that reads the batch through a
-statistic `S`, up to a centring constant, is uncorrelated with a noise whose conditional mean on
+statistic `S`, up to a centering constant, is uncorrelated with a noise whose conditional mean on
 every fiber of `S` is zero: `E[δθ̃ ξᵀ] = 0`. This is the tower property, summed fiber by fiber. -/
 theorem outerMoment_eq_zero_of_fiberMeanZero {ι : Type*} [Fintype ι] [DecidableEq ι]
     {w : Ω → ℝ} {S : Ω → ι} {v : Ω → n → ℝ} (a : ι → n → ℝ) (c : n → ℝ)
@@ -310,8 +354,9 @@ theorem fiberMeanZero_of_product {Ω₁ Ω₂ : Type*} [Fintype Ω₁] [Fintype 
 /-- **Independence empties the frozen coupling**, as an instance of the vanishing theorem: an
 latent weight conditioned on a batch drawn independently of the one that forms the gradient, or an
 injected perturbation independent of the batch altogether, has `Ξ = 0`. This is the deletion of
-Theorem 1's third ingredient, read on the mechanism object rather than on the full
-cross-covariance; the self-coupling `V H` is untouched by it. -/
+the lift's third part, the shared batch, in the finite-sample model: the population zero of
+Theorem 2 (`thm:joint-necessity`), which the paper states on `Σ_ξ`, this file's `Ξ`, rather than on
+the full cross-covariance; the self-coupling `V H` is untouched by it. -/
 theorem outerMoment_prod_eq_zero_of_noise_mean_zero {Ω₁ Ω₂ : Type*} [Fintype Ω₁] [Fintype Ω₂]
     [DecidableEq Ω₁] (w₁ : Ω₁ → ℝ) (w₂ : Ω₂ → ℝ) (a : Ω₁ → n → ℝ) (c : n → ℝ) (v : Ω₂ → n → ℝ)
     (hv : ∑ b, w₂ b • v b = 0) :
@@ -320,7 +365,7 @@ theorem outerMoment_prod_eq_zero_of_noise_mean_zero {Ω₁ Ω₂ : Type*} [Finty
 
 /-- **A perturbation independent of the batch has no first-order remainder pairing.** On the same
 product sample space, with the per-batch Hessian a function of the batch factor alone and the
-perturbation a centred function of the other factor, the Hessian-fluctuation part of the refined
+perturbation a centered function of the other factor, the Hessian-fluctuation part of the refined
 remainder, `(H(X) − H) u`, has zero conditional mean on every fiber of the batch projection. -/
 theorem fiberMeanZero_hessianFluct_of_product {Ω₁ Ω₂ : Type*} [Fintype Ω₁] [Fintype Ω₂]
     [DecidableEq Ω₁] [Fintype n] (w₁ : Ω₁ → ℝ) (w₂ : Ω₂ → ℝ) (Hb : Ω₁ → Matrix n n ℝ)
@@ -341,8 +386,11 @@ theorem fiberMeanZero_hessianFluct_of_product {Ω₁ Ω₂ : Type*} [Fintype Ω�
 /-- **The matched-magnitude cell has no first-order remainder pairing.** The pairing of the frozen
 gradient with the Hessian-fluctuation part of `r₂` vanishes for a perturbation independent of the
 batch: `E[g₀ ((H(X) − H) u)ᵀ] = 0`. Together with `outerMoment_prod_eq_zero_of_noise_mean_zero`
-this discharges, in the finite-sample model, both hypotheses of
-`projDiffusion_excess_small_jitter_of_no_frozen_coupling` for such a perturbation. -/
+this is the finite-sample companion, in the `outerMoment` vocabulary, of the two vanishings that
+`covMat_prod_perturbation_batch_eq_zero` and `covMat_prod_batch_hessianFluct_eq_zero` prove on
+`covMat` for any batch law, and that
+`projDiffusion_excess_small_jitter_of_independent_perturbation` feeds to
+`projDiffusion_excess_small_jitter_of_no_frozen_coupling`. -/
 theorem outerMoment_prod_hessianFluct_eq_zero {Ω₁ Ω₂ : Type*} [Fintype Ω₁] [Fintype Ω₂]
     [DecidableEq Ω₁] [Fintype n] (w₁ : Ω₁ → ℝ) (w₂ : Ω₂ → ℝ) (g₀ : Ω₁ → n → ℝ)
     (Hb : Ω₁ → Matrix n n ℝ) (H : Matrix n n ℝ) (u : Ω₂ → n → ℝ)
@@ -363,7 +411,7 @@ theorem vecMulVec_ne_zero {a m : n → ℝ} (ha : a ≠ 0) (hm : m ≠ 0) :
   rw [Matrix.vecMulVec_apply, Matrix.zero_apply] at this
   exact mul_ne_zero hj hk this
 
-/-- The frozen coupling of a latent weight supported on one fiber of the statistic, centred by any
+/-- The frozen coupling of a latent weight supported on one fiber of the statistic, centered by any
 multiple of its direction, is the outer product of that direction with the fiber total of the
 noise, provided the noise has zero total mean. -/
 theorem outerMoment_indicator_eq {ι : Type*} [Fintype ι] [DecidableEq ι]
@@ -381,7 +429,7 @@ theorem outerMoment_indicator_eq {ι : Type*} [Fintype ι] [DecidableEq ι]
 
 /-- **Sharpness of the vanishing condition.** If the noise has zero mean but a nonzero conditional
 mean on some fiber of the statistic, then a latent weight reading the batch through that statistic
-alone — the indicator of the fiber in any nonzero direction, centred by any multiple of that
+alone — the indicator of the fiber in any nonzero direction, centered by any multiple of that
 direction — has a nonzero frozen coupling. The fiber condition is therefore exactly what makes
 `Ξ = 0` hold for every latent weight that reads the batch through `S`. -/
 theorem exists_body_coupling_ne_zero_of_fiberMean_ne_zero {ι : Type*} [Fintype ι]
@@ -397,7 +445,7 @@ end FiniteSample
 /-! ## Two witnesses: different functions of one batch, correlated
 
 The first is a four-point batch space on which the latent weight reads the batch through a two-valued
-statistic, the noise is a different function of the same batch, both are centred, and the frozen
+statistic, the noise is a different function of the same batch, both are centered, and the frozen
 coupling is one. The second is the two-point sample space of a Gaussian location model, on which
 the sign of the coupling is that of the alignment between the latent weight and the gradient noise:
 the same construction realizes `Ξ = −1` and `Ξ = +1`. -/
@@ -413,22 +461,22 @@ def S : Fin 4 → Fin 2 := ![0, 0, 1, 1]
 /-- The latent weight's two values, one per fiber. -/
 def a : Fin 2 → Fin 1 → ℝ := ![![1], ![-1]]
 
-/-- The latent-weight fluctuation `δθ̃ = a ∘ S`, already centred. -/
+/-- The latent-weight fluctuation `δθ̃ = a ∘ S`, already centered. -/
 def dth : Fin 4 → Fin 1 → ℝ := fun ω => a (S ω)
 
-/-- The minibatch noise `ξ`, a different function of the same batch, centred. -/
+/-- The minibatch noise `ξ`, a different function of the same batch, centered. -/
 def xi : Fin 4 → Fin 1 → ℝ := ![![2], ![0], ![0], ![-2]]
 
 theorem dth_eq : dth = ![![1], ![1], ![-1], ![-1]] := by
   funext ω; fin_cases ω <;> rfl
 
-/-- The latent-weight fluctuation is centred. -/
+/-- The latent-weight fluctuation is centered. -/
 theorem dth_mean_zero : ∑ ω, w ω • dth ω = 0 := by
   rw [dth_eq]
   ext i; fin_cases i
   simp [Fin.sum_univ_four, w]
 
-/-- The noise is centred. -/
+/-- The noise is centered. -/
 theorem xi_mean_zero : ∑ ω, w ω • xi ω = 0 := by
   ext i; fin_cases i
   simp [Fin.sum_univ_four, w, xi]
@@ -465,7 +513,7 @@ namespace LocationWitness
 /-- Uniform weights on a two-point sample space. -/
 noncomputable def w : Fin 2 → ℝ := fun _ => (1 : ℝ) / 2
 
-/-- The latent weight, `h(X) = X` for a centred two-point `X`. -/
+/-- The latent weight, `h(X) = X` for a centered two-point `X`. -/
 def h : Fin 2 → Fin 1 → ℝ := ![![1], ![-1]]
 
 /-- The gradient noise of the location loss `(θ − X)²/2` at any iterate, `ξ = −X`. -/
@@ -486,8 +534,10 @@ theorem coupling_neg : outerMoment w h xi = !![-1] := by
   simp [outerMoment, Fin.sum_univ_two, w, h, xi]
   norm_num
 
-/-- With the latent weight's sign flipped the frozen coupling is positive. The sign of `Ξ` is the sign
-of the alignment, which is what assumption (A6) assumes and the construction does not fix. -/
+/-- With the latent weight's sign flipped the frozen coupling is positive. The sign of `Ξ` is the
+sign of the alignment, which the construction does not fix; the v4 draft's (A6) assumed it, and the
+current paper assumes only the sign of `c`, the coupling term plus the remainder, where a statement
+consumes it. -/
 theorem coupling_pos : outerMoment w (fun ω => -h ω) xi = !![1] := by
   ext i j
   fin_cases i; fin_cases j
@@ -500,7 +550,7 @@ end LocationWitness
 
 The vocabulary is `UpdateCovariance.covMat`, the covariance matrix of two square-integrable random
 vectors on a finite measure space, and `UpdateCovariance.projDiffusion`, the projected update
-covariance. The frozen coupling is `covMat μ dth g₀ = E[δθ̃ ξᵀ]`, since the covariance centres
+covariance. The frozen coupling is `covMat μ dth g₀ = E[δθ̃ ξᵀ]`, since the covariance centers
 both arguments. -/
 
 section MeasureTheoretic
@@ -539,7 +589,9 @@ theorem covMat_eq_zero_of_indepFun [IsFiniteMeasure μ] {U W : Ω → n → ℝ}
 /-- **Under independence the self-coupling survives.** With the latent-weight fluctuation independent of
 the frozen gradient, the cross-covariance reduces to `V H + R₂`: the estimator of `eq:cross-cov`
 does not read zero in the matched-magnitude cell, although the coupling channel is empty there.
-The population zero of Theorem 1's third deletion is a zero of `Ξ`. -/
+The population zero of Theorem 2 (`thm:joint-necessity`) is a zero of `Ξ`, the paper's `Σ_ξ`, and
+its sample statement is about the estimate formed with `g₀(X_k)` in place of `g_k`, not about the
+estimator of `eq:cross-cov` itself. -/
 theorem covMat_slack_refined_of_indepFun [IsFiniteMeasure μ] {H : Matrix n n ℝ} (hH : Hᵀ = H)
     {g g₀ dth r₂ : Ω → n → ℝ} (hθ : SqIntegrableVec μ dth) (h₀ : SqIntegrableVec μ g₀)
     (hr : SqIntegrableVec μ r₂) (hchain : ∀ ω, g ω = g₀ ω + H *ᵥ dth ω + r₂ ω)
@@ -547,13 +599,16 @@ theorem covMat_slack_refined_of_indepFun [IsFiniteMeasure μ] {H : Matrix n n �
     covMat μ dth g = covMat μ dth dth * H + covMat μ dth r₂ := by
   rw [covMat_slack_refined hH hθ h₀ hr hchain, covMat_eq_zero_of_indepFun hind hθ h₀, zero_add]
 
-/-- **The subtraction of the (A3) discussion, taken from the chain itself.** At a vanishing
-chain remainder the split of `lem:diffusion`(i) reads `Σ_slack = Σ_ξ + V H`, so
+/-- **The subtraction of the v4 draft's (A3) discussion, taken from the chain itself.** At a
+vanishing chain remainder the split of `lem:diffusion`(i) reads `Σ_slack = Σ_ξ + V H`, so
 `CouplingSign.crossTerm_frozen_neg_of_slack_neg` applies with the split discharged rather than
 assumed: a direction in which the full slack channel's coupling form is negative is one in which
-the frozen coupling's is. This is the appendix sentence "the coupling form of `Σ_ξ` is that of
-`Σ_slack` less the non-negative quantity `2 eᵀ H V H e`, by the split of `lem:diffusion`(i) at
-`r₂ = 0`, so it is negative in the same direction", end to end. -/
+the frozen coupling's is. This was, end to end, the appendix sentence "the coupling form of `Σ_ξ`
+is that of `Σ_slack` less the non-negative quantity `2 eᵀ H V H e`, by the split of
+`lem:diffusion`(i) at `r₂ = 0`, so it is negative in the same direction". That sentence and the
+(A3) discussion have left the paper (history); the nearest current text is Step 2 of the proof of
+`lem:diffusion`, which substitutes the split into the coupling term and notes that the
+self-coupling `V H` inside `Σ_slack` counts the fluctuation term twice. -/
 theorem crossTerm_frozen_neg_of_slack_neg_of_exactChain [IsFiniteMeasure μ] {H : Matrix n n ℝ}
     (hH : Hᵀ = H) {g g₀ dth : Ω → n → ℝ} (hθ : SqIntegrableVec μ dth)
     (h₀ : SqIntegrableVec μ g₀) (hchain : ∀ ω, g ω = g₀ ω + H *ᵥ dth ω) {e : n → ℝ}
@@ -724,10 +779,12 @@ section Regime
 variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω} {n : Type*} [Fintype n]
 
 /-- **The corrected regime statement.** Under the refined chain, positive alignment of the frozen
-coupling in the direction `e` — assumption (A6) read on `Ξ`, `κ ‖e‖² ≤ eᵀ (H Ξ + Ξᵀ H) e` — together
-with control of the three remainder scalars, `|ϱ₂(e)| ≤ τ ‖e‖²` with `τ < κ`, gives the strict
-ordering `σ²_dir < σ²_lift`. The jitter term is a free non-negative summand and no bound relating
-the coupling to the magnitude channel is asked for. This is what replaces (A4'-q). -/
+coupling in the direction `e` — the v4 draft's assumption (A6) read on `Ξ`,
+`κ ‖e‖² ≤ eᵀ (H Ξ + Ξᵀ H) e` — together with control of the three remainder scalars,
+`|ϱ₂(e)| ≤ τ ‖e‖²` with `τ < κ`, gives the strict ordering `σ²_dir < σ²_lift`. The jitter term is
+a free non-negative summand and no bound relating the coupling to the magnitude channel is asked
+for. This is what replaced (A4'-q) in the v4 draft (history); the current paper states the single
+condition `c > 0` instead, `projDiffusion_direct_lt_lift_of_netAlignment` below. -/
 theorem projDiffusion_direct_lt_lift_of_frozenAlignment [IsFiniteMeasure μ] (s : ℝ)
     {H : Matrix n n ℝ} (hH : Hᵀ = H) {g g₀ dth r₂ Glift Gdir : Ω → n → ℝ}
     (h₀ : SqIntegrableVec μ g₀) (hθ : SqIntegrableVec μ dth) (hr : SqIntegrableVec μ r₂)
@@ -748,13 +805,17 @@ theorem projDiffusion_direct_lt_lift_of_frozenAlignment [IsFiniteMeasure μ] (s 
   have hgain : 0 < (kappa - tau) * (e ⬝ᵥ e) := mul_pos (by linarith) hpos
   nlinarith
 
-/-- **Net positive alignment (the merged hypothesis of the paper's (A3), 2026-09-11).**
-The paper's earlier pair -- alignment `κ_C ‖e‖² ≤ eᵀ(HΣ_ξ + Σ_ξᵀH)e` (old (A6)) and the
-remainder bound `|ϱ(e)| ≤ τ ‖e‖²` with `τ < κ_C` (old (A4'-r)) -- only ever entered the
-ordering through the difference `κ_C - τ`. This statement carries the one inequality the
-proof consumes: the coupling term plus the remainder channel dominates `κ ‖e‖²`. Under it
+/-- **Net positive alignment.** An earlier draft of the paper merged its earlier pair, alignment
+`κ_C ‖e‖² ≤ eᵀ(HΣ_ξ + Σ_ξᵀH)e` (old (A6)) and the remainder bound `|ϱ(e)| ≤ τ ‖e‖²` with
+`τ < κ_C` (old (A4'-r)), into one hypothesis, (A3) of that draft (history), because the pair
+only ever entered the ordering through the difference `κ_C - τ`. In the current paper that
+hypothesis is the condition `c > 0`, with `c = 2 eᵀ H Σ_ξ e + ϱ(e)` the coupling term plus the
+remainder (`thm:main`(i)); here `hnet` is `κ ‖e‖² ≤ c`, and the slope `s` multiplies the whole
+update. Under it
 the lifted projected diffusion exceeds the direct one by at least `s² κ ‖e‖²`, because the
-jitter term `eᵀ H V H e` is a quadratic form of a PSD matrix and never subtracts. -/
+jitter term `eᵀ H V H e` is a quadratic form of a PSD matrix and never subtracts. This is the
+bound `σ²_eff ≥ σ_s² σ²_obj + c` of `thm:main`(i) and `lem:diffusion`(iii), with `c` replaced by
+its lower bound `κ ‖e‖²`. -/
 theorem projDiffusion_lift_ge_direct_add_of_netAlignment [IsFiniteMeasure μ] (s : ℝ)
     {H : Matrix n n ℝ} (hH : Hᵀ = H) {g g₀ dth r₂ Glift Gdir : Ω → n → ℝ}
     (h₀ : SqIntegrableVec μ g₀) (hθ : SqIntegrableVec μ dth) (hr : SqIntegrableVec μ r₂)
@@ -771,8 +832,9 @@ theorem projDiffusion_lift_ge_direct_add_of_netAlignment [IsFiniteMeasure μ] (s
   have hs2 : 0 ≤ s ^ 2 := sq_nonneg s
   nlinarith [mul_le_mul_of_nonneg_left hnet hs2, mul_nonneg hs2 hJ]
 
-/-- The strict ordering under net positive alignment: `κ > 0`, `e ≠ 0`, `s ≠ 0`. This is
-the paper's Theorem 1(ii) / Lemma 1(iii) with the merged hypothesis. -/
+/-- The strict ordering under net positive alignment: `κ > 0`, `e ≠ 0`, `s ≠ 0`. This is the
+strict form of the paper's Theorem 1(i) (`thm:main`) and Lemma 1(iii) (`lem:diffusion`),
+`σ²_eff > σ_s² σ²_obj` wherever `c > 0`. -/
 theorem projDiffusion_direct_lt_lift_of_netAlignment [IsFiniteMeasure μ] (s : ℝ)
     {H : Matrix n n ℝ} (hH : Hᵀ = H) {g g₀ dth r₂ Glift Gdir : Ω → n → ℝ}
     (h₀ : SqIntegrableVec μ g₀) (hθ : SqIntegrableVec μ dth) (hr : SqIntegrableVec μ r₂)
@@ -790,8 +852,8 @@ theorem projDiffusion_direct_lt_lift_of_netAlignment [IsFiniteMeasure μ] (s : �
   have hgain : 0 < s ^ 2 * (kappa * (e ⬝ᵥ e)) := by positivity
   linarith
 
-/-- The earlier pair (old (A6) alignment with `κ_C`, old (A4'-r) remainder bound with `τ`,
-`τ < κ_C`) implies net positive alignment with `κ = κ_C - τ > 0`; so the merged
+/-- The earlier pair (the v4 draft's (A6) alignment with `κ_C`, its (A4'-r) remainder bound with
+`τ`, `τ < κ_C`) implies net positive alignment with `κ = κ_C - τ > 0`; so the merged
 hypothesis is the weaker one and the old theorem is a corollary of the new. -/
 theorem netAlignment_of_frozenAlignment_and_remainder {H S R₀ R₁ R₂ : Matrix n n ℝ}
     {kappa tau : ℝ} {e : n → ℝ}
@@ -803,11 +865,11 @@ theorem netAlignment_of_frozenAlignment_and_remainder {H S R₀ R₁ R₂ : Matr
   have hlow := (abs_le.mp hrem).1
   nlinarith
 
-/-- **(A4'-q) caps the mechanism by the magnitude channel.** Take the chain as the appendix writes
-it, on the gradient of the expansion, `g₀ = H δθ̃ + r`, so that (A4'-q)'s `R = Cov[δθ̃, r]` equals
-`Ξ − V H`; with the magnitude channel bounded below by `λ`, the symmetrized remainder pairing
-bounded by `2ρ`, and the control clause `2ρ ≤ 3λ`, the frozen coupling in every direction is at
-most five halves of the jitter term. -/
+/-- **The v4 draft's (A4'-q) caps the mechanism by the magnitude channel** (history: the clause is
+retired). Take the chain as the v4 appendix wrote it, on the gradient of the expansion,
+`g₀ = H δθ̃ + r`, so that (A4'-q)'s `R = Cov[δθ̃, r]` equals `Ξ − V H`; with the magnitude channel
+bounded below by `λ`, the symmetrized remainder pairing bounded by `2ρ`, and the control clause
+`2ρ ≤ 3λ`, the frozen coupling in every direction is at most five halves of the jitter term. -/
 theorem remainderControl_caps_frozen_coupling [IsFiniteMeasure μ] {H : Matrix n n ℝ}
     (hH : Hᵀ = H) {g₀ dth r : Ω → n → ℝ} (hθ : SqIntegrableVec μ dth)
     (hr : SqIntegrableVec μ r) (hchain : ∀ ω, g₀ ω = H *ᵥ dth ω + r ω) {lam rho : ℝ}
@@ -833,10 +895,10 @@ theorem remainderControl_caps_frozen_coupling [IsFiniteMeasure μ] {H : Matrix n
   rw [hX, hR]
   linarith
 
-/-- **(A4'-q) is violated by the small-jitter regime.** Along the family `δθ̃ = t u` at a fixed
-frozen gradient, the frozen coupling scales as `t` and the jitter term as `t²`, so the cap of the
-previous theorem fails for every sufficiently small scale as soon as the frozen coupling is
-positive in the direction `e`: no remainder `r`, no moduli `λ`, `ρ` and no control constant can
+/-- **The v4 clause (A4'-q) is violated by the small-jitter regime.** Along the family `δθ̃ = t u`
+at a fixed frozen gradient, the frozen coupling scales as `t` and the jitter term as `t²`, so the
+cap of the previous theorem fails for every sufficiently small scale as soon as the frozen coupling
+is positive in the direction `e`: no remainder `r`, no moduli `λ`, `ρ` and no control constant can
 satisfy the three clauses of (A4'-q) together. The clause is therefore not a smallness regime that
 the operating point can be brought into, but one it leaves as the jitter shrinks. -/
 theorem remainderControl_fails_small_jitter [IsFiniteMeasure μ] {H : Matrix n n ℝ}
@@ -884,7 +946,7 @@ excess is then a polynomial in `t`, and its linear coefficient decides the order
 section SmallJitter
 
 /-- A real polynomial with positive linear coefficient and no constant term is positive on a
-right neighbourhood of zero. -/
+right neighborhood of zero. -/
 theorem pos_of_small_of_linear_coeff_pos {a b c d : ℝ} (ha : 0 < a) :
     ∃ t₀ > 0, ∀ t : ℝ, 0 < t → t < t₀ → 0 < t * a + t ^ 2 * b + t ^ 3 * c + t ^ 4 * d := by
   set M : ℝ := |b| + |c| + |d| with hM
@@ -1032,12 +1094,16 @@ theorem projDiffusion_lift_lt_direct_small_jitter [IsFiniteMeasure μ] {s : ℝ}
   linarith
 
 /-- **The matched-magnitude cell starts at second order.** With the frozen coupling empty and the
-first-order remainder pairing zero — a latent weight independent of the batch has both, the first by
-`covMat_eq_zero_of_indepFun` and the second, in the finite-sample model, by
-`outerMoment_prod_hessianFluct_eq_zero` — the projected excess along the family is `O(t²)`: the jitter term
-is the leading contribution and it is of second order in the scale. This is the scaling reading of
-the matched-magnitude control, in which injected noise at the lift's own scale is inert while the
-lift is not. -/
+first-order remainder pairing zero, the projected excess along the family is `O(t²)`: the jitter
+term is the leading contribution and it is of second order in the scale. A centered perturbation
+independent of the batch has both vanishings for any batch law with square-integrable `g₀` and
+`H(X)`, by `covMat_prod_perturbation_batch_eq_zero` and `covMat_prod_batch_hessianFluct_eq_zero`,
+which `projDiffusion_excess_small_jitter_of_independent_perturbation` composes with this theorem;
+`covMat_eq_zero_of_indepFun` gives the first for any independent pair, and
+`outerMoment_prod_hessianFluct_eq_zero` is the finite-sample companion of the second. This is the
+scaling reading of the matched-magnitude control (`rem:matched-cell`), in which injected noise at
+the lift's own scale is inert while the lift is not, and the independent-batch sentence of
+`lem:diffusion`(vi) and `thm:main`(ii). -/
 theorem projDiffusion_excess_small_jitter_of_no_frozen_coupling [IsFiniteMeasure μ] (s : ℝ)
     {H : Matrix n n ℝ} (hH : Hᵀ = H) {g₀ u w₁ w₂ : Ω → n → ℝ} (h₀ : SqIntegrableVec μ g₀)
     (hu : SqIntegrableVec μ u) (hw₁ : SqIntegrableVec μ w₁) (hw₂ : SqIntegrableVec μ w₂)
@@ -1121,5 +1187,152 @@ theorem l2Norm_perBatch_remainder_le {d : ℕ} {Ω : Type*}
   l2Norm_gradRemainder_le hs hthb (hG ω) (hK ω) hmem ω
 
 end PerBatchTaylor
+
+/-! ## An independent perturbation on a product space
+
+`lem:diffusion`(vi) and `thm:main`(ii) say that "a latent weight independent of the batch has
+`Σ_ξ = 0` and `Cov_X[g₀, w₁] = 0` as well, `w₁` being the curvature-fluctuation part of the
+remainder, so its excess begins at second order"; here `w₁ = (H(X) − H) u`.
+`projDiffusion_excess_small_jitter_of_no_frozen_coupling` takes the two vanishings as hypotheses
+on `covMat`, and `outerMoment_prod_hessianFluct_eq_zero` proves the second only for finite
+weighted sums, in the `outerMoment` vocabulary. This section proves both on `covMat` itself.
+
+The sample space is `Ω₁ × Ω₂` under `μ₁.prod μ₂`, the batch on the first factor and the
+perturbation on the second. The frozen gradient `g₀` and the per-batch Hessian `Hb` read the batch
+alone; the perturbation `u` reads the second factor alone and has mean zero there. The batch
+space need not be finite: any batch law under which `g₀` and the entries of `Hb` are
+square-integrable will do. The paper's sentence carries no finite-batch qualifier, and this
+section is what licenses that; its earlier text read "for a finite batch law", matching
+`outerMoment_prod_hessianFluct_eq_zero` (history). -/
+
+section IndependentPerturbation
+
+variable {n : Type*} [Fintype n] {Ω₁ Ω₂ : Type*} [MeasurableSpace Ω₁] [MeasurableSpace Ω₂]
+  {μ₁ : Measure Ω₁} {μ₂ : Measure Ω₂}
+
+/-- A product of a square-integrable function of the first factor and a square-integrable function
+of the second is square-integrable under the product measure: its square is the product of two
+integrable functions of separate factors. -/
+theorem memLp_two_mul_prod [IsFiniteMeasure μ₁] [IsFiniteMeasure μ₂] {f : Ω₁ → ℝ} {g : Ω₂ → ℝ}
+    (hf : MemLp f 2 μ₁) (hg : MemLp g 2 μ₂) :
+    MemLp (fun p : Ω₁ × Ω₂ => f p.1 * g p.2) 2 (μ₁.prod μ₂) := by
+  have hm : AEStronglyMeasurable (fun p : Ω₁ × Ω₂ => f p.1 * g p.2) (μ₁.prod μ₂) :=
+    (hf.comp_fst μ₂).1.mul (hg.comp_snd μ₁).1
+  rw [memLp_two_iff_integrable_sq hm]
+  have h := hf.integrable_sq.mul_prod (μ := μ₁) (ν := μ₂) hg.integrable_sq
+  refine h.congr (Filter.Eventually.of_forall fun p => ?_)
+  simp only
+  ring
+
+omit [Fintype n] in
+/-- **A centered perturbation independent of the batch has zero frozen coupling**:
+`Σ_ξ = Cov[u, g₀] = 0` on the product space. Only the zero mean of `u` enters. The mean of the
+perturbation under the product measure is then zero, and the integral of a function of the batch
+times a function of the perturbation is the product of the two integrals. -/
+theorem covMat_prod_perturbation_batch_eq_zero [SFinite μ₁] [SFinite μ₂] (g₀ : Ω₁ → n → ℝ)
+    (u : Ω₂ → n → ℝ) (hu0 : ∀ k, ∫ ω, u ω k ∂μ₂ = 0) :
+    covMat (μ₁.prod μ₂) (fun p => u p.2) (fun p => g₀ p.1) = 0 := by
+  ext k i
+  rw [covMat_apply, Matrix.zero_apply, covariance]
+  have hm : ∫ p, u p.2 k ∂(μ₁.prod μ₂) = 0 := by
+    rw [integral_fun_snd (fun ω => u ω k), hu0, smul_zero]
+  simp only [hm, sub_zero]
+  set c := ∫ p, g₀ p.1 i ∂(μ₁.prod μ₂)
+  have h : (fun p : Ω₁ × Ω₂ => u p.2 k * (g₀ p.1 i - c))
+      = fun p => (g₀ p.1 i - c) * u p.2 k := by
+    funext p; ring
+  rw [h, integral_prod_mul (f := fun x => g₀ x i - c) (g := fun ω => u ω k), hu0, mul_zero]
+
+/-- **A centered perturbation independent of the batch has no first-order remainder pairing**:
+`Cov[g₀, (H(X) − H) u] = 0` on the product space. Each coordinate of `(H(X) − H) u` is a sum over
+`k` of a function of the batch times `u_k`. The centered frozen gradient times that function of
+the batch is integrable on the batch factor by Hölder's inequality, so the integral of each summand
+is a product of two integrals, and the perturbation's integral is zero. This is
+`outerMoment_prod_hessianFluct_eq_zero` for the real covariance and for any batch law with
+square-integrable `g₀` and `Hb`; of `u` it needs only integrability. -/
+theorem covMat_prod_batch_hessianFluct_eq_zero [IsFiniteMeasure μ₁] [SFinite μ₂]
+    {g₀ : Ω₁ → n → ℝ} {Hb : Ω₁ → Matrix n n ℝ} (H : Matrix n n ℝ) {u : Ω₂ → n → ℝ}
+    (hg₀ : SqIntegrableVec μ₁ g₀) (hHb : ∀ j k, MemLp (fun x => Hb x j k) 2 μ₁)
+    (hu : ∀ k, Integrable (fun ω => u ω k) μ₂) (hu0 : ∀ k, ∫ ω, u ω k ∂μ₂ = 0) :
+    covMat (μ₁.prod μ₂) (fun p => g₀ p.1) (fun p => (Hb p.1 - H) *ᵥ u p.2) = 0 := by
+  ext i j
+  rw [covMat_apply, Matrix.zero_apply, covariance]
+  have hY : ∀ p : Ω₁ × Ω₂, ((Hb p.1 - H) *ᵥ u p.2) j = ∑ k, (Hb p.1 - H) j k * u p.2 k :=
+    fun p => by simp [Matrix.mulVec, dotProduct]
+  have hB : ∀ k, MemLp (fun x => (Hb x - H) j k) 2 μ₁ := fun k => by
+    have : (fun x => (Hb x - H) j k) = fun x => Hb x j k - H j k := by
+      funext x; simp
+    rw [this]; exact (hHb j k).sub (memLp_const _)
+  have hint : ∀ k, Integrable (fun p : Ω₁ × Ω₂ => (Hb p.1 - H) j k * u p.2 k) (μ₁.prod μ₂) :=
+    fun k => ((hB k).integrable one_le_two).mul_prod (hu k)
+  have hmean : ∫ p, ((Hb p.1 - H) *ᵥ u p.2) j ∂(μ₁.prod μ₂) = 0 := by
+    simp_rw [hY]
+    rw [integral_finsetSum _ fun k _ => hint k]
+    refine Finset.sum_eq_zero fun k _ => ?_
+    rw [integral_prod_mul (f := fun x => (Hb x - H) j k) (g := fun ω => u ω k), hu0, mul_zero]
+  simp only [hmean, sub_zero]
+  set c := ∫ p, g₀ p.1 i ∂(μ₁.prod μ₂)
+  have hsplit : (fun p : Ω₁ × Ω₂ => (g₀ p.1 i - c) * ((Hb p.1 - H) *ᵥ u p.2) j)
+      = fun p => ∑ k, ((g₀ p.1 i - c) * (Hb p.1 - H) j k) * u p.2 k := by
+    funext p
+    rw [hY, Finset.mul_sum]
+    exact Finset.sum_congr rfl fun k _ => by ring
+  rw [hsplit, integral_finsetSum]
+  · refine Finset.sum_eq_zero fun k _ => ?_
+    rw [integral_prod_mul (f := fun x => (g₀ x i - c) * (Hb x - H) j k)
+      (g := fun ω => u ω k), hu0, mul_zero]
+  · intro k _
+    have hgB : Integrable (fun x => (g₀ x i - c) * (Hb x - H) j k) μ₁ :=
+      ((hg₀ i).sub (memLp_const c)).integrable_mul (hB k)
+    exact hgB.mul_prod (hu k)
+
+/-- **The independent-perturbation clause of `lem:diffusion`(vi).** Let the batch live on `Ω₁`
+and a centered perturbation `u` on `Ω₂`, under the product of two probability measures, with the
+fluctuation `t u`, the remainder `t (H(X) − H) u + t² w₂` and `w₂` arbitrary square-integrable.
+Then the excess of the lift's projected diffusion over the direct value is the polynomial of
+`projDiffusion_excess_small_jitter_of_no_frozen_coupling`, with no term below `t²`. Both of that
+theorem's covariance hypotheses are discharged here, `hΞ` by
+`covMat_prod_perturbation_batch_eq_zero` and `hw` by `covMat_prod_batch_hessianFluct_eq_zero`, and
+the square-integrability of `g₀`, `u` and `w₁` under the product measure is derived from that of
+`g₀`, `u` and the entries of `H(X)` on their own factors. -/
+theorem projDiffusion_excess_small_jitter_of_independent_perturbation
+    [IsProbabilityMeasure μ₁] [IsProbabilityMeasure μ₂] (s : ℝ) {H : Matrix n n ℝ}
+    (hH : Hᵀ = H) {g₀ : Ω₁ → n → ℝ} {Hb : Ω₁ → Matrix n n ℝ} {u : Ω₂ → n → ℝ}
+    {w₂ : Ω₁ × Ω₂ → n → ℝ} (h₀ : SqIntegrableVec μ₁ g₀)
+    (hHb : ∀ j k, MemLp (fun x => Hb x j k) 2 μ₁) (hu : SqIntegrableVec μ₂ u)
+    (hu0 : ∀ k, ∫ ω, u ω k ∂μ₂ = 0) (hw₂ : SqIntegrableVec (μ₁.prod μ₂) w₂)
+    (t : ℝ) {Glift Gdir : Ω₁ × Ω₂ → n → ℝ}
+    (hlift : ∀ p, Glift p
+      = s • (g₀ p.1 + H *ᵥ (t • u p.2) + (t • ((Hb p.1 - H) *ᵥ u p.2) + t ^ 2 • w₂ p)))
+    (hdir : ∀ p, Gdir p = s • g₀ p.1) (e : n → ℝ) :
+    projDiffusion (μ₁.prod μ₂) e Glift - projDiffusion (μ₁.prod μ₂) e Gdir
+      = s ^ 2 * (t ^ 2 * (e ⬝ᵥ (magnitudeMatrix H
+              (covMat (μ₁.prod μ₂) (fun p => u p.2) (fun p => u p.2)) *ᵥ e)
+            + 2 * (e ⬝ᵥ (covMat (μ₁.prod μ₂) (fun p => g₀ p.1) w₂ *ᵥ e))
+            + 2 * (e ⬝ᵥ ((H * covMat (μ₁.prod μ₂) (fun p => u p.2)
+                (fun p => (Hb p.1 - H) *ᵥ u p.2)) *ᵥ e))
+            + e ⬝ᵥ (covMat (μ₁.prod μ₂) (fun p => (Hb p.1 - H) *ᵥ u p.2)
+                (fun p => (Hb p.1 - H) *ᵥ u p.2) *ᵥ e))
+        + t ^ 3 * (2 * (e ⬝ᵥ ((H * covMat (μ₁.prod μ₂) (fun p => u p.2) w₂) *ᵥ e))
+            + 2 * (e ⬝ᵥ (covMat (μ₁.prod μ₂) (fun p => (Hb p.1 - H) *ᵥ u p.2) w₂ *ᵥ e)))
+        + t ^ 4 * (e ⬝ᵥ (covMat (μ₁.prod μ₂) w₂ w₂ *ᵥ e))) := by
+  have hB : ∀ j k, MemLp (fun x => (Hb x - H) j k) 2 μ₁ := fun j k => by
+    have : (fun x => (Hb x - H) j k) = fun x => Hb x j k - H j k := by
+      funext x; simp
+    rw [this]; exact (hHb j k).sub (memLp_const _)
+  have hG₀ : SqIntegrableVec (μ₁.prod μ₂) (fun p => g₀ p.1) := fun i => (h₀ i).comp_fst μ₂
+  have hU : SqIntegrableVec (μ₁.prod μ₂) (fun p => u p.2) := fun k => (hu k).comp_snd μ₁
+  have hW₁ : SqIntegrableVec (μ₁.prod μ₂) (fun p => (Hb p.1 - H) *ᵥ u p.2) := fun j => by
+    have h : (fun p : Ω₁ × Ω₂ => ((Hb p.1 - H) *ᵥ u p.2) j)
+        = fun p => ∑ k, (Hb p.1 - H) j k * u p.2 k := by
+      funext p; simp [Matrix.mulVec, dotProduct]
+    rw [h]
+    exact memLp_finsetSum _ fun k _ => memLp_two_mul_prod (hB j k) (hu k)
+  exact projDiffusion_excess_small_jitter_of_no_frozen_coupling s hH hG₀ hU hW₁ hw₂ t hlift hdir e
+    (covMat_prod_perturbation_batch_eq_zero g₀ u hu0)
+    (covMat_prod_batch_hessianFluct_eq_zero H h₀ hHb
+      (fun k => (hu k).integrable one_le_two) hu0)
+
+end IndependentPerturbation
 
 end IcnnLift

@@ -4,27 +4,34 @@ import CrossCovIndep
 import CrossCovSLLN
 
 /-!
-# Theorem 1 (`thm:joint-necessity`) for the fixed-iterate probe estimator of `eq:cross-cov`
+# Theorem 2 (`thm:joint-necessity`) for the fixed-iterate probe estimator of `eq:cross-cov`
 
-The v5 manuscript (`docs/paper/v5/sections/03b_mechanism.tex`, `eq:cross-cov`) defines the
+The paper (the display `eq:cross-cov` in Section 3.4) defines the
 cross-covariance estimator on the **fixed-iterate probe**: at one iterate the body parameters and
-the slack are held fixed, `T` fresh batches are sampled, the latent weight `θ̃_k` and the gradient `g_k`
-are recorded on each, and the pairs are centred at their sample means and averaged with Bessel's
+the slack are held fixed, `T` batches are sampled, the latent weight `θ̃_k` and the gradient `g_k`
+are recorded on each, and the pairs are centered at their sample means and averaged with Bessel's
 divisor,
 
   `Σ̂⁽ᵗ⁾ = (T − 1)⁻¹ ∑_{k=1}^{T} δθ̃_k δg_kᵀ`,  `δθ̃_k = θ̃_k − θ̃̄`,  `δg_k = g_k − ḡ`.
 
 The earlier development (`CrossCov.lean`, `CrossCovSLLN.lean`) indexes a trailing window of
-training steps `t − T + s` with the divisor `1/T`. Theorem 1 of the paper is now stated for the
-probe, with the quantifier "for every iterate and every probe count `T`", and it adds two
-clauses: that the theorem is indifferent to the index set of the probes, and that it is
-indifferent to the divisor. This file supplies the probe-indexed statements those clauses point
-to, so that every pointer in the appendix is exact rather than transported by hand.
+training steps `t − T + s` with the divisor `1/T`. Theorem 2 of the paper is stated for the
+probe, formed on `T` batches sampled at fixed parameters, "with either divisor `T − 1` or `T`".
+The trailing window is not in the theorem: the opening of the paper's appendix records that on
+the same data the trailing-window form with divisor `1/T` differs from the probe form by the
+factor `T/(T − 1)`, so every statement about one transports to the other, and the proof of
+Theorem 2 is written on the probe form. This file supplies the probe-indexed statements, so that
+the proof's statements are proved on the probe directly rather than transported by hand.
+
+**Labels.** This file keeps the case labels of the earlier appendix statement: cases (i) and (ii)
+are the two substitutions the paper prints after Theorem 2 (a latent weight with no learnable
+slack, and a hypernetwork constant in the batch), and case (iii) is Theorem 2's own clause,
+conditional independence of the latent weight and the gradient `g₀` at the mean latent weight.
 
 **What is proved.** The estimator is `probeCrossCovWith c T`, the sum of the `T` outer products
 with an arbitrary divisor `c`; `probeCrossCov` is the paper's Bessel divisor `(T − 1)⁻¹` and
-`probeCrossCovMean` the divisor `T⁻¹`. Cases (i) and (ii) of Theorem 1 hold identically for every
-probe count and every divisor, exactly as in `CrossCov.lean`: a vanishing slack Jacobian zeroes the
+`probeCrossCovMean` the divisor `T⁻¹`. Cases (i) and (ii), the two substitutions, hold identically
+for every probe count and every divisor, exactly as in `CrossCov.lean`: a vanishing slack Jacobian zeroes the
 bias-channel reading, and a batch-independent body has zero sample-mean fluctuation and hence a
 zero estimator (`probeSlackReading_eq_zero_of_jacobian_eq_zero`,
 `probeCrossCov_eq_zero_of_body_const`, `probe_joint_necessity_finite`). Case (iii) is the
@@ -35,21 +42,22 @@ independence of the latent weight and the reference-iterate gradient supplies th
 `popCrossCov_eq_zero_of_indepFun_of_centered` — the estimator is unbiased for the zero target with
 **every** divisor (`probeCrossCovWith_unbiased_of_popCrossCov_eq_zero`,
 `probeCrossCovWith_unbiased_of_indepFun`); this is the "(T − 1)/T rescaling of zero" of the theory
-contract, made a theorem. The sample-mean-centred estimator the paper actually forms obeys the
+contract, made a theorem. The sample-mean-centered estimator the paper actually forms obeys the
 sample-cross-covariance identity `probe_sample_crossCov_identity`, exact finite algebra with the
-factor `c · T` on the mean-product term, and it is unbiased for the zero target as well, again
-with every divisor, once the two probe collections are independent
-(`probeCrossCovWith_centred_unbiased_of_indepFun`).
+factor `c · T` on the mean-product term (the paper's `eq:pf-sample-identity`, with `λT`), and it
+is unbiased for the zero target as well, again with every divisor, once the two probe collections
+are independent (`probeCrossCovWith_centred_unbiased_of_indepFun`).
 
 **Bessel's correction is a theorem here, not a convention.** For a nonzero population
 cross-covariance `Σ` the two divisors differ: with per-probe second moments equal to `Σ` and
-cross-probe second moments zero, the expectation of the sample-mean-centred estimator with divisor
+cross-probe second moments zero, the expectation of the sample-mean-centered estimator with divisor
 `c` is exactly `c (T − 1) Σ` (`probeCrossCovWith_centred_expectation_of_iid`), so the Bessel
 divisor is the unbiased one (`probeCrossCov_centred_unbiased_of_iid`) and the divisor `T⁻¹`
-returns `(T − 1)/T · Σ` (`probeCrossCovMean_centred_expectation_of_iid`). The paper's sentence
-"the divisor `T − 1` is Bessel's correction, and Theorem 1 holds with `T` in its place" is these
-two theorems together with the zero-target results: the two divisors agree exactly when the target
-is zero, which is the only case Theorem 1 speaks about.
+returns `(T − 1)/T · Σ` (`probeCrossCovMean_centred_expectation_of_iid`). The appendix proof of
+Theorem 2 says the same: "On a nonzero target `Σ` the same two computations give `Σ` at Bessel's
+divisor and `(T − 1)Σ/T` at divisor `T`, for `T ≥ 2`, which is where the divisors part company."
+Together with the zero-target results these two theorems are why Theorem 2 can take either
+divisor: the two agree exactly when the target is zero, which is the only case it speaks about.
 
 **The two estimators on the same data.** On a common family of `T` pairs, the probe estimator
 with Bessel's divisor is `T/(T − 1)` times the step-window estimator of `CrossCov.lean` with its
@@ -58,10 +66,11 @@ divisor `1/T` (`probeCrossCov_eq_smul_crossCovEstimator`, for every window posit
 by the same factor (`probeCrossCov_eq_smul_probeCrossCovMean`). Every statement of `CrossCov.lean`
 and `CrossCovSLLN.lean` therefore transports to the probe with an explicit scalar, and the `L²`
 rate does so with the factor squared: the mean square of an entry of the Bessel-divisor estimator
-built from centred i.i.d. probes is `T σ² / (T − 1)²` (`integral_sq_probeCrossCov_entry`), so its
-`L²` norm is `√T σ / (T − 1)`, which is the paper's `O(T^{-1/2})` in the only form this mathlib
-can carry (`probeCrossCov_entry_l2_rate`). The almost-sure limit transports as well
-(`probeCrossCov_centred_tendsto_zero_ae`): as the probe count grows, the sample-mean-centred
+built from centered i.i.d. probes is `T σ² / (T − 1)²` (`integral_sq_probeCrossCov_entry`), so its
+`L²` norm is `√T σ / (T − 1)`, the root mean square the paper gives at Bessel's divisor after
+`eq:pf-sum-l2`, and Theorem 2's entrywise mean-square error of order `1/T`
+(`probeCrossCov_entry_l2_rate`). The almost-sure limit transports as well
+(`probeCrossCov_centred_tendsto_zero_ae`): as the probe count grows, the sample-mean-centered
 probe estimator converges almost surely to the zero matrix, because the factor `T/(T − 1)` tends
 to one.
 
@@ -76,26 +85,29 @@ natural for it.
 * `probeCrossCovWith`, `probeCrossCov`, `probeCrossCovMean` — the probe estimator with an
   arbitrary divisor, with Bessel's divisor (`eq:cross-cov`), and with the divisor `T⁻¹`.
 * `probeMean`, `probeCentre`, `probeBodyFluct`, `probeSlackReading` — the sample mean, the
-  sample-mean centring, the body's fluctuation across probes, and the bias-channel reading.
-* `probeSlackReading_eq_zero_of_jacobian_eq_zero` — case (i): no slack, no reading, every `T`.
+  sample-mean centering, the body's fluctuation across probes, and the bias-channel reading.
+* `probeSlackReading_eq_zero_of_jacobian_eq_zero` — case (i), the first substitution: no slack,
+  no reading, every `T`.
 * `probeCrossCovWith_eq_zero_of_fluct_eq_zero`, `probeBodyFluct_eq_zero_of_const`,
-  `probeCrossCov_eq_zero_of_body_const` — case (ii): a batch-independent body zeroes the
+  `probeCrossCov_eq_zero_of_body_const` — case (ii), the second substitution: a batch-independent
+  body zeroes the
   estimator identically, every `T`, every divisor.
-* `probe_joint_necessity_finite` — the shared contrapositive.
+* `probe_joint_necessity_finite` — the shared contrapositive, the display in the appendix proof of
+  Theorem 2.
 * `probeCrossCov_eq_smul_probeCrossCovMean` — the two divisors differ by `T/(T − 1)`.
 * `probeCrossCov_eq_smul_crossCovEstimator`, `probeCrossCov_prefix_eq_smul_crossCovEstimator` —
   the probe estimator is `T/(T − 1)` times the step-window estimator on the same data.
 * `probe_centred_sum_identity`, `probe_sample_crossCov_identity`,
   `probeCrossCov_sample_identity` — the sample-cross-covariance identity for the probe.
-* `probeCentre_prefix_eq_windowCentre`, `probeCrossCov_centred_prefix_eq` — sample-mean centring
-  over the probes is window-mean centring over the prefix.
+* `probeCentre_prefix_eq_windowCentre`, `probeCrossCov_centred_prefix_eq` — sample-mean centering
+  over the probes is window-mean centering over the prefix.
 * `integral_probeCrossCovWith_entry` — the expectation is the divisor times the sum of the
   per-probe population cross-covariances.
 * `probeCrossCovWith_unbiased_of_popCrossCov_eq_zero`, `probeCrossCovWith_unbiased_of_indepFun`,
-  `probeCrossCov_unbiased_of_indepFun`, `probeCrossCovMean_unbiased_of_indepFun` — case (iii):
-  unbiased for the zero target with either divisor.
+  `probeCrossCov_unbiased_of_indepFun`, `probeCrossCovMean_unbiased_of_indepFun` — case (iii),
+  Theorem 2's clause: unbiased for the zero target with either divisor.
 * `indepFun_probeMean_probeMean`, `integral_probeMean_mul_eq_zero`,
-  `probeCrossCovWith_centred_unbiased_of_indepFun` — the same for the sample-mean-centred
+  `probeCrossCovWith_centred_unbiased_of_indepFun` — the same for the sample-mean-centered
   estimator, every divisor.
 * `integral_probeMean_mul_of_iid`, `probeCrossCovWith_centred_expectation_of_iid`,
   `probeCrossCov_centred_unbiased_of_iid`, `probeCrossCovMean_centred_expectation_of_iid` —
@@ -111,12 +123,14 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 
 The hypotheses carried are those of the modules this file instantiates: integrability of the
 coordinates and their products, which the Bochner integral needs; per-probe or collection-level
-independence, which is case (iii)'s conditional independence at the fixed iterate; and, for the
+independence, which is case (iii)'s conditional independence at the fixed iterate (the
+collection-level form `hcoll` follows from mutually independent probes and the per-probe form by
+`CrossCovSLLN.indepFun_collections_of_iIndepFun` at index `Fin T`); and, for the
 `L²` and almost-sure statements, the `IsSquareCentredIID` and `IsCentredIID` packages of
-`CrossCovSLLN.lean`, which are (A1)'s i.i.d. batches together with the population zero. The
-Bessel theorems take the per-probe second moments and the vanishing of the cross-probe second
-moments as hypotheses; for population-centred i.i.d. probes both follow from independence and
-centring exactly as in `CrossCovIndep.lean`, and `integral_mul_eq_zero_of_indepFun_of_centered`
+`CrossCovSLLN.lean`, which are the i.i.d. clause of Assumption A1 together with the population
+zero. The Bessel theorems take the per-probe second moments and the vanishing of the cross-probe
+second moments as hypotheses; for population-centered i.i.d. probes both follow from independence
+and centering exactly as in `CrossCovIndep.lean`, and `integral_mul_eq_zero_of_indepFun_of_centered`
 records that derivation. The divisor `(T − 1)⁻¹` is Lean's `0` at `T = 1`, so statements at
 `T = 1` are vacuous and are excluded by the hypotheses `2 ≤ T` where the Bessel value is asserted;
 the identities hold for every `T` and say so.
@@ -134,8 +148,8 @@ section Definitions
 
 /-- The probe-indexed cross-covariance estimator with an arbitrary divisor `c`: the sum over the
 `T` probes at one iterate of the outer products `δθ̃_k δg_kᵀ`, multiplied by `c`. The paper's
-`eq:cross-cov` is the case `c = (T − 1)⁻¹`; the divisor `T⁻¹` is the other case the theorem
-mentions. There is no window offset: the probes are `T` fresh batches at a single iterate. -/
+`eq:cross-cov` is the case `c = (T − 1)⁻¹`; the divisor `T⁻¹` is the other case Theorem 2
+admits. There is no window offset: the probes are `T` fresh batches at a single iterate. -/
 noncomputable def probeCrossCovWith (c : ℝ) (T : ℕ) (dθ dg : Fin T → Fin d → ℝ) :
     Matrix (Fin d) (Fin d) ℝ :=
   c • ∑ k : Fin T, Matrix.vecMulVec (dθ k) (dg k)
@@ -144,7 +158,7 @@ noncomputable def probeCrossCovWith (c : ℝ) (T : ℕ) (dθ dg : Fin T → Fin 
 noncomputable def probeCrossCov (T : ℕ) (dθ dg : Fin T → Fin d → ℝ) : Matrix (Fin d) (Fin d) ℝ :=
   probeCrossCovWith ((T : ℝ) - 1)⁻¹ T dθ dg
 
-/-- The same estimator with the divisor `T⁻¹`, which Theorem 1 says may replace Bessel's. -/
+/-- The same estimator with the divisor `T⁻¹`, which Theorem 2 admits in place of Bessel's. -/
 noncomputable def probeCrossCovMean (T : ℕ) (dθ dg : Fin T → Fin d → ℝ) :
     Matrix (Fin d) (Fin d) ℝ :=
   probeCrossCovWith (T : ℝ)⁻¹ T dθ dg
@@ -153,7 +167,7 @@ noncomputable def probeCrossCovMean (T : ℕ) (dθ dg : Fin T → Fin d → ℝ)
 noncomputable def probeMean (T : ℕ) (u : Fin T → Fin d → ℝ) : Fin d → ℝ :=
   (T : ℝ)⁻¹ • ∑ k : Fin T, u k
 
-/-- The sample-mean centring `u_k − ū` of `eq:cross-cov`. -/
+/-- The sample-mean centering `u_k − ū` of `eq:cross-cov`. -/
 noncomputable def probeCentre (T : ℕ) (u : Fin T → Fin d → ℝ) : Fin T → Fin d → ℝ :=
   fun k => u k - probeMean T u
 
@@ -227,7 +241,8 @@ theorem probeCrossCov_eq_zero_of_body_const {h : Ω → Fin d → ℝ} (hconst :
     probeCrossCov T (probeBodyFluct h X) dg = 0 :=
   probeCrossCovWith_eq_zero_of_body_const hconst X dg hT _
 
-/-- **The contrapositive Theorem 1 states in the main text**, on the probe: a nonzero
+/-- **The contrapositive of the two substitutions**, the display in the appendix proof of
+Theorem 2, on the probe: a nonzero
 bias-channel reading forces a nonzero slack Jacobian and a batch-dependent body. -/
 theorem probe_joint_necessity_finite {Jb : Matrix (Fin d) (Fin d) ℝ} {T : ℕ}
     {dθ dg : Fin T → Fin d → ℝ} (hne : probeSlackReading Jb T dθ dg ≠ 0) :
@@ -249,7 +264,7 @@ end FiniteDeletions
 section Divisors
 
 /-- **The two divisors differ by the explicit factor `T/(T − 1)`** on the same data. This is
-the theorem behind the paper's clause that Theorem 1 is indifferent to the divisor: everything
+the theorem behind Theorem 2's clause "with either divisor `T − 1` or `T`": everything
 the theorem asserts about one estimator transfers to the other through a nonzero scalar. -/
 theorem probeCrossCov_eq_smul_probeCrossCovMean {T : ℕ} (hT : T ≠ 0) (dθ dg : Fin T → Fin d → ℝ) :
     probeCrossCov T dθ dg = ((T : ℝ) / ((T : ℝ) - 1)) • probeCrossCovMean T dθ dg := by
@@ -284,7 +299,7 @@ end Divisors
 
 section SampleIdentity
 
-/-- The scalar core of the sample-cross-covariance identity over `Fin T`: centring two real
+/-- The scalar core of the sample-cross-covariance identity over `Fin T`: centering two real
 families at their sample means and summing the products gives the sum of the raw products minus
 `T` times the product of the means. Exact for every `T`, the empty case included. -/
 lemma probe_centred_sum_identity (T : ℕ) (a b : Fin T → ℝ) :
@@ -307,7 +322,7 @@ lemma probe_centred_sum_identity (T : ℕ) (a b : Fin T → ℝ) :
   ring
 
 /-- **The sample-cross-covariance identity for the probe**, with an arbitrary divisor: the
-estimator built from the sample-mean-centred pairs equals the estimator of the raw pairs minus
+estimator built from the sample-mean-centered pairs equals the estimator of the raw pairs minus
 `c · T` times the outer product of the two sample means. Exact for every probe count. -/
 theorem probe_sample_crossCov_identity (c : ℝ) (T : ℕ) (u v : Fin T → Fin d → ℝ) :
     probeCrossCovWith c T (probeCentre T u) (probeCentre T v)
@@ -327,7 +342,7 @@ theorem probeCrossCov_sample_identity (T : ℕ) (u v : Fin T → Fin d → ℝ) 
         - ((T : ℝ) / ((T : ℝ) - 1)) • Matrix.vecMulVec (probeMean T u) (probeMean T v) := by
   rw [probeCrossCov, probe_sample_crossCov_identity, ← probeCrossCov, div_eq_inv_mul]
 
-/-- Sample-mean centring over the probes is window-mean centring over the prefix of a family:
+/-- Sample-mean centering over the probes is window-mean centering over the prefix of a family:
 the two files speak about the same fluctuation. -/
 theorem probeCentre_prefix_eq_windowCentre (T : ℕ) (u : ℕ → Fin d → ℝ) (k : Fin T) :
     probeCentre T (fun k : Fin T => u k) k = windowCentre T 0 u k := by
@@ -335,7 +350,7 @@ theorem probeCentre_prefix_eq_windowCentre (T : ℕ) (u : ℕ → Fin d → ℝ)
   simp [probeCentre, windowCentre, windowMean_apply, probeMean_apply,
     Fin.sum_univ_eq_sum_range (fun s => u s i) T]
 
-/-- The centred probe estimator is `T/(T − 1)` times the window-mean-centred estimator of
+/-- The centered probe estimator is `T/(T − 1)` times the window-mean-centered estimator of
 `CrossCovSLLN.lean` on the prefix. -/
 theorem probeCrossCov_centred_prefix_eq {T : ℕ} (hT : T ≠ 0) (u v : ℕ → Fin d → ℝ) :
     probeCrossCov T (probeCentre T fun k : Fin T => u k) (probeCentre T fun k : Fin T => v k)
@@ -347,7 +362,7 @@ theorem probeCrossCov_centred_prefix_eq {T : ℕ} (hT : T ≠ 0) (u v : ℕ → 
   congr 1 <;> funext k <;> exact probeCentre_prefix_eq_windowCentre T _ k
 
 /-- **The probe estimator of case (iii) is not identically zero**: an explicit probe of size `2`
-in one dimension on which the sample-mean-centred estimator equals `1/2`. -/
+in one dimension on which the sample-mean-centered estimator equals `1/2`. -/
 theorem probeCrossCov_centred_ne_zero :
     ∃ (T : ℕ) (u v : Fin T → Fin 1 → ℝ),
       probeCrossCov T (probeCentre T u) (probeCentre T v) ≠ 0 := by
@@ -398,7 +413,7 @@ theorem integrable_coord_mul_of_indepFun {μ : Measure Ω} {U V : Ω → Fin d �
 
 /-- **Case (iii) from the paper's own hypothesis, every divisor.** If at each probe the latent weight
 fluctuation and the reference-iterate gradient fluctuation are independent and integrable and the
-latent-weight fluctuation is centred, the population cross-covariance of each probe is zero by
+latent-weight fluctuation is centered, the population cross-covariance of each probe is zero by
 `popCrossCov_eq_zero_of_indepFun_of_centered`, and the estimator is unbiased for that zero with
 every divisor. -/
 theorem probeCrossCovWith_unbiased_of_indepFun {μ : Measure Ω} (c : ℝ) (T : ℕ)
@@ -431,8 +446,8 @@ theorem probeCrossCovMean_unbiased_of_indepFun {μ : Measure Ω} (T : ℕ)
 
 /-- The two sample means are independent when the two probe collections are: any measurable
 functional of one collection is independent of any measurable functional of the other. This is
-(A1)'s i.i.d. probes together with case (iii)'s conditional independence, at the collection
-level. -/
+the i.i.d. probes of Assumption A1 together with case (iii)'s conditional independence, at the
+collection level; the appendix proof of Theorem 2 derives it before `eq:pf-meanprod-l2`. -/
 theorem indepFun_probeMean_probeMean {μ : Measure Ω} (T : ℕ) (U V : Fin T → Ω → Fin d → ℝ)
     (i j : Fin d)
     (hcoll : IndepFun (fun ω (k : Fin T) => U k ω) (fun ω (k : Fin T) => V k ω) μ) :
@@ -444,7 +459,7 @@ theorem indepFun_probeMean_probeMean {μ : Measure Ω} (T : ℕ) (U V : Fin T �
     simp only [probeMean_apply]; fun_prop
   exact hcoll.comp hφ hψ
 
-/-- The sample mean of a centred family is integrable and centred. -/
+/-- The sample mean of a centered family is integrable and centered. -/
 theorem integrable_probeMean {μ : Measure Ω} (T : ℕ) (U : Fin T → Ω → Fin d → ℝ) (i : Fin d)
     (hUint : ∀ k, Integrable (fun ω => U k ω i) μ) :
     Integrable (fun ω => probeMean T (fun k => U k ω) i) μ := by
@@ -460,7 +475,7 @@ theorem integral_probeMean_eq_zero {μ : Measure Ω} (T : ℕ) (U : Fin T → Ω
   simp [hUc]
 
 /-- The mean-product term of the identity has zero mean under collection-level independence and
-centring of the latent-weight fluctuation. -/
+centering of the latent-weight fluctuation. -/
 theorem integral_probeMean_mul_eq_zero {μ : Measure Ω} (T : ℕ) (U V : Fin T → Ω → Fin d → ℝ)
     (i j : Fin d)
     (hcoll : IndepFun (fun ω (k : Fin T) => U k ω) (fun ω (k : Fin T) => V k ω) μ)
@@ -474,10 +489,10 @@ theorem integral_probeMean_mul_eq_zero {μ : Measure Ω} (T : ℕ) (U V : Fin T 
   simp only [Pi.mul_apply] at h
   rw [h, integral_probeMean_eq_zero T U i hUint hUc, zero_mul]
 
-/-- **Case (iii) for the sample-mean-centred estimator the paper forms, every divisor.** Under
+/-- **Case (iii) for the sample-mean-centered estimator the paper forms, every divisor.** Under
 collection-level independence of the latent weight fluctuations and the reference-iterate gradient
-fluctuations across the probes, with the latent weight fluctuations centred and every coordinate
-integrable, the centred probe estimator is unbiased for the zero target with every divisor — with
+fluctuations across the probes, with the latent weight fluctuations centered and every coordinate
+integrable, the centered probe estimator is unbiased for the zero target with every divisor — with
 Bessel's `(T − 1)⁻¹` and with `T⁻¹` alike. The per-probe independence, the product
 integrability, and the vanishing of the mean-product term are derived. -/
 theorem probeCrossCovWith_centred_unbiased_of_indepFun {μ : Measure Ω} (c : ℝ) (T : ℕ)
@@ -562,7 +577,7 @@ theorem integral_probeMean_mul_of_iid {μ : Measure Ω} {T : ℕ} (hT : T ≠ 0)
     Fintype.card_fin, nsmul_eq_mul]
   field_simp
 
-/-- **The expectation of the sample-mean-centred probe estimator with divisor `c` is
+/-- **The expectation of the sample-mean-centered probe estimator with divisor `c` is
 `c (T − 1) Σ`.** The hypotheses are the second moments of i.i.d. probes: each probe's own
 second moment is the population cross-covariance entry `Σ`, and the second moments across two
 distinct probes vanish. Nothing is assumed about `Σ`, which may be nonzero. -/
@@ -606,7 +621,7 @@ theorem probeCrossCovWith_centred_expectation_of_iid {μ : Measure Ω} (c : ℝ)
   rw [h1]
   ring
 
-/-- **Bessel's divisor is exact.** With `2 ≤ T` probes, the sample-mean-centred estimator of
+/-- **Bessel's divisor is exact.** With `2 ≤ T` probes, the sample-mean-centered estimator of
 `eq:cross-cov` has expectation exactly the population cross-covariance entry `Σ`. -/
 theorem probeCrossCov_centred_unbiased_of_iid {μ : Measure Ω} {T : ℕ} (hT : 2 ≤ T)
     (U V : Fin T → Ω → Fin d → ℝ) (i j : Fin d) {sig : ℝ}
@@ -625,7 +640,7 @@ theorem probeCrossCov_centred_unbiased_of_iid {μ : Measure Ω} {T : ℕ} (hT : 
   exact h
 
 /-- **The divisor `T⁻¹` is biased by the factor `(T − 1)/T`** on a nonzero target: this is why the
-paper keeps Bessel's divisor, and why Theorem 1, whose target is zero, does not care. -/
+paper keeps Bessel's divisor, and why Theorem 2, whose target is zero, admits either. -/
 theorem probeCrossCovMean_centred_expectation_of_iid {μ : Measure Ω} {T : ℕ} (hT : T ≠ 0)
     (U V : Fin T → Ω → Fin d → ℝ) (i j : Fin d) {sig : ℝ}
     (hprod : ∀ k l, Integrable (fun ω => U k ω i * V l ω j) μ)
@@ -637,8 +652,8 @@ theorem probeCrossCovMean_centred_expectation_of_iid {μ : Measure Ω} {T : ℕ}
   rw [show (((T : ℝ) - 1) / (T : ℝ)) * sig = (T : ℝ)⁻¹ * ((T : ℝ) - 1) * sig by ring]
   exact h
 
-/-- For population-centred independent probes the cross-probe second moments vanish: the
-hypothesis `hoff` of the Bessel theorems is derived from independence and centring, exactly as the
+/-- For population-centered independent probes the cross-probe second moments vanish: the
+hypothesis `hoff` of the Bessel theorems is derived from independence and centering, exactly as the
 population zero of `CrossCovIndep.lean` is. -/
 theorem integral_mul_eq_zero_of_indepFun_of_centered {μ : Measure Ω} {X Y : Ω → ℝ}
     (hindep : IndepFun X Y μ) (hX : AEStronglyMeasurable X μ) (hY : AEStronglyMeasurable Y μ)
@@ -656,7 +671,7 @@ section Rates
 variable [MeasurableSpace Ω]
 
 /-- **The `L²` form of `O(T^{-1/2})` for the Bessel-divisor probe estimator.** The mean square of
-an entry of the estimator built from `T` centred i.i.d. probes is `T σ² / (T − 1)²`, with `σ²`
+an entry of the estimator built from `T` centered i.i.d. probes is `T σ² / (T − 1)²`, with `σ²`
 the variance of a single summand `δθ̃ᵢ δgⱼ`. It is the window statement
 `integral_sq_crossCovEstimator_entry` transported by the factor `T/(T − 1)`, squared. -/
 theorem integral_sq_probeCrossCov_entry {μ : Measure Ω} [IsFiniteMeasure μ] {T : ℕ} (hT : T ≠ 0)
@@ -676,7 +691,8 @@ theorem integral_sq_probeCrossCov_entry {μ : Measure Ω} [IsFiniteMeasure μ] {
   field_simp
 
 /-- The `L²` norm of an entry of the Bessel-divisor probe estimator is `√T σ / (T − 1)`, which is
-`σ/√T` up to the factor `T/(T − 1)`: the paper's `O(T^{-1/2})`. -/
+`σ/√T` up to the factor `T/(T − 1)`: the root mean square the paper states after `eq:pf-sum-l2`.
+-/
 theorem probeCrossCov_entry_l2_rate {μ : Measure Ω} [IsFiniteMeasure μ] {T : ℕ} (hT : 1 ≤ T)
     (U V : ℕ → Ω → Fin d → ℝ) (i j : Fin d)
     (h : IsSquareCentredIID μ fun s ω => U s ω i * V s ω j) :
@@ -696,10 +712,10 @@ theorem tendsto_bessel_factor :
   refine h.congr fun T => ?_
   simp [sub_eq_add_neg]
 
-/-- **The almost-sure limit for the sample-mean-centred probe estimator.** Under the packaged
-i.i.d.-and-centred hypotheses of `CrossCovSLLN.lean` on the two families, the centred probe
+/-- **The almost-sure limit for the sample-mean-centered probe estimator.** Under the packaged
+i.i.d.-and-centered hypotheses of `CrossCovSLLN.lean` on the two families, the centered probe
 estimator converges almost surely to the zero matrix as the probe count grows: it is the
-window-mean-centred prefix estimator times the Bessel factor, and the factor tends to one. -/
+window-mean-centered prefix estimator times the Bessel factor, and the factor tends to one. -/
 theorem probeCrossCov_centred_tendsto_zero_ae {μ : Measure Ω} (U V : ℕ → Ω → Fin d → ℝ)
     (hY : IsCentredIID μ fun s ω => outerE (U s ω) (V s ω))
     (hU : IsCentredIID μ fun s ω => vecE (U s ω))

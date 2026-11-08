@@ -3,12 +3,23 @@ import TraceLemmas
 import CrossCov
 
 /-!
-# The regularity assumptions (A1)-(A6), and the ledger of which result carries which
+# The hypotheses of the paper, the v4 assumptions (A1)-(A6), and the ledger of which result
+carries which
 
-The appendix of the paper (`docs/paper/v4/A1_proofs.tex`, subsection "Regularity assumptions")
+**Which paper this module speaks for.** The module was written against the appendix of the v4
+paper and its design note, which stated seven labels, (A1)-(A6) and (A4'-q). The current paper
+states two assumptions, A1 (independent batches and an Itô process) and A2 with clauses A2(a)
+(slope) and A2(b) (barrier), and records every other input of its appendix in `tab:hyp`
+(Appendix A.1). The section "The current ledger" below maps the rows of `tab:hyp` to the Lean
+objects that carry them. The rest of this header, the v4 ledger and the v4 discrepancies, and the
+docstrings below that cite "the appendix", (A3)-(A6), (A4'-q), `lem:moreau` or the design note,
+are v4 history and refer to that text. The joint-necessity
+theorem was Theorem 1 in v4 and is Theorem 2 now; this file uses the current number.
+
+**History (v4).** The appendix of the v4 draft (subsection "Regularity assumptions")
 states five hypotheses (A1)-(A5) in one dense paragraph, and closes it with an attribution:
 "\cref{thm:joint-necessity} uses only (A1); \cref{lem:moreau} uses (A1), (A3), (A4);
-\cref{cor:fpt} uses (A1)--(A5)". The design note `docs/design/lemma1_rederivation.md`, which
+\cref{cor:fpt} uses (A1)--(A5)". The design note, which
 replaces the refuted Hessian route of the shipped Lemma 1 by the state-dependent-diffusion route,
 adds two further hypotheses in the course of the rederivation and labels them as such: the
 remainder-control clause (A4'-q) of FW-1 (section 8) and the positive-alignment clause (A6) of
@@ -43,7 +54,7 @@ magnitude channel *at the scale of that jitter* hold simultaneously with a nonze
 
 One clause of (A1) has no field, and the omission is deliberate rather than an oversight. "SDE of
 SGD with `eta` small" asserts that a continuous-time Itô process is an adequate surrogate for the
-discrete stochastic-gradient recursion. That is a modelling register: it relates two objects only
+discrete stochastic-gradient recursion. That is a modeling register: it relates two objects only
 one of which exists in this development, and mathlib v4.31.0 has no Itô integral, no stochastic
 differential equation and no weak-convergence theory for them. `SdeOfSgdModel` therefore carries
 the learning rate, the i.i.d.-batch clause and the Lipschitz-covariance clause, and its docstring
@@ -59,14 +70,35 @@ global form `D = univ` the stronger continuity that `StationaryDensity.lean` and
 `LogDensityCurvature.lean` ask for; that (A2)'s tolerance delivers the `c_min`, `c_max`
 bracket of `BarrierRescaling.quasipotential_gap_bounds`, and coordinatewise the defect clause
 `PowerOfS.abs_remainder_le_of_prefactor_defect` consumes; that (A3) makes the slack-channel
-reading of Theorem 1 the estimator itself; that (A4) delivers the remainder budget
+reading of Theorem 2 the estimator itself; that (A4) delivers the remainder budget
 `CouplingSign.lean` carries, the modulus (A4'-q) asks for, and -- in the small-jitter regime --
 the positive alignment (A6) assumes; and that (A5)'s geometry delivers the window bounds
 `KramersExitTime.meanExitTime_upper_bound` carries.
 
-## The ledger
+## The current ledger (`tab:hyp`)
 
-Each row names the paper clause, the Lean object here, and the modules that consume it. Names of
+Each row is a row of `tab:hyp`, with the paper results that consume it and the Lean objects that
+carry it. `README.md` holds the binder-level version of this table, with line numbers.
+
+| `tab:hyp` row | consumed by (paper) | Lean |
+|---|---|---|
+| (A1) Itô process; i.i.d. batches; `Σ` Lipschitz | Lemma 1(iv)-(v), `cor:fpt`, `cor:dwell` | `SdeOfSgdModel` records the Itô register and has no field for it (no theorem consumes it); the diffusion is the primitive of `StationaryDensity`, `BarrierRescaling`, `KramersExitTime` and `ShoulderDwell`; the Lipschitz clause reaches them as continuity, `LipschitzGradientNoise.continuousOn_quadForm` and `.continuous_quadForm` |
+| (A1) the i.i.d. clause alone | Theorem 2, sample form | `IidBatchStream`; in its mutual form (`iIndepFun`, `IdentDistrib`) the binders of `CrossCovSLLN.crossCovEstimator_raw_windowCentred_l2_bound_of_iidBatches`, and in pairwise form the `IsCentredIID` and `IsSquareCentredIID` packages of `CrossCovSLLN.lean` |
+| regularity: `g₀`, `δθ̃`, `r₂` square integrable, `H` symmetric, `σ²_obj > 0` | Lemma 1(i)-(iii), (vi) | the `SqIntegrableVec` and `Hᵀ = H` binders of `MinibatchNoise.projDiffusion_lift_eq_frozen_form` and the other decomposition theorems of `MinibatchNoise.lean` |
+| regularity: `L̃'`, `σ²_eff` continuous on `ℝ`, `σ²_eff > 0` | Lemma 1(iv)-(v) | the binders `hL'`, `hσc`, `hσ` of `StationaryDensity.stationaryDensity_zeroFlux_of_continuous`; `hcmin`, `hlower`, `hupper` of `BarrierRescaling.quasipotential_gap_bounds` |
+| `θ̃` and `g₀` of finite fourth moment | Theorem 2 | the second-moment binders of `CrossCovSLLN.crossCovEstimator_raw_windowCentred_l2_bound_of_iidBatches`, which needs less: second moments of the two independent factors make the product square integrable |
+| A2(a): `\|ψ'(w) − σ_s\| ≤ ε` on `B`, `0 ≤ ε < σ_s` | Lemma 1 | `SinglePrefactor` below (with `.diffusion_bracket`, the bracket of A.1, and `.subsingleton_of_tol_zero`, the `ε = 0` collapse), discharged for softplus by `SoftplusBand.singlePrefactor_softplus_relative`; the decomposition theorems behind Theorem 1(i)-(ii) take the slope as a real `s` and do not bind it |
+| A2(b): `α > 0`, extremal on `[a,b]` | `cor:fpt`, `thm:directional` | the binders `hU`, `hU'`, `hawb`, `hwbws`, `hwsb`, `hbarrier`, `hmax`, `hmin` of the `KramersExitTime`, `ShoulderDwell` and `KramersBridge` theorems, and `hgrad` of `BarrierRescaling.quasipotential_gap_bounds` for the monotone climb. `SingleBarrierPotential` below is **not** A2(b): it adds `C²` and a third point `w_a`, and no theorem consumes it |
+| `c > 0` at the one iterate and the one direction `e_b` | the ordering of `cor:fpt`, `cor:dwell`, `prop:precond-full` | `hnet` of `MinibatchNoise.projDiffusion_direct_lt_lift_of_netAlignment` at `e := e_b`, `κ := c` |
+| Dynkin, exit time, continuous up to the closed interval | `cor:fpt`, `thm:directional`, `prop:precond-full` | `hDynkin : KramersExitTime.MeanExitTimeBVP …`, with `htau : ContinuousOn … (Set.Icc a b)` bound separately |
+| Dynkin, occupation time, `C¹` on `(a,b)` | `cor:dwell`, `prop:precond-full` | `hDynkin : ShoulderDwell.OccupationTimeBVP …` (its clauses `hasDerivAt_fst`, `continuousOn_fst`), with `hD : ContinuousOn … (Set.Icc a b)` |
+| preconditioned: (A1) with `P_k` fixed by earlier batches, `p` constant across the barrier | `prop:precond-full` | the same two structures at slope `p U'` and diffusion coefficient `p² s` (`KramersExitTime.meanExitTimeBVP_precond_div`, `ShoulderDwell.occupationTimeBVP_precond_div`), `p` a real number; `PgdBaseline.precondExponent` for part (iii) |
+| projection: `Σ_PGD = Σ_obj` | `thm:directional`, `thm:pgd-zero` | the definition `PgdBaseline.pgdDiffusionMatrix` |
+| projection: a common mean latent weight | `thm:directional` | built into `PgdBaseline.pgdDiffusionMatrix`, `directDiffusionMatrix` and `liftDiffusionMatrix`, which are formed from one `Sobj` |
+
+## The v4 ledger (history)
+
+Each row names the v4 paper clause, the Lean object here, and the modules that consume it. Names of
 results in sibling modules are quoted as they stand in the tree; the ledger is a reading aid, and
 the authority is always the sibling module's own hypothesis list.
 
@@ -76,19 +108,22 @@ the authority is always the sibling module's own hypothesis list.
 | (A1) Lipschitz gradient-noise covariance | `LipschitzGradientNoise`, `.continuousOn_quadForm` (on the region `D`), `.continuous_quadForm` (only when `D = univ`) | *from `.continuousOn_quadForm`:* `BarrierRescaling.lean` (`quasipotential_gap_bounds_of_continuousOn`), `QuasipotentialMonotone.lean` (the `ContinuousOn` hypotheses of `quasipotentialIncrement_strictAnti_in_diffusion`). *Only from `.continuous_quadForm`, because they carry a global `Continuous` hypothesis:* `StationaryDensity.lean` (`stationaryDensity_zeroFlux_of_continuous`, `hasDerivAt_stationaryDensity`), `LogDensityCurvature.lean` (`hasDerivAt_effectivePotential_integral`, whose hypothesis is continuity of the *ratio* `L̃'/σ_eff²` and so needs more than (A1) alone) |
 | (A1) SDE of SGD, `eta` small | recorded in `SdeOfSgdModel`'s docstring; no field | nothing; no module discharges it |
 | (A2) single prefactor, with tolerance | `SinglePrefactor`, `.deriv_pos`, `.diffusion_bracket`, `.diffusion_bracket_pos`, `.coordinate_defect`, `.jacobian_defect_le`, `exists_singlePrefactor_band` | `PowerOfS.lean` (`abs_remainder_le_of_prefactor_defect` carries the tolerance clause verbatim, and `jacChannelExact_two_sided`, `corrected_power_survives_remainder` carry its consequence), `ShoulderAttenuation.lean` (`crossCovEstimator_attenuated_once`, `_twice`), `UpdateCovariance.lean` (the scalar `s`), `LogDensityCurvature.lean` (`logDensityCurvature_of_const_diffusion`), `BarrierRescaling.lean` (`quasipotential_gap_bounds`), `QuasipotentialMonotone.lean` (ellipticity `0 < sdir`) |
-| (A3) slack Jacobian is the identity | `SlackJacobianIdentity`, `.rank_eq`, `.mulVec_bijective`, `.mulVec_injective`, `.slackReading_eq` | `StructuralZeros.lean` (`slackReading_one` is (A3) itself, `J_b = 1`), `CrossCov.lean` (`slackReading_eq_zero_of_jacobian_eq_zero` is its *deletion*, `J_b = 0`, so it is Theorem 1's case (i) and not a consumer of (A3)). **Nothing else in the development consumes it**; in particular `DiffusionOrdering.magnitudeChannel_pos` does *not* -- see the discrepancy below |
+| (A3) slack Jacobian is the identity | `SlackJacobianIdentity`, `.rank_eq`, `.mulVec_bijective`, `.mulVec_injective`, `.slackReading_eq` | `StructuralZeros.lean` (`slackReading_one` is (A3) itself, `J_b = 1`), `CrossCov.lean` (`slackReading_eq_zero_of_jacobian_eq_zero` is its *deletion*, `J_b = 0`, so it is the first substitution after Theorem 2, case (i), and not a consumer of (A3)). **Nothing else in the development consumes it**; in particular `DiffusionOrdering.magnitudeChannel_pos` does *not* -- see the discrepancy below |
 | (A4) forward-KL chain with remainder | `ForwardKLChain`, `.remainder_budget`, `.trace_leading_nonneg`, `.pairing_bound`, `.outerMoment_chain`, `.coupling_quadForm_split`, `.abs_coupling_sub_leading_le`, `forwardKLChain_collinear` | `CouplingSign.lean` (`hchain` of `outerMoment_chain`, `crossTerm_eq_add_remainder`, `crossTerm_ge_leading_sub_of_remainder_bound`), `DiffusionOrdering.lean` (`couplingTerm_forwardKL`, `diffusionExcess_forwardKL`), `PowerOfS.lean` (`couplingCore_pos_of_forwardKL`), `TraceLemmas.lean` (`trace_mul_nonneg_of_posSemidef` consumes its PSD clause) |
 | (A4'-q) remainder control | `RemainderControl`, `.excess_lower_bound`, `.excess_nonneg`, `remainderControl_of_forwardKLChain` | `DiffusionOrdering.lean` (`forwardKL_excess_lower_bound`, `forwardKL_excess_nonneg`), `CouplingSign.lean` (the `delta` budget of `crossTerm_ge_leading_sub_of_remainder_bound`) |
 | (A5) single-barrier geometry | `SingleBarrierPotential`, `.isMaxOn_escape`, `.isMinOn_escape`, `.kramers_window` | `KramersExitTime.lean` (`meanExitTime_upper_bound`, `meanExitTime_window_lower_bound`, `mean_first_passage_arrhenius_of_dynkin`) |
 | (A5) small effective noise | `SmallEffectiveNoise`, `.arrheniusExponent_ge`, `.lt_two_mul_barrier` | `KramersExitTime.lean` (`eventually_lower_bound_gt`, `meanExitTime_lt_of_gap`), `FreeDiffusion.lean` (`metastable_window`, and its failure regime `freeDiffusionTime_lt_arrheniusTime_of_small_variance`) |
 | (A6) positive alignment on the band | `CouplingAlignedOn`, `.pairing_lower`, `couplingQuadForm_fin_one`, `couplingAlignedOn_of_small_jitter`, `smallJitter_hypotheses_satisfiable` | `CouplingSign.lean` (`PositiveAlignmentOn`, `projDiffusion_ge_of_positiveAlignment`, `projDiffusion_strict_increase_on_band`), `DiffusionOrdering.lean` (`updateCov_ordering_band`, `updateCov_ordering_strict`), `QuasipotentialMonotone.lean` (`liftQuasipotentialIncrement_lt_direct`, `fwQuasipotential_lt_of_bandOccupancy`), `BarrierRescaling.lean` (the `hcoupling` of `arrheniusExponent_lift_lt_direct`) |
 
-## Discrepancies between the appendix's attribution and what the Lean statements need
+## Discrepancies between the v4 appendix's attribution and what the Lean statements need (history)
 
-These are reported because the appendix invites the comparison, and because each is a change a
-referee would otherwise have to find.
+These were reported because the v4 appendix invited the comparison, and because each was a change
+a referee would otherwise have had to find. Several are resolved in the current paper: `tab:hyp`
+attributes to Theorem 2 only "the i.i.d. clause alone", for its sample form; `lem:moreau` and the
+labels (A3)-(A6) are retired; A2(b) asks for continuity on `[a,b]` and differentiability inside,
+with no `C²` clause; and A2(a) states the tolerance `|ψ'(w) − σ_s| ≤ ε` itself.
 
-**Theorem 1 does not use (A1), except in one of its three cases, and there in a weaker form.**
+**Theorem 2 does not use (A1), except in one of its three cases, and there in a weaker form.**
 The appendix says `thm:joint-necessity` uses only (A1). Cases (i) and (ii) use nothing at all:
 `joint_necessity_cases_assumption_free` below carries no assumption structure among its
 hypotheses, only the two deletion hypotheses of the theorem itself. Case (iii) splits in two. Its
@@ -127,7 +162,7 @@ uses it for is the remark that the added curvature is not confined to a proper s
 Lean statement of that remark, `DiffusionOrdering.magnitudeChannel_pos`, does **not** carry (A3):
 its non-degeneracy hypotheses are `V.PosDef` and `Function.Injective H.mulVec`, injectivity of
 the mean loss *Hessian*, and `DiffusionOrdering.lean` says in its own docstring that the note's
-rank hypothesis on the slack Jacobian is not modelled there. (A3) can supply
+rank hypothesis on the slack Jacobian is not modeled there. (A3) can supply
 `Function.Injective J_b.mulVec` (`SlackJacobianIdentity.mulVec_injective`) and nothing else in
 that shape. Its only genuine consumer is `StructuralZeros.slackReading_one`, which is the
 identity `J_b = 1` itself rather than a use of its rank; the rank and determinant consequences
@@ -179,7 +214,7 @@ bracket of E1 had to be inflated, and that paragraph should carry the caveat.
   every quadratic form Lipschitz with an explicit constant, `continuousOn_quadForm` gives the
   continuity of the projected diffusion on the region where the clause is assumed, and
   `continuous_quadForm` gives the global continuity that two of the four consumers ask for.
-* `SdeOfSgdModel` — (A1) assembled, with the modelling clause recorded and no field for it.
+* `SdeOfSgdModel` — (A1) assembled, with the modeling clause recorded and no field for it.
 * `SinglePrefactor` — (A2) with its tolerance; `deriv_pos` is FW-3b's uniform ellipticity,
   `diffusion_bracket` and `diffusion_bracket_pos` are the two-sided band bracket and the strict
   positivity of its lower end, `coordinate_defect` and `jacobian_defect_le` are the appendix's
@@ -214,9 +249,9 @@ bracket of E1 had to be inflated, and that paragraph should carry the caveat.
   `couplingAlignedOn_smul_one` witnesses that the inequality alone is satisfiable, and
   `couplingAlignedOn_of_small_jitter` derives it from (A4) in the small-jitter regime with the
   modulus written out, `smallJitter_hypotheses_satisfiable` showing that regime is nonempty.
-* `crossCovEstimator_zero_window`, `joint_necessity_cases_assumption_free` — cases (i) and (ii)
-  of Theorem 1, for **every** window length including the empty one, with no assumption
-  structure among the hypotheses.
+* `crossCovEstimator_zero_window`, `joint_necessity_cases_assumption_free` — cases (i) and (ii),
+  the two substitutions after Theorem 2, for **every** window length including the empty one, with
+  no assumption structure among the hypotheses.
 
 ## Honesty
 No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists only `propext`,
@@ -224,7 +259,7 @@ No `sorry`/`admit`/`native_decide`/`axiom`; `#print axioms` on each result lists
 
 The assumptions themselves are hypotheses, by construction: this module's job is to state them,
 not to discharge them, and each structure is exactly as strong as the clause it names. What
-would be needed to discharge each is the following. (A1)'s i.i.d. clause is a modelling choice
+would be needed to discharge each is the following. (A1)'s i.i.d. clause is a modeling choice
 about the sampler and is discharged by the training loop, not by a proof; its Lipschitz clause is
 a regularity property of a particular network and loss and would be established, if at all, for a
 specific architecture; its SDE clause needs a weak-convergence theory for stochastic differential
@@ -517,7 +552,7 @@ end A1cov
 clause, bundled.
 
 The remaining clause of (A1) as the appendix states it -- "SDE-of-SGD with `η` small" -- has
-**no field here, and deliberately so**. It is a modelling register: it asserts that the
+**no field here, and deliberately so**. It is a modeling register: it asserts that the
 continuous-time Itô process `dφ = −∇L dt + Σ^{1/2}(φ) dB` is an adequate surrogate for the
 discrete stochastic-gradient recursion in the small-step limit. That is a statement relating two
 objects only one of which exists in this development, and mathlib v4.31.0 has no Itô integral,
@@ -549,9 +584,10 @@ structure SdeOfSgdModel {Ω X' P n : Type*} [MeasurableSpace Ω] [MeasurableSpac
 /-- **(A2).** The positivity map `ψ` is `C¹` and non-decreasing, and on the operative shoulder band `B`
 its derivative is within `eps` of the single constant `s`.
 
-The tolerance is the point of this structure. The appendix states (A2) as
-`ψ'(θ̃) ≈ σ_s I_d` -- "approximately constant across coordinates" -- and justifies it by the band
-being narrow. Turning that into the exact identity `ψ' = s` on `B` would be a different and
+This structure is the current paper's A2(a), `|ψ'(w) − σ_s| ≤ ε` for every `w ∈ B` with
+`0 ≤ ε < σ_s`, with the constant left free (see the last paragraph). The tolerance is the point of
+this structure. The v4 appendix stated (A2) as `ψ'(θ̃) ≈ σ_s I_d` -- "approximately constant across
+coordinates" -- and justified it by the band being narrow. Turning that into the exact identity `ψ' = s` on `B` would be a different and
 strictly stronger hypothesis: `SinglePrefactor.subsingleton_of_tol_zero` shows that for a positivity map
 with injective derivative, softplus among them, the exact version forces the band to be a single
 point, and a single-point band carries no information about the shoulder. The tolerance is
@@ -564,11 +600,11 @@ The two order clauses `0 < s` and `eps < s` are the ellipticity content that FW-
 band, and without them the quasipotential comparison of `QuasipotentialMonotone.lean` has no
 uniform lower bound to work with.
 
-One further respect in which the structure is weaker than the appendix, deliberately: the
-appendix pins the constant, `σ_s = ψ'(w̃_s)` at the shoulder point, whereas `s` is a free
+One further respect in which the structure is weaker than the paper, deliberately: A2(a) pins the
+constant, `σ_s = ψ'(w̃_s)` at a point `w̃_s` of `B`, whereas `s` is a free
 parameter here. A free `s` is the weaker hypothesis and so the stronger theorem, and the
 appendix's own choice is recovered by `exists_singlePrefactor_band`, which instantiates `s` as
-the derivative at the centre of the band it produces. -/
+the derivative at the center of the band it produces. -/
 structure SinglePrefactor (psi : ℝ → ℝ) (B : Set ℝ) (s eps : ℝ) : Prop where
   /-- the positivity map is continuously differentiable -/
   contDiff : ContDiff ℝ 1 psi
@@ -634,7 +670,7 @@ theorem SinglePrefactor.diffusion_bracket_pos (h : SinglePrefactor psi B s eps)
   have hpos : 0 < s - eps := by have := h.tol_lt; linarith
   exact mul_pos (pow_pos hpos 2) hobj
 
-/-- **(A2) across coordinates, which is how the appendix states it.** The appendix writes the
+/-- **(A2) across coordinates, which is how the v4 appendix stated it.** The v4 appendix wrote the
 clause on the *vector* iterate, `ψ'(θ̃) ≈ σ_s I_d`, "approximately constant across coordinates".
 Because `ψ` is applied coordinatewise, that clause is the scalar band clause evaluated at each
 coordinate, and this is the form `PowerOfS.abs_remainder_le_of_prefactor_defect` consumes
@@ -722,8 +758,10 @@ theorem SinglePrefactor.subsingleton_of_tol_zero (h : SinglePrefactor psi B s 0)
 
 /-- **(A3).** The slack Jacobian `∂θ̃/∂b` is the `d × d` identity.
 
-The appendix states (A3) as "the slack Jacobian `∂θ̃/∂b = I_d` has full rank". The identity is
-the hypothesis and the full rank is its consequence, proved below rather than assumed. -/
+The v4 appendix stated (A3) as "the slack Jacobian `∂θ̃/∂b = I_d` has full rank". The identity is
+the hypothesis and the full rank is its consequence, proved below rather than assumed. In the
+current paper `J_b = ∂θ̃/∂b = I` is not a hypothesis but an identity of `eq:lift`, recorded in
+Appendix A.1. -/
 structure SlackJacobianIdentity {d : ℕ} (Jb : Matrix (Fin d) (Fin d) ℝ) : Prop where
   /-- the slack Jacobian is the identity matrix -/
   eq_one : Jb = 1
@@ -759,9 +797,11 @@ theorem SlackJacobianIdentity.mulVec_injective {d : ℕ} {Jb : Matrix (Fin d) (F
   h.mulVec_bijective.1
 
 /-- **(A3) makes the slack-channel reading the estimator itself.** Under the identity slack
-Jacobian the contraction of `CrossCov.crossCovEstimator` with `J_b` that Theorem 1 calls the
-slack-channel reading is the estimator, so case (i) of Theorem 1 -- deletion of the slack
-channel -- is a genuine deletion and not a change of coordinates. -/
+Jacobian the contraction of `CrossCov.crossCovEstimator` with `J_b`, the slack-channel reading
+of the first substitution after Theorem 2, is the estimator, so that substitution (case (i), no
+learnable slack) is a genuine deletion and not a change of coordinates. Appendix A.1 of the
+current paper makes the same remark: `J_b = I` "makes the estimate along `e_b` of Theorem 2 the
+estimator itself". -/
 theorem SlackJacobianIdentity.slackReading_eq {d : ℕ} {Jb : Matrix (Fin d) (Fin d) ℝ}
     (h : SlackJacobianIdentity Jb) (T t : ℕ) (dth dg : ℕ → Fin d → ℝ) :
     slackReading Jb T t dth dg = crossCovEstimator T t dth dg := by
@@ -1003,7 +1043,7 @@ With `‖δθ̃‖ ≤ eps` on the sample space and an operator bound `‖H v‖
 
 The left-hand side is the trace of the slack-channel cross-covariance (`trace_weightedOuter`).
 The bound is stated here because it is a genuine consistency check on the design note, and it
-fails one: section 11.0 of `docs/design/lemma1_rederivation.md` argues that the coupling channel
+fails one: section 11.0 of the design note argues that the coupling channel
 is **first** order in the jitter scale, `Σ_slack = O(ρ eps G)`, on the ground that "`δg` is set by
 the minibatch, NOT by the lift, so it does not shrink with `eps`". Under (A4) it does shrink:
 `δg = H δθ̃ + r`, so `‖δg‖ ≤ M eps + Cr eps²`, and the coupling channel is second order, the same
@@ -1171,9 +1211,11 @@ two halves. That is implied by, but weaker than, a literal single-barrier profil
 forbids further interior critical points below the barrier top -- and the weaker form is
 deliberate, because it is all the exit-time modules consume and a hypothesis should be no
 stronger than its use. `singleBarrierPotential_quadratic` witnesses that the fields are jointly
-realizable. The `C²` clause is the paper's; it is not consumed by the exit-time modules of this
-development, which need only continuity of `U` on the escape interval and the extremal structure,
-and this over-strength is recorded in the ledger above. -/
+realizable. The `C²` clause was the v4 paper's (A5); it is not consumed by the exit-time modules
+of this development, which need only continuity of `U` on the escape interval and the extremal
+structure, and this over-strength is recorded in the v4 ledger above. The current A2(b) asks for
+continuity on `[a,b]` and differentiability inside, which the exit-time binders carry directly, so
+this structure is not A2(b) and no theorem consumes it. -/
 structure SingleBarrierPotential (U : ℝ → ℝ) (wb ws wa : ℝ) : Prop where
   /-- the potential is twice continuously differentiable -/
   contDiff : ContDiff ℝ 2 U
@@ -1215,7 +1257,7 @@ theorem SingleBarrierPotential.mem_bounds (h : SingleBarrierPotential U wb ws wa
     (hw : w ∈ Set.Icc wb ws) : U wb ≤ U w ∧ U w ≤ U ws :=
   ⟨isMinOn_iff.mp h.isMinOn_escape w hw, isMaxOn_iff.mp h.isMaxOn_escape w hw⟩
 
-/-- **(A5)'s geometry is satisfiable.** The downward parabola centred at the barrier top has
+/-- **(A5)'s geometry is satisfiable.** The downward parabola centered at the barrier top has
 exactly the extremal structure `SingleBarrierPotential` records, on every interval straddling
 its vertex. The witness is stated because every consequence of (A5) below is an implication out
 of that structure, and because the structure is the weakest reading of "single barrier" -- it
@@ -1311,7 +1353,7 @@ theorem SingleBarrierPotential.kramers_window (h : SingleBarrierPotential U wb w
 /-- **(A6)** of section 11.3 of the design note: on the shoulder band `B` the coupling term
 `C(x) = H(x) Σ(x) + Σ(x)ᵀ H(x)` dominates `κ I` with `κ > 0`.
 
-The design note is explicit that this is a *labelled assumption* and not a derived fact: the
+The design note is explicit that this is a *labeled assumption* and not a derived fact: the
 magnitude channel `H V H` is positive semidefinite always, but `C` is symmetric and not positive
 semidefinite in general. Two counterexamples in `CouplingSign.lean` say how far that goes, and
 they are not interchangeable. `coupling_sign_not_automatic` exhibits a configuration with
@@ -1455,11 +1497,13 @@ theorem smallJitter_hypotheses_satisfiable :
     simp only [dotProduct, Fin.sum_univ_one]
     nlinarith [sq_nonneg (x 0)]
 
-/-! ## The attribution check the appendix invites -/
+/-! ## The attribution check the v4 appendix invited -/
 
-/-- **Cases (i) and (ii) of Theorem 1 carry no assumption at all.**
+/-- **Cases (i) and (ii), the two substitutions after Theorem 2, carry no assumption at all.**
 
-The appendix's assumption block says "\cref{thm:joint-necessity} uses only (A1)". The two
+The v4 appendix's assumption block said "\cref{thm:joint-necessity} uses only (A1)"; the current
+`tab:hyp` attributes to Theorem 2 only the i.i.d. clause, for its sample form, and the current
+appendix proof says that neither substitution "uses an assumption or a property of `ψ`". The two
 finite-sample deletions do not use even that: the statement below has no assumption structure
 among its hypotheses, only the deletion hypotheses of the theorem itself, and it is proved from
 `CrossCov.lean`'s identities. It is stated for every iteration `t` and every window length `T`,

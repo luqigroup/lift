@@ -5,10 +5,11 @@ import Mathlib
 
 The paper trains the lifted parametrization `θ̃ = b + h_φ(X)`, `θ = ψ(θ̃)`, by stochastic gradient
 descent on the slack `b`, with the *same* mini-batch conditioning the latent weight and evaluating the
-loss (`rem:bcond`). Written out, the per-step update of the slack is
+loss (the shared batch of `sec:lift`, §2.2: the hypernetwork reads the batch on which the
+gradient is formed at the same iteration). Written out, the per-step update of the slack is
 `b_{t+1} = b_t - η G(b_t; X_t)` with `G(b; X) = ψ'(θ̃) ⬝ ∇_θ L(ψ(θ̃); X)` and `θ̃ = b + h_φ(X)`.
 
-This file machine-checks fact (i) of `docs/design/lemma1_rederivation.md` §2 (lines 27–50): the
+This file machine-checks fact (i) of §2 of the design note: the
 mean of that update is exactly the derivative of the pullback landscape
 `L̃(b) = E_X[L(ψ(b + h_φ(X)); X)]`. What makes the statement worth checking is that no
 independence of any kind is assumed or used anywhere below: the per-batch loss `L ω` and the body
@@ -25,14 +26,15 @@ Two things are proved rather than assumed. The first is the chain rule through t
 is where the prefactor `ψ'(θ̃)` in `G` comes from. `updateDirection` is *defined* the way the note
 defines `G` — the differential of the per-batch loss at the produced weight, precomposed with the
 differential of the positivity map — and `hasFDerivAt_updateDirection` proves that this composite is the
-derivative of `b ↦ L(ψ(b + h_φ(X)); X)`. The slack's identity Jacobian `∂θ̃/∂b = I` of
-`sec:lift-channels` appears separately as `hasFDerivAt_preReadout`. In the Hilbert-space setting
+derivative of `b ↦ L(ψ(b + h_φ(X)); X)`. The slack's identity Jacobian `∂θ̃/∂b = I`, which
+§3.1 (`sec:mechanism`) uses to read a coordinate of the latent weight as a coordinate of the
+slack, appears separately as `hasFDerivAt_preReadout`. In the Hilbert-space setting
 the same prefactor is the adjoint of the positivity-map differential
 (`hasGradientAt_updateGradient`), and it loses its transpose exactly when that differential is
 self-adjoint, which is the case for the paper's coordinatewise positivity map
 (`updateGradient_of_isSelfAdjoint`).
 
-The second is differentiation under the expectation, in the two regimes the assignment asks for.
+The second is differentiation under the expectation, in two regimes.
 `hasFDerivAt_pullbackLandscape_finiteBatch` is unconditional for a finite batch — a finite
 measure on a finite sample space — where the expectation is a finite weighted sum and no
 integrability or domination hypothesis is needed. `hasFDerivAt_pullbackLandscape_of_dominated`
@@ -203,9 +205,9 @@ optimization variable, offset by the body's latent weight on the batch `ω`. -/
 def preReadout (h : Ω → E) (b : E) (ω : Ω) : E := b + h ω
 
 /-- The **pullback landscape** `L̃(b) = E_X[L(ψ(b + h_φ(X)); X)]` of
-`docs/design/lemma1_rederivation.md` §1: the per-batch loss, evaluated at the produced weight
+§1 of the design note: the per-batch loss, evaluated at the produced weight
 `θ = ψ(θ̃)` and averaged over the batch. The same sample point `ω` supplies both the body's
-latent weight and the loss, so the batch coupling of `rem:bcond` is present in this definition. -/
+latent weight and the loss, so the shared batch of `sec:lift` is present in this definition. -/
 noncomputable def pullbackLandscape [MeasurableSpace Ω] (L : Ω → F → ℝ) (ψ : E → F) (h : Ω → E)
     (μ : Measure Ω) (b : E) : ℝ :=
   ∫ ω, L ω (ψ (preReadout h b ω)) ∂μ
@@ -219,8 +221,8 @@ noncomputable def updateDirection (L : Ω → F → ℝ) (ψ : E → F) (h : Ω 
     E →L[ℝ] ℝ :=
   (fderiv ℝ (L ω) (ψ (preReadout h b ω))).comp (fderiv ℝ ψ (preReadout h b ω))
 
-/-- The slack channel has identity Jacobian: `∂θ̃/∂b = I`, the first-order statement of
-`sec:lift-channels` that the slack enters the latent iterate additively. -/
+/-- The slack channel has identity Jacobian: `∂θ̃/∂b = I`, the first-order form of `eq:lift`'s
+statement that the slack enters the latent iterate additively (§3.1 of the paper uses it). -/
 theorem hasFDerivAt_preReadout (h : Ω → E) (b : E) (ω : Ω) :
     HasFDerivAt (fun b' : E => preReadout h b' ω) (ContinuousLinearMap.id ℝ E) b := by
   simpa [preReadout] using (hasFDerivAt_id b).add_const (h ω)
@@ -399,7 +401,7 @@ variable {Ω : Type*} {H : Type*} [NormedAddCommGroup H] [InnerProductSpace ℝ 
 /-- The **per-batch update direction as a vector**, `G(b; X) = ψ'(θ̃)ᵀ ∇_θ L(ψ(θ̃); X)`: the
 gradient of the per-batch loss at the produced weight, pulled back through the adjoint of the
 positivity-map differential. The adjoint is the coordinate-free form of the prefactor `ψ'(θ̃)` of
-`sec:lift-channels`, and it is what `updateDirection` becomes under the Riesz isometry. -/
+`eq:chain`, and it is what `updateDirection` becomes under the Riesz isometry. -/
 noncomputable def updateGradient (L : Ω → H → ℝ) (ψ : H → H) (h : Ω → H) (b : H) (ω : Ω) : H :=
   ContinuousLinearMap.adjoint (fderiv ℝ ψ (preReadout h b ω))
     (gradient (L ω) (ψ (preReadout h b ω)))
@@ -546,8 +548,8 @@ section JitterLaw
 
 variable {E F : Type*} [NormedAddCommGroup E] [MeasurableSpace E]
 
-/-- **The convolution reading of the pullback landscape** (`docs/design/lemma1_rederivation.md`
-§9). When the loss does not itself depend on the batch, the pullback landscape is the composite
+/-- **The convolution reading of the pullback landscape** (§9 of the design
+note). When the loss does not itself depend on the batch, the pullback landscape is the composite
 `Λ ∘ ψ` averaged against the law of the latent weight jitter `h_φ(X)` — that is, `Λ ∘ ψ` smoothed by a
 fixed kernel. With a batch-dependent loss this fails: the pullback is then a joint average over the
 coupled pair and is not a convolution. -/
@@ -618,7 +620,8 @@ section ConstantBody
 variable {E F : Type*} [NormedAddCommGroup E]
 
 /-- A body that does not depend on the batch — the direct-softplus baseline of the paper is the
-case `c = 0`, and `rem:moreau-scope`'s frozen-anchor regime is the general case — leaves the
+case `c = 0`, and the frozen-anchor regime of an earlier draft's `rem:moreau-scope` (history; no
+such remark in the current paper) is the general case — leaves the
 landscape unsmoothed: the pullback landscape is then the plain batch-averaged loss evaluated at the
 one fixed shifted point, with no averaging over latent weight jitter at all. -/
 theorem pullbackLandscape_of_body_const {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
@@ -657,7 +660,7 @@ theorem updateDirection_linear_model (c s : ℝ) {Ω : Type*} (h : Ω → ℝ) (
 law, the batch-dependent quadratic loss `L(θ; ω) = (θ − ω)²` and the nonlinear positivity map
 `ψ(θ̃) = θ̃² + θ̃` satisfy every hypothesis of `hasFDerivAt_pullbackLandscape_finiteBatch`; the
 loss depends on the same `ω` that drives the latent weight, so the certified instance carries the
-batch coupling of `rem:bcond`, not a decoupled surrogate. -/
+shared batch of `sec:lift`, not a decoupled surrogate. -/
 theorem hasFDerivAt_pullbackLandscape_twoPointBatch (b : ℝ) :
     HasFDerivAt
       (pullbackLandscape (fun (ω : Fin 2) (x : ℝ) => (x - (ω : ℝ)) ^ 2)
@@ -732,8 +735,8 @@ theorem hasFDerivAt_pullbackLandscape_uniformBatch (b : ℝ) :
 /-- **Two genuinely different latent weight schemes with the same pullback landscape.** The uncoupled
 scheme is a one-point batch with no latent weight jitter at all (`Ω = Fin 1`, `h ≡ 0`) carrying the loss
 `2x²`; the coupled scheme is a two-point batch whose body outputs `±1` and whose per-batch loss
-`(x − s·(±1))²` is centred on the very same draw, so that latent weight and gradient ride one batch in
-the sense of `rem:bcond`. Both use the positivity map `ψ(x) = s·x`, whose derivative is the prefactor `s`.
+`(x − s·(±1))²` is centered on the very same draw, so that latent weight and gradient ride one batch in
+the sense of the shared batch of `sec:lift`. Both use the positivity map `ψ(x) = s·x`, whose derivative is the prefactor `s`.
 Their pullback landscapes are equal at every `b`, both being `2 s² b²`: turning the coupled
 latent weight on has deformed no potential. -/
 theorem pullbackLandscape_coupledTwoPoint_eq_uncoupled (s b : ℝ) :
@@ -746,8 +749,8 @@ theorem pullbackLandscape_coupledTwoPoint_eq_uncoupled (s b : ℝ) :
   ring
 
 /-- **The corollary that carries the note's conclusion, on an actual pair of schemes.** The two
-schemes above — different sample spaces, different bodies, one of them with the batch coupling of
-`rem:bcond` live and the other with no batch fluctuation whatever — have literally the same mean
+schemes above — different sample spaces, different bodies, one of them with the shared batch of
+`sec:lift` live and the other with no batch fluctuation whatever — have literally the same mean
 update at every `b`. This is `meanUpdate_eq_of_pullbackLandscape_eventuallyEq` instantiated, so its
 hypotheses are certified satisfiable by schemes that genuinely differ, not only by a scheme
 compared with itself. -/

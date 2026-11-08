@@ -5,8 +5,14 @@ import StationaryDensity
 # (L1') The log-density curvature at a minimum under multiplicative noise
 
 This file machine-checks consequence (L1') of the corrected mechanism, stated in
-`docs/design/lemma1_rederivation.md` §3 (lines 105-120), and closes the one gap that
+the design note, §3, and closes the one gap that
 statement leaves open.
+
+Against the current paper: the labels (L1') and (A2) below are
+the design note's, and "the shipped Lemma 1" is the v4 lemma. The current paper states no
+log-density curvature result; its Lemma 1(iv) (`lem:diffusion`, Appendix A.3) is the stationary
+density this module starts from (`StationaryDensity.lean`), and its A2(a) is a tolerance on
+`ψ'`, not on `σ_eff²`. The module is kept as a result about that density.
 
 The corrected route replaces the refuted Hessian decomposition of the shipped Lemma 1 by a
 state-dependent-diffusion argument. The bias channel is modelled by the one-dimensional Itô
@@ -227,7 +233,7 @@ namespace IcnnLift
 
 The density itself is `IcnnLift.stationaryDensity` of `StationaryDensity.lean`, imported rather
 than restated: `stationaryDensity C0 eta sigma2 U w = C0 / sigma2 w * exp (-(2/eta) U w)`, the
-display `(*)` of `lemma1_rederivation.md` §3. -/
+display `(*)` of the design note, §3. -/
 
 /-- The logarithm of the stationary density in the additive form the curvature computation uses:
 `log pi = log C0 - log (sigma_eff^2) - (2/eta) U_eff`. -/

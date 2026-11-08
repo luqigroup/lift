@@ -195,7 +195,7 @@ def main():
         bot_in, top_in = 0.34, 0.13
     else:
         right_in = edge_in + 0.03
-        left_in, pa_w, gap_ab = lab_w + 0.05, 1.78, 0.52
+        left_in, pa_w, gap_ab = lab_w + 0.12, 1.74, 0.52
         bot_in, top_in = 0.50, 0.30      # hint row under (a); legend band on top
     sv_w = W - right_in - left_in - pa_w - gap_ab
 
@@ -206,7 +206,7 @@ def main():
     else:
         draw_panel_a(ax, plot, LAB_FS, TICK_FS, AX_FS, TAG_FS, dagger=False,
                      show_diverged=False, range_lw=1.3, range_alpha=0.45, ms=3.4,
-                     xlabel="exit rate per visit",
+                     xlabel="rate at which a visit ends",
                      hint=("rarely leaves", "leaves at once"))
 
     x0 = left_in + pa_w + gap_ab
@@ -244,7 +244,7 @@ def main():
     for s_ in ("top", "right"):
         axb.spines[s_].set_visible(False)
     axb.text(0.0, 1.008, "(b)", transform=axb.transAxes, ha="left", va="bottom",
-             fontsize=TAG_FS, color="0.35")
+             fontsize=TAG_FS, color="0.1")
     if a.legacy_layout or a.inset_numbers:
         axb.text(0.03, 0.34,
                  f"HEPMASS seed 0; {info['direct']['n_ev']} exits observed\n"
@@ -273,8 +273,8 @@ def main():
         hl = [Line2D([], [], color=COL[arm], lw=1.2, linestyle=DASH[arm], marker="o",
                      ms=3.4, mfc=COL[arm], mec=COL[arm], label=LABEL[arm])
               for arm in ("direct", "lift", "pgd")]
-        hl.append(Line2D([], [], color="0.45", lw=0, marker="o", ms=3.4, mfc="none",
-                         mec="0.45", mew=0.8, label="open dot: the set is almost never entered"))
+        hl.append(Line2D([], [], color="0.2", lw=0, marker="o", ms=3.4, mfc="none",
+                         mec="0.2", mew=0.8, label="open dot: almost no weight gets there"))
         leg = fig.legend(handles=hl, loc="upper left",
                          bbox_to_anchor=(left_in / W, 1.0 - 0.012), frameon=False, ncol=4,
                          fontsize=STRIP_FS, handlelength=1.9, handletextpad=0.4,
@@ -283,7 +283,7 @@ def main():
             if hnd is not None:
                 t_.set_color(COL[hnd])
             else:
-                t_.set_color("0.45")
+                t_.set_color("0.1")
 
     os.makedirs(a.out_dir, exist_ok=True); stem = os.path.join(a.out_dir, "dwell_survival")
     fig.savefig(stem + ".pdf", dpi=a.dpi); fig.savefig(stem + ".png", dpi=a.dpi); plt.close(fig)

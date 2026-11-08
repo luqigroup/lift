@@ -105,14 +105,15 @@ def main():
     p.add_argument("--tile_scale", type=float, default=1.0,
                    help="image-row tile size as a fraction of the full five-across width")
     p.add_argument("--initmatch", action="store_true", help="draw the init-matched control: every construction starts inside the shoulder")
-    p.add_argument("--out_name", default=None, help="default: ffhq_panel (--curve val) or ffhq_panel_train")
-    p.add_argument("--curve", choices=["train", "val"], default="train",
+    p.add_argument("--out_name", default=None, help="default: ffhq_panel (--curve val), ffhq_panel_train, or ffhq_panel_images (--curve none)")
+    p.add_argument("--curve", choices=["train", "val", "none"], default="train",
                    help="bottom row: the critic objective alone with the test PSNR at the reported iterate in a framed table (default; "
-                        "the paper is about optimization), or the critic objective beside the validation PSNR along training")
+                        "the paper is about optimization), the critic objective beside the validation PSNR along training, "
+                        "or none, the image row alone")
     p.add_argument("--seed", type=int, default=0); p.add_argument("--examples", default="1", help="which stored test images to show")
     a = p.parse_args()
     if a.out_name is None:
-        a.out_name = "ffhq_panel" + ("_train" if a.curve == "train" else "")
+        a.out_name = "ffhq_panel" + {"train": "_train", "val": "", "none": "_images"}[a.curve]
     apply_paper_style(); matplotlib.rcParams["savefig.bbox"] = "standard"; matplotlib.rcParams["axes.grid"] = False
     col = {"hypernet": PALETTE["hypernet"], "direct": PALETTE["direct_softplus"], "pgd": "#2ca02c", "grey": "0.35"}
     dash = {"hypernet": (0, ()), "direct": (0, (4, 1.6)), "pgd": (0, (3, 1.2, 1, 1.2))}
@@ -147,8 +148,11 @@ def main():
     # The tiles run the full width up to the legend strip; only the critic
     # panel stops short of it, to leave room for the table.
     img_span_in = W - right_in - img_left_in
+    if a.curve == "none":
+        right_in = left_in = img_left_in = 0.02; img_span_in = W - 0.04; a.loss_h = 0.0
     tile = a.tile_scale * (img_span_in - 4 * tile_gap) / 5
     top_in, title_in, mid_in, bot_in = 0.03, 0.13, 0.15, 0.29
+    if a.curve == "none": mid_in, bot_in = 0.0, 0.02
     n_rows = len(ex)
     H = top_in + title_in + n_rows * tile + (n_rows - 1) * tile_gap + mid_in + a.loss_h + bot_in
     fig = plt.figure(figsize=(W, H))
@@ -171,6 +175,11 @@ def main():
     # Bottom row: left, the critic objective on the training batches; right,
     # PSNR on the validation images, ending at the test PSNR at the reported
     # iterate, with direct softplus's shoulder share in red.
+    if a.curve == "none":
+        os.makedirs(a.out_dir, exist_ok=True); stem = f"{a.out_dir}/{a.out_name}"
+        fig.savefig(stem + ".pdf"); fig.savefig(stem + ".png", dpi=300); plt.close(fig)
+        print("wrote", stem + ".pdf", f"({W:.2f} x {H:.2f} in)")
+        return
     gap_in = 0.55
     pw = (W - left_in - right_in - gap_in) / 2
     if a.curve == "train":
@@ -210,7 +219,7 @@ def main():
         a_.set_xticks([0, 1000, 2000, 2500]); a_.set_xticklabels(["0", "1k", "2k", "2.5k"])
         a_.tick_params(labelsize=7.5, length=2.5, pad=1.5); a_.set_xlabel("iteration", fontsize=8.5, labelpad=0.5)
         for s_ in ("top", "right"): a_.spines[s_].set_visible(False)
-    ax_l.set_ylabel("critic objective", fontsize=8.5, labelpad=2)
+    ax_l.set_ylabel("training objective", fontsize=8.5, labelpad=2)
     sh = float(met["direct"]["history"]["w_frac_shoulder"][-1])
     if ax is not None:
         ax.text(0.5, 1.015, f"{sh:.2f} on shoulder", transform=ax.transAxes, ha="center", va="bottom", fontsize=7.0, color=col["direct"])
