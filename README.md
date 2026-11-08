@@ -211,6 +211,25 @@ python scripts/collect_positivity_maps_1d.py --out_dir data/checkpoints/lcmm_1d_
     --backends direct_exp
 ```
 
+**The squared map on the one-dimensional targets**, Section 4.1. Direct training under
+`W = W_raw ** 2` (backend `direct_square`), with the latent initialized so that the constrained weight
+starts where softplus starts. The step size is selected on the held-out loss of seed 0 among the five
+below; seeds 1 to 5 then run at the selected step, which is 2e-3 on Gumbel, Laplace and Gamma and
+2.5e-4 on Beta.
+
+```bash
+for LR in 0.000125 0.00025 0.0005 0.001 0.002; do
+    python scripts/experiments_lcmm_1d_logconcave.py --targets gumbel,laplace,gamma,beta \
+        --seeds 0 --backends direct_square --lr_ebm $LR --out_dir data/checkpoints/lcmm_1d_square/A_lr$LR
+done
+python scripts/experiments_lcmm_1d_logconcave.py --targets gumbel,laplace,gamma \
+    --seeds 1,2,3,4,5 --backends direct_square --lr_ebm 0.002 --out_dir data/checkpoints/lcmm_1d_square/B
+python scripts/experiments_lcmm_1d_logconcave.py --targets beta \
+    --seeds 1,2,3,4,5 --backends direct_square --lr_ebm 0.00025 --out_dir data/checkpoints/lcmm_1d_square/B
+python scripts/collect_positivity_maps_1d.py --out_dir data/checkpoints/lcmm_1d_square/B \
+    --backends direct_square
+```
+
 **Shoulder share and exit rate at three thresholds**, Figure 11. `scripts/measure_occupancy_thresholds.py`
 recomputes the statistics of `scripts/measure_dwell_time.py` from the snapshots stored in the
 thirty-seed one-dimensional archives, at the thresholds 0.02, 0.05 and 0.10 on the derivative of the

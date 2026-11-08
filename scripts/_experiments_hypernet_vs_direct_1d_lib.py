@@ -197,6 +197,9 @@ class DirectParamModule(nn.Module):
       every negative constrained coordinate becomes ``exp(w - exp_eps)``
       and the rest are left alone. ``exp_eps = 5`` is their constant, so a
       crossed coordinate re-enters the orthant below ``exp(-5)``.
+    * ``"square"``: the squared map ``W = W_raw ** 2``. The latent is
+      initialized as ``sqrt(softplus(w_0))``, so the constrained weight at
+      step zero is the softplus path's.
     * ``"exp"``: the exponential map ``W = exp(W_raw)`` of Sill (1998).
       The latent is initialized as ``log(softplus(w_0))``, so the
       constrained weight at step zero is the softplus path's.
@@ -228,11 +231,11 @@ class DirectParamModule(nn.Module):
     ) -> None:
         super().__init__()
         if pos_constraint_mode not in ("softplus", "pgd", "pgd_floor",
-                                       "noise", "exp_post", "exp"):
+                                       "noise", "exp_post", "exp", "square"):
             raise ValueError(
                 f"DirectParamModule pos_constraint_mode must be "
-                f"'softplus', 'pgd', 'pgd_floor', 'noise', 'exp_post' or "
-                f"'exp', got {pos_constraint_mode!r}.",
+                f"'softplus', 'pgd', 'pgd_floor', 'noise', 'exp_post', "
+                f"'exp' or 'square', got {pos_constraint_mode!r}.",
             )
         if not math.isfinite(float(exp_eps)) or float(exp_eps) < 0.0:
             raise ValueError(
@@ -300,6 +303,11 @@ class DirectParamModule(nn.Module):
         self.init_mode = str(init_mode)
         apply_init_mode(self._inner, self._pos_names, self.init_mode,
                         latent=pos_constraint_mode not in _RAW_WEIGHT_MODES)
+        if pos_constraint_mode == "square":
+            with torch.no_grad():
+                for name, prm in self._inner.named_parameters():
+                    if name in self._pos_names:
+                        prm.copy_(torch.sqrt(F.softplus(prm)))
         if pos_constraint_mode == "exp":
             with torch.no_grad():
                 for name, prm in self._inner.named_parameters():
@@ -329,7 +337,9 @@ class DirectParamModule(nn.Module):
                 pre = p
                 if inject:
                     pre = p + torch.randn_like(p) * self.noise_sigma
-                if self.pos_constraint_mode == "exp":
+                if self.pos_constraint_mode == "square":
+                    out[name] = pre * pre
+                elif self.pos_constraint_mode == "exp":
                     out[name] = torch.exp(pre)
                 else:
                     out[name] = F.softplus(pre)
@@ -798,11 +808,13 @@ class HypernetVsDirect1D:
         kwargs = _train_kwargs(self.args)
         torch.manual_seed(int(seed))
         np.random.seed(int(seed))
-        if (backend in ("direct", "pgd", "direct_noise", "direct_exp")
+        if (backend in ("direct", "pgd", "direct_noise", "direct_square",
+                        "direct_exp")
                 or _floor_of(backend) is not None
                 or _exppost_eps(backend) is not None
                 or _direct_mult(backend) is not None):
             _mode = {"pgd": "pgd", "direct_noise": "noise",
+                     "direct_square": "square",
                      "direct_exp": "exp"}.get(backend, "softplus")
             if _floor_of(backend) is not None:
                 _mode = "pgd_floor"
@@ -1038,8 +1050,8 @@ class HypernetVsDirect1D:
             for backend in backends:
                 if (
                     backend not in ("hypernet", "direct", "pgd",
-                                    "direct_noise", "direct_exp",
-                                    "hypernet_exp")
+                                    "direct_noise", "direct_square",
+                                    "direct_exp", "hypernet_exp")
                     and _parse_lift_backend(backend) is None
                     and _floor_of(backend) is None
                     and _exppost_eps(backend) is None
@@ -1048,7 +1060,8 @@ class HypernetVsDirect1D:
                     raise ValueError(
                         f"unknown backend {backend!r}; expected one of "
                         "{'hypernet', 'direct', 'pgd', 'direct_noise', "
-                        "'direct_exp', 'hypernet_exp'}, pgd_floor<E>, "
+                        "'direct_square', 'direct_exp', 'hypernet_exp'}, "
+                        "pgd_floor<E>, "
                         "direct_exppost[<eps>], direct_m<M>, or "
                         "lift_moments | lift_tiny<K> | lift_const<K> "
                         "(optional _fs suffix)",

@@ -154,6 +154,7 @@ def _parse() -> argparse.Namespace:
     p.add_argument(
         "--backends", default="hypernet,direct",
         help="comma-separated subset of {hypernet, direct, pgd}, or the "
+             "squared map (direct_square), the "
              "exponential map (hypernet_exp, direct_exp) and the post-update "
              "exponentiation of Sivaprasad et al. (2021) (direct_exppost)",
     )
